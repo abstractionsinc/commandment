@@ -95,9 +95,9 @@ Inside `abduct`, one `int` destination is shared by a static default, environmen
 
 `Compile` validates the static declaration and publishes an immutable, reusable `Application` only if the declaration is valid.
 
-## Prove the same semantic fact
+## Prove semantic facts with `clitest`
 
-Commandment did not merely decode strings into a struct. The compiled application retained enough meaning to prove why `BeamStrength` became `4`.
+Commandment comes packaged with it's own assertion library for unit testing applications using commandment:
 
 ```go
 func TestBeamStrengthFlagWins(t *testing.T) {
@@ -136,7 +136,7 @@ A handler-output assertion could prove that the application eventually printed `
 
 Commandment is designed for CLIs where grammar, configuration, policy, completion, presentation, tooling, and tests need to agree on the same application model.
 
-## Completion reaches real shells
+## Completion is a first class citizen
 
 Completion uses the same semantic subjects as execution. A completer receives the semantic request and contributes structured candidates.
 
@@ -171,6 +171,8 @@ manifest.CompleteWith(cli.CompletionNativeFiles).Long("manifest")
 
 Dynamic value domains and invocation-time command providers can participate in the same completion operation. Matching and ranking remain semantic application behavior; shell integrations adapt that behavior to real clients.
 
+### Built-in Shells supported
+
 | Shell                           | Built-in target |
 | ------------------------------- | --------------- |
 | Bash                            | 3.2+            |
@@ -189,7 +191,7 @@ source <(./alienctl completion bash)
 
 Elvish and Nushell can also generate syntax for an explicit supported target version when their integration syntax differs across releases. Custom shell providers adapt the same completion engine instead of defining another command model. `shelltest` exercises shell completion through real shell runtimes.
 
-## Help is another projection of the declaration
+## Help is integrated into command declarations
 
 A substantial CLI can organize presentation without maintaining a second help tree. Inside the root declaration, two groups are enough to make that organization explicit:
 
@@ -234,7 +236,7 @@ Flags:
 
 `Flags.HelpGroup` organizes flags the same way. The presentation model also carries descriptions, examples, lifecycle information, localization, and release/version data. A custom renderer receives a structured `cli.HelpPage` instead of rediscovering the CLI from another registry.
 
-## The application is machine-readable
+## CLI structures are machine-readable
 
 The compiled CLI is available as detached static data.
 
