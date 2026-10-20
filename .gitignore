@@ -1,0 +1,6 @@
+/bin/
+# Scenario-local binaries produced by example README build commands.
+/examples/*/*/alienctl
+/examples/*/*/alienctl.exe
+/examples/*/*/alienctl-*
+/examples/*/*/alienctl-*.exe

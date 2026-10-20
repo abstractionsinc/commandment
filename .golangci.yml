@@ -1,0 +1,244 @@
+version: "2"
+
+run:
+  relative-path-mode: gomod
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - embeddedstructfieldcheck
+    - err113
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - fatcontext
+    - forbidigo
+    - forcetypeassert
+    - gocheckcompilerdirectives
+    - gochecknoglobals
+    - gochecknoinits
+    - gochecksumtype
+    - goconst
+    - gocritic
+    - godoclint
+    - godot
+    - godox
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - gosmopolitan
+    - govet
+    - grouper
+    - iface
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - intrange
+    - iotamixing
+    - makezero
+    - mirror
+    - misspell
+    - mnd
+    - modernize
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nonamedreturns
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    - reassign
+    - recvcheck
+    - revive
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+    - wrapcheck
+  settings:
+    exhaustive:
+      # A switch with an explicit default already handles future/unlisted enum values.
+      default-signifies-exhaustive: true
+    forbidigo:
+      forbid:
+        - pattern: ^fmt\.Errorf$
+          msg: construct Commandment-owned structured errors at the semantic owner
+      exclude-godoc-examples: false
+      analyze-types: false
+    goconst:
+      # Repeated scenario literals do not create shared test vocabulary.
+      ignore-tests: true
+    funlen:
+      # Review function size by statements, never by physical source lines.
+      lines: -1
+      statements: 40
+    interfacebloat:
+      max: 10
+    nilnil:
+      # The repository law forbids ambiguous absence only in two-result APIs.
+      only-two: true
+    nonamedreturns:
+      # A returned error may be named when deferred cleanup truthfully mutates it.
+      report-error-in-defer: false
+    paralleltest:
+      ignore-missing: false
+      ignore-missing-subtests: false
+    revive:
+      enable-default-rules: true
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: unexported-return
+          disabled: true
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+    thelper:
+      test:
+        first: false
+        name: false
+        begin: true
+      benchmark:
+        first: false
+        name: false
+        begin: true
+      tb:
+        first: false
+        name: false
+        begin: true
+      fuzz:
+        first: false
+        name: false
+        begin: true
+  exclusions:
+    generated: strict
+    rules:
+      # Ordinary test fixtures may construct local dynamic errors. The production
+      # structured-error law remains hard because this is both path- and source-scoped.
+      - path: _test\.go$
+        source: '\b(?:errors\.New|fmt\.Errorf)\('
+        linters:
+          - err113
+      # Ordinary tests may construct formatted fixture errors. Keep the exception
+      # source-scoped so future forbidigo rules remain hard in tests by default.
+      - path: _test\.go$
+        source: '\bfmt\.Errorf\('
+        linters:
+          - forbidigo
+
+      # The interrupt example re-executes the exact current test binary so it can
+      # receive a real process signal without invoking the Go toolchain from a test.
+      - path: ^examples/signals/interrupt/main_test\.go$
+        source: 'exec\.CommandContext\(ctx, executable,'
+        linters: [gosec]
+
+      - path: ^clibench/operations_test\.go$
+        source: 'correctnessBenchmark\(t, func\(b \*testing\.B\) \{'
+        linters: [thelper]
+      # Intentional stateless public constructor namespaces.
+      - path: ^cli/grammar\.go$
+        source: '^var Count countConstructors$'
+        linters: [gochecknoglobals]
+      - path: ^cli/value\.go$
+        source: '^var Value valueConstructors$'
+        linters: [gochecknoglobals]
+      - path: ^cli/source\.go$
+        source: '^var Source sourceConstructors$'
+        linters: [gochecknoglobals]
+      - path: ^cli/input_rejection\.go$
+        source: '^var Rejection rejectionConstructors$'
+        linters: [gochecknoglobals]
+      - path: ^cli/release\.go$
+        source: '^var Release releaseSchemes$'
+        linters: [gochecknoglobals]
+      - path: ^cli/shell_completion\.go$
+        source: '^var Shell shellNamespace$'
+        linters: [gochecknoglobals]
+      # Standalone examples intentionally expose their static application as one
+      # package-level definition value so public consumer code has one copyable
+      # declaration grammar. GO_STYLE_GUIDE Section 20 owns this source shape.
+      - path: ^examples/[^/]+/[^/]+/main\.go$
+        source: '^var definition = cli\.Definition'
+        linters: [gochecknoglobals]
+      # signalDispatcher is the concrete callback lifetime owner: it retains the
+      # derived callback context so Close can cancel and settle active callbacks.
+      # GO_STYLE_GUIDE permits stored context for a real lifetime owner.
+      - path: ^cli/execution_signal_dispatch\.go$
+        source: '^\s*callbackContext\s+context\.Context$'
+        linters: [containedctx]
+
+      # unsafe.Pointer is the storage adapter's explicit representation mechanism.
+      - path: ^cli/configuration\.go$
+        text: '^G103:'
+        linters: [gosec]
+      # Process response-file access intentionally reads the caller-selected path
+      # under ordinary process filesystem authority. G304 is the exact capability.
+      - path: ^cli/process\.go$
+        text: '^G304:'
+        source: '^\s*content, err := os\.ReadFile\(path\)$'
+        linters: [gosec]
+      # Fish completion is embedded shell grammar; "end" repetition is syntax,
+      # not duplicated prose.
+      - path: ^cli/shell_completion_fish\.go$
+        source: '^const fishCompletionScript = '
+        linters: [dupword]
+
+formatters:
+  enable:
+    - gci
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule
+      custom-order: true
+    gofumpt:
+      module-path: github.com/abstractionsinc/commandment
+      extra:
+        group-params: true
+        balance-calls: true
+  exclusions:
+    generated: strict
+
+issues:
+  # Full-census behavior: preserve every finding so broad lint runs can be
+  # adjudicated by finding family rather than by a truncated first sample.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
+  fix: false
