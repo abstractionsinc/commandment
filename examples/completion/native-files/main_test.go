@@ -13,12 +13,16 @@ func TestCompletionDelegatesFilesToTheClient(t *testing.T) {
 	app := clitest.Compile(t, definition)
 	client := cli.CompletionClient{
 		Capabilities: cli.CompletionClientCapabilities{
-			Native: cli.CompletionNativeCapabilities{Files: true},
+			Native: cli.CompletionNativeCapabilities{
+				Files: true,
+			},
 		},
 	}
 	request := cli.CompletionRequest{
-		Args:   []string{"upload", "--manifest", ""},
-		Cursor: cli.CompletionCursor{Argument: 2},
+		Args: []string{"upload", "--manifest", ""},
+		Cursor: cli.CompletionCursor{
+			Argument: 2,
+		},
 		Client: client,
 	}
 	clitest.Complete(t.Context(), app, request).Require(t,

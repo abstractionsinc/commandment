@@ -46,7 +46,7 @@ func TestFailureReportingContract(t *testing.T) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	args := []string{"-test.run=^TestFailureReportingContract$", "-test.v"}
 	if coverDir := os.Getenv("GOCOVERDIR"); coverDir != "" {
@@ -171,7 +171,9 @@ func runFailureReportingHelper(t *testing.T) {
 	observedAt := time.Unix(1700000400, 43)
 	report := cli.DiagnosticReport{
 		Diagnostics: []cli.Diagnostic{
-			{Code: cli.DiagnosticInvalidValue},
+			{
+				Code: cli.DiagnosticInvalidValue,
+			},
 			{
 				Code: cli.DiagnosticSignalActionFailure,
 				SignalAction: &cli.SignalActionFailure{
@@ -202,7 +204,9 @@ func runFailureReportingHelper(t *testing.T) {
 	}
 	report.Truncated = true
 	result := DiagnosticsResult{
-		state: &diagnosticsResultState{observation: report},
+		state: &diagnosticsResultState{
+			observation: report,
+		},
 	}
 
 	expectedAction := *report.Diagnostics[1].SignalAction
@@ -212,7 +216,11 @@ func runFailureReportingHelper(t *testing.T) {
 		Diagnostic(cli.DiagnosticUnknownFlag).Absent(),
 		DiagnosticAt(1).SignalActionFailure(expectedAction),
 	)
-	(DiagnosticsResult{state: &diagnosticsResultState{observation: cli.DiagnosticReport{}}}).Require(t, nil)
+	(DiagnosticsResult{
+		state: &diagnosticsResultState{
+			observation: cli.DiagnosticReport{},
+		},
+	}).Require(t, nil)
 }
 
 func TestFailsWithRequiresAndChecksStructuredCommandmentFailure(t *testing.T) {
@@ -285,11 +293,15 @@ func TestReusableStaticExpectationStateHasNoHiddenCrossGoroutineMutation(t *test
 func TestDiagnosticsResultRetainsExactObservation(t *testing.T) {
 	t.Parallel()
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidDeclaration}},
-		Truncated:   true,
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticInvalidDeclaration,
+		}},
+		Truncated: true,
 	}
 	result := DiagnosticsResult{
-		state: &diagnosticsResultState{observation: report},
+		state: &diagnosticsResultState{
+			observation: report,
+		},
 	}
 
 	got := result.Report()
@@ -360,7 +372,9 @@ func TestOperationResultZeroValueIsInvalid(t *testing.T) {
 func TestDiagnosticProducerKindFailureUsesSemanticNames(t *testing.T) {
 	t.Parallel()
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{ProducerKind: cli.ValueProducerKindUnknown}},
+		Diagnostics: []cli.Diagnostic{{
+			ProducerKind: cli.ValueProducerKindUnknown,
+		}},
 	}
 	expectation, ok := diagnosticProducerKindExpectation(DiagnosticAt(0), cli.ValueProducerKindEnvironment).(diagnosticExpectation)
 	if !ok {
@@ -375,8 +389,10 @@ func TestDiagnosticProducerKindFailureUsesSemanticNames(t *testing.T) {
 func TestDiagnosticPositiveExpectationCanUseTruthfulTruncatedEvidence(t *testing.T) {
 	t.Parallel()
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidDeclaration}},
-		Truncated:   true,
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticInvalidDeclaration,
+		}},
+		Truncated: true,
 	}
 	expectation, ok := diagnosticPresentExpectation(Diagnostic(cli.DiagnosticInvalidDeclaration)).(diagnosticExpectation)
 	if !ok {
@@ -411,8 +427,12 @@ func TestDiagnosticsExactlyRequiresCompleteAuthoritativeOrder(t *testing.T) {
 	}
 	complete := cli.DiagnosticReport{
 		Diagnostics: []cli.Diagnostic{
-			{Code: cli.DiagnosticUnknownFlag},
-			{Code: cli.DiagnosticInvalidValue},
+			{
+				Code: cli.DiagnosticUnknownFlag,
+			},
+			{
+				Code: cli.DiagnosticInvalidValue,
+			},
 		},
 	}
 	if got := expectation.evaluateDiagnosticReport(complete); got.status != evaluationProved {
@@ -421,8 +441,12 @@ func TestDiagnosticsExactlyRequiresCompleteAuthoritativeOrder(t *testing.T) {
 
 	reversed := cli.DiagnosticReport{
 		Diagnostics: []cli.Diagnostic{
-			{Code: cli.DiagnosticInvalidValue},
-			{Code: cli.DiagnosticUnknownFlag},
+			{
+				Code: cli.DiagnosticInvalidValue,
+			},
+			{
+				Code: cli.DiagnosticUnknownFlag,
+			},
 		},
 	}
 	if got := expectation.evaluateDiagnosticReport(reversed); got.status != evaluationDisproved {
@@ -463,7 +487,9 @@ func TestDiagnosticsRequireAcceptsImplementedExpectations(t *testing.T) {
 		}},
 	}
 	result := DiagnosticsResult{
-		state: &diagnosticsResultState{observation: report},
+		state: &diagnosticsResultState{
+			observation: report,
+		},
 	}
 	result.Require(t,
 		Diagnostic(cli.DiagnosticInvalidValue).Present(),
@@ -624,7 +650,9 @@ func TestDiagnosticStructuredIntegrationFailureExpectationsUseExactPublicObserva
 		},
 	}
 	result := DiagnosticsResult{
-		state: &diagnosticsResultState{observation: report},
+		state: &diagnosticsResultState{
+			observation: report,
+		},
 	}
 	expectedAction := cloneSignalActionFailure(*report.Diagnostics[0].SignalAction)
 	expectedOverflow := *report.Diagnostics[1].SignalOverflow
@@ -763,7 +791,7 @@ func TestDiagnosticsConsumesExactRealPublicFailureReport(t *testing.T) {
 	request := cli.RunRequest{
 		Args: []string{"--definitely-unknown"},
 	}
-	err = app.Run(context.Background(), request)
+	err = app.Run(t.Context(), request)
 	if err == nil {
 		t.Fatal("Run unexpectedly succeeded")
 	}
@@ -839,9 +867,23 @@ func TestTypedStaticPolicyExpectationsUseObservedRecordsAcrossOperations(t *test
 		rule.Sensitive(),
 	}
 	for _, expectation := range expectations {
-		(SchemaResult{state: &schemaResultState{observation: schema}}).Require(t, expectation)
-		(ReferenceResult{state: &referenceResultState{observation: reference, err: nil}}).Require(t, expectation)
-		(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t, expectation)
+		(SchemaResult{
+			state: &schemaResultState{
+				observation: schema,
+			},
+		}).Require(t, expectation)
+		(ReferenceResult{
+			state: &referenceResultState{
+				observation: reference,
+				err:         nil,
+			},
+		}).Require(t, expectation)
+		(InspectionResult{
+			state: &inspectionResultState{
+				observation: inspection,
+				err:         nil,
+			},
+		}).Require(t, expectation)
 	}
 }
 
@@ -853,7 +895,9 @@ func TestTypedStaticPolicyExactCollectionsRemainCompletenessAware(t *testing.T) 
 	inspection := cli.Inspection{
 		Truncated: true,
 		Commands: map[cli.CommandID]cli.CommandInspection{
-			commandID: {ID: commandID},
+			commandID: {
+				ID: commandID,
+			},
 		},
 	}
 
@@ -873,7 +917,12 @@ func TestExplicitFailureAndDiagnosticReportTruncationExpectationOwners(t *testin
 	t.Parallel()
 	err := invalidDeclarationFailure(t)
 	explicit := FailsWith(Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
-	(InspectionResult{state: &inspectionResultState{observation: cli.Inspection{}, err: err}}).Require(t, explicit)
+	(InspectionResult{
+		state: &inspectionResultState{
+			observation: cli.Inspection{},
+			err:         err,
+		},
+	}).Require(t, explicit)
 
 	checkedMismatch, ok := FailsWith(Diagnostic(cli.DiagnosticUnknownFlag).Present()).(failureExpectationValue)
 	if !ok {
@@ -888,9 +937,11 @@ func TestExplicitFailureAndDiagnosticReportTruncationExpectationOwners(t *testin
 	}
 
 	DiagnosticsResult{
-		state: &diagnosticsResultState{observation: cli.DiagnosticReport{
-			Truncated: true,
-		}},
+		state: &diagnosticsResultState{
+			observation: cli.DiagnosticReport{
+				Truncated: true,
+			},
+		},
 	}.Require(t, DiagnosticsTruncated())
 }
 

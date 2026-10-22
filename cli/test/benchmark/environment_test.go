@@ -54,7 +54,9 @@ func environmentFixture(tb testing.TB, producers, matched, entries int) (cli.App
 	tb.Helper()
 	definition := cli.Definition[stringConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[stringConfig]) {
 			for index := range producers {
 				destination := root.Values.String(&root.Config.Values[index])
@@ -81,7 +83,10 @@ func environmentFixture(tb testing.TB, producers, matched, entries int) (cli.App
 			Value: "value",
 		})
 	}
-	return app, cli.InspectionRequest{Env: env}
+	request := cli.InspectionRequest{
+		Env: env,
+	}
+	return app, request
 }
 
 func preflightEnvironmentInspection(tb testing.TB, app cli.Application, request cli.InspectionRequest, matched int) {

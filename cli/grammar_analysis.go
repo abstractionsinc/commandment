@@ -446,10 +446,11 @@ func scanFlagToken(ctx context.Context, operation *invocation, analysis *analysi
 				return result
 			}
 			state.index = next
-			return flagTokenScanOutcome{
+			outcome := flagTokenScanOutcome{
 				state:        state,
 				continueScan: true,
 			}
+			return outcome
 		}
 	}
 
@@ -472,7 +473,10 @@ func scanFlagToken(ctx context.Context, operation *invocation, analysis *analysi
 		return value
 	}
 	if !match.found {
-		return flagTokenScanOutcome{state: state}
+		outcome := flagTokenScanOutcome{
+			state: state,
+		}
+		return outcome
 	}
 	if kind := flagMatchLifecycleIssue(analysis, match); kind != grammarIssueNone {
 		grammarIssueValue2 := grammarIssue{
@@ -524,10 +528,11 @@ func scanFlagToken(ctx context.Context, operation *invocation, analysis *analysi
 		state.positional = nil
 		state.route = grammarRouteTerminalAction
 		state.index++
-		return flagTokenScanOutcome{
+		outcome := flagTokenScanOutcome{
 			state:        state,
 			continueScan: true,
 		}
+		return outcome
 	}
 
 	count := state.occurrences[match.flag.id]
@@ -552,19 +557,21 @@ func scanFlagToken(ctx context.Context, operation *invocation, analysis *analysi
 		if streaming {
 			state.rescanIndex = state.index
 			state.rescanConditionLen = conditionLenBeforeToken
-			return flagTokenScanOutcome{
+			outcome := flagTokenScanOutcome{
 				state:    state,
 				stopScan: true,
 			}
+			return outcome
 		}
 		occurrence.Occurrence = count
 		claimFlagOccurrence(result, current, match, occurrence, count)
 		state.pendingFlagValue = cloneFlagOccurrence(&occurrence)
 		state.index = next
-		return flagTokenScanOutcome{
+		outcome := flagTokenScanOutcome{
 			state:        state,
 			continueScan: true,
 		}
+		return outcome
 	}
 	if issue != grammarIssueNone {
 		grammarIssueValue5 := grammarIssue{
@@ -595,10 +602,11 @@ func scanFlagToken(ctx context.Context, operation *invocation, analysis *analysi
 				return value
 			}
 			state.index = next
-			return flagTokenScanOutcome{
+			outcome := flagTokenScanOutcome{
 				state:        state,
 				continueScan: true,
 			}
+			return outcome
 		}
 		value := flagTokenScanOutcome{
 			state:              state,
@@ -641,10 +649,11 @@ func scanFlagToken(ctx context.Context, operation *invocation, analysis *analysi
 		}
 		state.flagFrontierValid = false
 	}
-	return flagTokenScanOutcome{
+	outcome := flagTokenScanOutcome{
 		state:        state,
 		continueScan: true,
 	}
+	return outcome
 }
 
 func claimFlagOccurrence(result *grammarResult, current CommandID, match flagMatch, occurrence flagOccurrence, count int) {
@@ -699,10 +708,11 @@ func scanHelpPathToken(operation *invocation, analysis *analysisState, result *g
 		state.flagFrontierValid = false
 	}
 	if !settlement.settled {
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	match := settlement.match
 	if match.ambiguous {
@@ -713,17 +723,19 @@ func scanHelpPathToken(operation *invocation, analysis *analysisState, result *g
 			Entries:    match.entries,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue2)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	if !match.found {
 		if !settlement.namespaceComplete {
-			return commandRouteScanOutcome{
+			outcome := commandRouteScanOutcome{
 				state:    state,
 				stopScan: true,
 			}
+			return outcome
 		}
 		grammarIssueValue5 := grammarIssue{
 			Kind:       grammarIssueUnexpectedInput,
@@ -731,10 +743,11 @@ func scanHelpPathToken(operation *invocation, analysis *analysisState, result *g
 			Command:    state.current,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue5)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	if kind := commandMatchLifecycleIssue(analysis, match); kind != grammarIssueNone {
 		grammarIssueValue := grammarIssue{
@@ -745,10 +758,11 @@ func scanHelpPathToken(operation *invocation, analysis *analysisState, result *g
 			Actions:    match.actions,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	if !match.enabled {
 		grammarIssueValue3 := grammarIssue{
@@ -758,10 +772,11 @@ func scanHelpPathToken(operation *invocation, analysis *analysisState, result *g
 			Entries:    match.entries,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue3)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	markDefaultsNotEvaluatedAt(analysis, result, state.current)
 	ownership := tokenOwnership{
@@ -781,10 +796,11 @@ func scanHelpPathToken(operation *invocation, analysis *analysisState, result *g
 			Entries:    match.entries,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue4)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	state.current = match.entry.target
 	result.Selection.Selected = state.current
@@ -804,10 +820,11 @@ func scanHelpPathToken(operation *invocation, analysis *analysisState, result *g
 	}
 	result.Selection.Steps = append(result.Selection.Steps, selectionStepValue)
 	state.index++
-	return commandRouteScanOutcome{
+	outcome := commandRouteScanOutcome{
 		state:        state,
 		continueScan: true,
 	}
+	return outcome
 }
 
 func scanSelectingToken(operation *invocation, analysis *analysisState, result *grammarResult, condition grammarConditionDemandFunc, defaults grammarDefaultDemandFunc, view grammarView, dialect dialect, token string, materialize grammarNamespaceDemandFunc, demandedNamespaces *map[CommandID]struct{}, state commandRouteScanState) commandRouteScanOutcome {
@@ -820,10 +837,11 @@ func scanSelectingToken(operation *invocation, analysis *analysisState, result *
 		state.flagFrontierValid = false
 	}
 	if !settlement.settled {
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	match := settlement.match
 	if match.ambiguous {
@@ -835,38 +853,45 @@ func scanSelectingToken(operation *invocation, analysis *analysisState, result *
 			Actions:    match.actions,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	if match.found {
 		return acceptSelectingMatch(operation, analysis, result, settlement.view, match, state)
 	}
 	if !settlement.namespaceComplete {
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	next, selected := selectDefaultCommandAt(operation, analysis, result, defaults, condition, settlement.view, state.current, state.index)
 	if !selected {
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	if next == state.current {
-		return commandRouteScanOutcome{state: state}
+		outcome := commandRouteScanOutcome{
+			state: state,
+		}
+		return outcome
 	}
 	state.current = next
 	if state.flagFrontierValid {
 		state.flagFrontier.extend(settlement.view, state.current)
 	}
-	return commandRouteScanOutcome{
+	outcome := commandRouteScanOutcome{
 		state:        state,
 		continueScan: true,
 	}
+	return outcome
 }
 
 func acceptSelectingMatch(operation *invocation, analysis *analysisState, result *grammarResult, view grammarView, match childMatch, state commandRouteScanState) commandRouteScanOutcome {
@@ -879,10 +904,11 @@ func acceptSelectingMatch(operation *invocation, analysis *analysisState, result
 			Actions:    match.actions,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	if !match.enabled {
 		grammarIssueValue2 := grammarIssue{
@@ -893,10 +919,11 @@ func acceptSelectingMatch(operation *invocation, analysis *analysisState, result
 			Actions:    match.actions,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue2)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	if match.action.present() {
 		markDefaultsNotEvaluatedAt(analysis, result, state.current)
@@ -914,10 +941,11 @@ func acceptSelectingMatch(operation *invocation, analysis *analysisState, result
 		if match.actionKind == intrinsicActionHelp {
 			state.route = grammarRouteHelpPath
 		}
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:        state,
 			continueScan: true,
 		}
+		return outcome
 	}
 	markDefaultsNotEvaluatedAt(analysis, result, state.current)
 	ownership2 := tokenOwnership{
@@ -937,10 +965,11 @@ func acceptSelectingMatch(operation *invocation, analysis *analysisState, result
 			Entries:    match.entries,
 		}
 		appendGrammarIssue(result, operation.input.limits.Diagnostics, grammarIssueValue3)
-		return commandRouteScanOutcome{
+		outcome := commandRouteScanOutcome{
 			state:    state,
 			stopScan: true,
 		}
+		return outcome
 	}
 	state.current = match.entry.target
 	result.Selection.Selected = state.current
@@ -960,10 +989,11 @@ func acceptSelectingMatch(operation *invocation, analysis *analysisState, result
 	}
 	result.Selection.Steps = append(result.Selection.Steps, selectionStepValue)
 	state.index++
-	return commandRouteScanOutcome{
+	outcome := commandRouteScanOutcome{
 		state:        state,
 		continueScan: true,
 	}
+	return outcome
 }
 
 func (scanner *grammarScanner) scan(ctx context.Context, args []string, complete bool, skipArgument int, materialize grammarNamespaceDemandFunc, condition grammarConditionDemandFunc, defaults grammarDefaultDemandFunc, streaming bool) {

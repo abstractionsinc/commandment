@@ -111,7 +111,7 @@ func TestCompleteShortcutPrependedArgsPreserveIdentityAndDriveResidualValueCompl
 	root := completionCommandByPath(t, schema)
 	serve := completionCommandByPath(t, schema, "serve")
 	shortcut := clitest.ResolveDeclaration(t, schemaResult, root.Shortcut("quick"))
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -121,13 +121,14 @@ func TestCompleteShortcutPrependedArgsPreserveIdentityAndDriveResidualValueCompl
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionItem("quick").Kind(cli.CompletionCandidateCommandShortcut),
 		clitest.CompletionItem("quick").Declaration(shortcut),
 	)
 
 	shortcutSource := clitest.InputSource(cli.InputKindShortcut)
-	shortcutProof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequestUnderTest := cli.CompletionRequest{
 		Args: []string{"quick", "al"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -142,7 +143,8 @@ func TestCompleteShortcutPrependedArgsPreserveIdentityAndDriveResidualValueCompl
 				CandidateKinds: true,
 			},
 		},
-	})
+	}
+	shortcutProof := clitest.Complete(t.Context(), app, completionRequestUnderTest)
 	shortcutProof.Require(t,
 		shortcut.Selected(),
 		clitest.SelectionPathExactly(root, serve),
@@ -154,7 +156,7 @@ func TestCompleteShortcutPrependedArgsPreserveIdentityAndDriveResidualValueCompl
 		t.Fatalf("shortcut fixed Args resolved mode = %q, want fast", observedMode)
 	}
 
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequestUnderTest2 := cli.CompletionRequest{
 		Args: []string{"serve", "--mode", "fast", "al"},
 		Cursor: cli.CompletionCursor{
 			Argument: 3,
@@ -169,7 +171,8 @@ func TestCompleteShortcutPrependedArgsPreserveIdentityAndDriveResidualValueCompl
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequestUnderTest2).Require(t,
 		clitest.SelectionPathExactly(root, serve),
 		clitest.CompletionItem("alpha").Present(),
 	)
@@ -180,7 +183,7 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 	type rootConfig = completionShortcutRootConfig
 	type childConfig = completionShortcutModeNameChildConfig
 	compile := func(shortcut cli.CommandShortcut, configure func(cli.CommandShortcutDeclaration[childConfig], cli.Destination[childConfig, string])) cli.Application {
-		return clitest.Compile(t, cli.Definition[rootConfig]{
+		definition := cli.Definition[rootConfig]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[rootConfig]) {
 				root.Subcommands.Command(cli.Command[childConfig]{
@@ -193,14 +196,15 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 								&form.Config.Name,
 								"name",
 							).CompleteBy(func(_ context.Context, cfg *childConfig, _ cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-								return cli.CompletionContribution{
+								contribution := cli.CompletionContribution{
 									Candidates: []cli.CompletionCandidate{
 										{
 											Value: cfg.Mode,
 											Kind:  cli.CompletionCandidateValue,
 										},
 									},
-								}, nil
+								}
+								return contribution, nil
 							}).
 								From(mode)
 						})
@@ -211,7 +215,8 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 					},
 				})
 			},
-		})
+		}
+		return clitest.Compile(t, definition)
 	}
 
 	t.Run("append args", func(t *testing.T) {
@@ -220,7 +225,7 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 			Name:       "quick",
 			AppendArgs: []string{"--mode", "tail"},
 		}, nil)
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -230,7 +235,8 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 					CandidateKinds: true,
 				},
 			},
-		}).Require(t,
+		}
+		clitest.Complete(t.Context(), app, completionRequest).Require(t,
 			clitest.CompletionItem("tail").Present(),
 		)
 	})
@@ -242,7 +248,7 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 		}, func(shortcut cli.CommandShortcutDeclaration[childConfig], mode cli.Destination[childConfig, string]) {
 			shortcut.Default(mode, "safe")
 		})
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"safe", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -252,10 +258,11 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 					CandidateKinds: true,
 				},
 			},
-		}).Require(t,
+		}
+		clitest.Complete(t.Context(), app, completionRequest).Require(t,
 			clitest.CompletionItem("safe").Present(),
 		)
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequestUnderTest := cli.CompletionRequest{
 			Args: []string{"safe", "--mode", "fast", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 3,
@@ -265,7 +272,8 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 					CandidateKinds: true,
 				},
 			},
-		}).Require(t,
+		}
+		clitest.Complete(t.Context(), app, completionRequestUnderTest).Require(t,
 			clitest.CompletionItem("fast").Present(),
 		)
 	})
@@ -289,14 +297,15 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 									&form.Config.Name,
 									"name",
 								).CompleteBy(func(_ context.Context, cfg *childConfig, _ cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-									return cli.CompletionContribution{
+									contribution := cli.CompletionContribution{
 										Candidates: []cli.CompletionCandidate{
 											{
 												Value: cfg.Mode,
 												Kind:  cli.CompletionCandidateValue,
 											},
 										},
-									}, nil
+									}
+									return contribution, nil
 								}).
 									From(mode)
 							})
@@ -309,7 +318,7 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 				})
 			},
 		})
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -319,7 +328,8 @@ func TestCompleteShortcutAppendArgsAndDefaultsEnterCanonicalResidualAnalysis(t *
 					CandidateKinds: true,
 				},
 			},
-		}).Require(t,
+		}
+		clitest.Complete(t.Context(), app, completionRequest).Require(t,
 			clitest.CompletionItem("provider").Present(),
 		)
 		if providerCalls != 1 {
@@ -347,14 +357,15 @@ func TestCompleteShortcutAppendArgsResponseReferenceExpandsAfterResidualCursor(t
 							&form.Config.Name,
 							"name",
 						).CompleteBy(func(_ context.Context, cfg *childConfig, _ cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-							return cli.CompletionContribution{
+							contribution := cli.CompletionContribution{
 								Candidates: []cli.CompletionCandidate{
 									{
 										Value: cfg.Mode,
 										Kind:  cli.CompletionCandidateValue,
 									},
 								},
-							}, nil
+							}
+							return contribution, nil
 						}).
 							From(mode)
 					})
@@ -370,7 +381,7 @@ func TestCompleteShortcutAppendArgsResponseReferenceExpandsAfterResidualCursor(t
 	t.Run("expands exactly once and affects residual value completion", func(t *testing.T) {
 		t.Parallel()
 		loads := 0
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -386,14 +397,16 @@ func TestCompleteShortcutAppendArgsResponseReferenceExpandsAfterResidualCursor(t
 					if request.Path != "cfg" {
 						return cli.ResponseFile{}, errors.New("unexpected response path")
 					}
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:      "cfg",
 						Revision: cli.Revision("r1"),
 						Content:  []byte("--mode tail"),
-					}, nil
+					}
+					return file, nil
 				},
 			},
-		}).Require(t,
+		}
+		clitest.Complete(t.Context(), app, completionRequest).Require(t,
 			clitest.CompletionItem("tail").Present(),
 			clitest.CompletionNotPartial(),
 		)
@@ -406,7 +419,7 @@ func TestCompleteShortcutAppendArgsResponseReferenceExpandsAfterResidualCursor(t
 		t.Parallel()
 		cause := errors.New("append response load failed")
 		loads := 0
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -422,7 +435,8 @@ func TestCompleteShortcutAppendArgsResponseReferenceExpandsAfterResidualCursor(t
 					return cli.ResponseFile{}, cause
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t,
 			clitest.CompletionPartial(),
 			clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLoadFailure).Present()),
@@ -453,14 +467,15 @@ func TestCompleteShortcutAppendArgsRemainAfterResidualCursorForPositionalOwnersh
 							"first",
 						).CompleteBy(
 							func(_ context.Context, cfg *childConfig, _ cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-								return cli.CompletionContribution{
+								contribution := cli.CompletionContribution{
 									Candidates: []cli.CompletionCandidate{
 										{
 											Value: "first:" + cfg.Second,
 											Kind:  cli.CompletionCandidateValue,
 										},
 									},
-								}, nil
+								}
+								return contribution, nil
 							},
 						)
 						form.String(
@@ -468,14 +483,15 @@ func TestCompleteShortcutAppendArgsRemainAfterResidualCursorForPositionalOwnersh
 							"second",
 						).CompleteBy(
 							func(context.Context, *childConfig, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-								return cli.CompletionContribution{
+								contribution := cli.CompletionContribution{
 									Candidates: []cli.CompletionCandidate{
 										{
 											Value: "second-owner",
 											Kind:  cli.CompletionCandidateValue,
 										},
 									},
-								}, nil
+								}
+								return contribution, nil
 							},
 						)
 					})
@@ -488,7 +504,7 @@ func TestCompleteShortcutAppendArgsRemainAfterResidualCursorForPositionalOwnersh
 		},
 	})
 
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"quick", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -498,7 +514,8 @@ func TestCompleteShortcutAppendArgsRemainAfterResidualCursorForPositionalOwnersh
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionTargetsExactly(clitest.CompletionTargetAt(0)),
 		clitest.CompletionTargetAt(0).Kind(cli.CompletionTargetArgument),
 		clitest.CompletionTargetAt(0).Name("first"),
@@ -548,7 +565,9 @@ func TestCompleteShortcutFixedTerminalTailFiltersEarlierActionFlagCandidate(t *t
 		name           string
 		forceReference bool
 	}{
-		{name: "static projection"},
+		{
+			name: "static projection",
+		},
 		{
 			name:           "detached reference",
 			forceReference: true,
@@ -556,7 +575,7 @@ func TestCompleteShortcutFixedTerminalTailFiltersEarlierActionFlagCandidate(t *t
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			app := clitest.Compile(t, cli.Definition[rootConfig]{
+			definition := cli.Definition[rootConfig]{
 				Name: "tool",
 				Help: cli.HelpConfig{
 					ReplaceEntries: func(entries *cli.HelpActionEntries) {
@@ -583,9 +602,10 @@ func TestCompleteShortcutFixedTerminalTailFiltersEarlierActionFlagCandidate(t *t
 						},
 					})
 				},
-			})
+			}
+			app := clitest.Compile(t, definition)
 
-			clitest.Complete(t.Context(), app, cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: []string{"quick", ""},
 				Cursor: cli.CompletionCursor{
 					Argument: 1,
@@ -595,7 +615,8 @@ func TestCompleteShortcutFixedTerminalTailFiltersEarlierActionFlagCandidate(t *t
 						CandidateKinds: true,
 					},
 				},
-			}).Require(t,
+			}
+			clitest.Complete(t.Context(), app, completionRequest).Require(t,
 				clitest.CompletionNotPartial(),
 				clitest.CompletionItem("--help").Absent(),
 				clitest.CompletionItem("--verbose").Present(),
@@ -614,7 +635,9 @@ func TestCompleteShortcutFixedTailUsesProfileQualifiedProviderSettlement(t *test
 		name           string
 		forceReference bool
 	}{
-		{name: "static projection"},
+		{
+			name: "static projection",
+		},
 		{
 			name:           "detached reference",
 			forceReference: true,
@@ -661,7 +684,7 @@ func TestCompleteShortcutFixedTailUsesProfileQualifiedProviderSettlement(t *test
 				},
 			})
 
-			clitest.Complete(t.Context(), app, cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: []string{"quick", ""},
 				Cursor: cli.CompletionCursor{
 					Argument: 1,
@@ -671,7 +694,8 @@ func TestCompleteShortcutFixedTailUsesProfileQualifiedProviderSettlement(t *test
 						CandidateKinds: true,
 					},
 				},
-			}).Require(t,
+			}
+			clitest.Complete(t.Context(), app, completionRequest).Require(t,
 				clitest.CompletionNotPartial(),
 				clitest.CompletionItem("--profile").Present(),
 			)
@@ -709,7 +733,7 @@ func TestCompleteShortcutLegalAppendArgsCanonicalSelectionDoesNotBecomePartial(t
 	serve := completionCommandByPath(t, schema, "serve")
 	leaf := completionCommandByPath(t, schema, "serve", "leaf")
 	path := []clitest.CommandLocator{root, serve, leaf}
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"quick", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -719,7 +743,8 @@ func TestCompleteShortcutLegalAppendArgsCanonicalSelectionDoesNotBecomePartial(t
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionItem("leaf").Absent(),
 		clitest.CompletionNotPartial(),
 		clitest.SelectionPathExactly(path...),
@@ -766,7 +791,7 @@ func TestCompleteShortcutCommandCandidatePreservesLegalFixedTailSelection(t *tes
 			})
 		},
 	})
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"quick", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -776,7 +801,8 @@ func TestCompleteShortcutCommandCandidatePreservesLegalFixedTailSelection(t *tes
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionNotPartial(),
 		clitest.CompletionItem("alpha").Present(),
 		clitest.CompletionItem("other").Absent(),
@@ -799,14 +825,15 @@ func TestCompleteCanonicalCommandRemainsShortcutIndependent(t *testing.T) {
 							"name",
 						).CompleteBy(
 							func(context.Context, *childConfig, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-								return cli.CompletionContribution{
+								contribution := cli.CompletionContribution{
 									Candidates: []cli.CompletionCandidate{
 										{
 											Value: "canonical",
 											Kind:  cli.CompletionCandidateValue,
 										},
 									},
-								}, nil
+								}
+								return contribution, nil
 							},
 						)
 					})
@@ -818,7 +845,7 @@ func TestCompleteCanonicalCommandRemainsShortcutIndependent(t *testing.T) {
 			})
 		},
 	})
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"serve", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -828,7 +855,8 @@ func TestCompleteCanonicalCommandRemainsShortcutIndependent(t *testing.T) {
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionItemsExactly(clitest.CompletionItem("canonical")),
 		clitest.CompletionObservedInputSourcesExactly(cli.InputKindShortcut),
 	)
@@ -857,14 +885,15 @@ func TestCompleteShortcutFixedDescendantSelectsResidualResponseDialect(t *testin
 									&form.Config.Name,
 									"name",
 								).CompleteBy(func(_ context.Context, cfg *childConfig, _ cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-									return cli.CompletionContribution{
+									contribution := cli.CompletionContribution{
 										Candidates: []cli.CompletionCandidate{
 											{
 												Value: cfg.Mode,
 												Kind:  cli.CompletionCandidateValue,
 											},
 										},
-									}, nil
+									}
+									return contribution, nil
 								}).
 									From(mode)
 							})
@@ -883,7 +912,7 @@ func TestCompleteShortcutFixedDescendantSelectsResidualResponseDialect(t *testin
 	}
 	loads := 0
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", "@cfg", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 2,
@@ -899,14 +928,16 @@ func TestCompleteShortcutFixedDescendantSelectsResidualResponseDialect(t *testin
 					if request.Path != "cfg" {
 						return cli.ResponseFile{}, errors.New("unexpected response path")
 					}
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:      "cfg",
 						Revision: cli.Revision("r1"),
 						Content:  []byte("--mode fast"),
-					}, nil
+					}
+					return file, nil
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("fast").Present())
 		return proof.Completion()
 	}()
@@ -952,7 +983,7 @@ func TestCompleteShortcutCursorChildEnablesAppendResponseRecognition(t *testing.
 
 	loads := 0
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -968,14 +999,16 @@ func TestCompleteShortcutCursorChildEnablesAppendResponseRecognition(t *testing.
 					if request.Path != "cfg" {
 						return cli.ResponseFile{}, errors.New("unexpected response path")
 					}
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:      "cfg",
 						Revision: cli.Revision("r1"),
 						Content:  []byte("--mode tail"),
-					}, nil
+					}
+					return file, nil
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("alpha").Present())
 		return proof.Completion()
 	}()
@@ -1031,7 +1064,7 @@ func TestCompleteShortcutCursorChildDisablesAppendResponseRecognitionWithoutLoad
 
 	loads := 0
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -1047,7 +1080,8 @@ func TestCompleteShortcutCursorChildDisablesAppendResponseRecognitionWithoutLoad
 					return cli.ResponseFile{}, errors.New("disabled child must not load response source")
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("alpha").Present())
 		return proof.Completion()
 	}()
@@ -1106,7 +1140,7 @@ func TestCompleteShortcutCandidateResponseFailurePreservesIndependentCandidate(t
 	})
 	cause := errors.New("candidate response load failed")
 	loads := 0
-	proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"quick", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1122,7 +1156,8 @@ func TestCompleteShortcutCandidateResponseFailurePreservesIndependentCandidate(t
 				return cli.ResponseFile{}, cause
 			},
 		},
-	})
+	}
+	proof := clitest.Complete(t.Context(), app, completionRequest)
 	proof.Require(t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLoadFailure).Present()),
 		clitest.CompletionPartial(),
@@ -1153,9 +1188,12 @@ func TestCompleteShortcutPendingFlagValueUsesFixedTailFinalCommandSelection(t *t
 					parent.Flags.String(&parent.Config.Path).CompleteBy(func(_ context.Context, _ *parentConfig, request cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 						calls++
 						observed = request.Selection
-						return cli.CompletionContribution{
-							Candidates: []cli.CompletionCandidate{{Value: "file"}},
-						}, nil
+						contribution := cli.CompletionContribution{
+							Candidates: []cli.CompletionCandidate{{
+								Value: "file",
+							}},
+						}
+						return contribution, nil
 					}).
 						Long("path")
 					parent.Subcommands.Command(cli.Command[leafConfig]{
@@ -1225,7 +1263,7 @@ func TestLoad(t *testing.T) {
 				})
 			},
 		})
-		_, err := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -1235,7 +1273,8 @@ func TestLoad(t *testing.T) {
 					CandidateKinds: true,
 				},
 			},
-		}).Completion()
+		}
+		_, err := clitest.Complete(t.Context(), app, completionRequest).Completion()
 		if err == nil {
 			t.Fatal("Complete() unexpectedly accepted a required response expansion without a loader")
 		}
@@ -1273,7 +1312,7 @@ func TestLoad(t *testing.T) {
 			},
 		})
 		loads := 0
-		result, err := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -1286,24 +1325,28 @@ func TestLoad(t *testing.T) {
 			ResponseFiles: cli.ResponseFileAccess{
 				Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
 					loads++
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:      "cfg",
 						Revision: cli.Revision("r1"),
-					}, nil
+					}
+					return file, nil
 				},
 			},
-		}).Completion()
+		}
+		result, err := clitest.Complete(t.Context(), app, completionRequest).Completion()
 		if err != nil {
 			t.Fatalf("Complete() error = %v", err)
 		}
 		if loads != 1 {
 			t.Fatalf("response load calls = %d, want 1 shared load", loads)
 		}
-		seen := map[string]bool{}
+		seen := map[string]struct{}{}
 		for _, item := range result.Items {
-			seen[item.Value] = true
+			seen[item.Value] = struct{}{}
 		}
-		if !seen["alpha"] || !seen["beta"] {
+		_, sawAlpha := seen["alpha"]
+		_, sawBeta := seen["beta"]
+		if !sawAlpha || !sawBeta {
 			t.Fatalf("Items = %#v, want both response-enabled candidates", result.Items)
 		}
 	})
@@ -1329,7 +1372,7 @@ func TestSettleCompletionShortcutPrefix(t *testing.T) {
 		},
 	})
 	cause := errors.New("shortcut response load failed")
-	_, err := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"quick", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1339,7 +1382,8 @@ func TestSettleCompletionShortcutPrefix(t *testing.T) {
 				return cli.ResponseFile{}, cause
 			},
 		},
-	}).Completion()
+	}
+	_, err := clitest.Complete(t.Context(), app, completionRequest).Completion()
 	if !errors.Is(err, cause) {
 		t.Fatalf("Complete() error = %v, want response load cause", err)
 	}

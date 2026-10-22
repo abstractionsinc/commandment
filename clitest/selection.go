@@ -317,11 +317,12 @@ type commandDefaultConditionExpectationValue struct {
 }
 
 func commandDefaultSelectionOutcomeExpectation(locator CommandLocator, status cli.DefaultCommandSelectionOutcome) InspectionExpectation {
-	return commandSelectionDetailExpectation{
+	expectation := commandSelectionDetailExpectation{
 		command:        locator.state,
 		kind:           commandSelectionDefaultOutcome,
 		defaultOutcome: status,
 	}
+	return expectation
 }
 
 func commandDefaultSelectionSetExpectation(locator CommandLocator, kind commandSelectionDetailKind, expected ...CommandDefaultLocator) InspectionExpectation {
@@ -329,11 +330,12 @@ func commandDefaultSelectionSetExpectation(locator CommandLocator, kind commandS
 	for index, value := range expected {
 		states[index] = value.state
 	}
-	return commandSelectionDetailExpectation{
+	expectation := commandSelectionDetailExpectation{
 		command:  locator.state,
 		kind:     kind,
 		defaults: states,
 	}
+	return expectation
 }
 
 func expectedInspectionCommandDefaultIDs(states []*commandDefaultLocatorState, inspection cli.Inspection, command cli.CommandInspection) ([]cli.CommandDefaultID, locatorResolutionStatus, evaluationField) {
@@ -353,11 +355,12 @@ func expectedInspectionCommandDefaultIDs(states []*commandDefaultLocatorState, i
 }
 
 func commandArgumentFormSelectionOutcomeExpectation(locator CommandLocator, status cli.ArgumentFormSelectionOutcome) InspectionExpectation {
-	return commandSelectionDetailExpectation{
+	expectation := commandSelectionDetailExpectation{
 		command:     locator.state,
 		kind:        commandSelectionArgumentFormOutcome,
 		formOutcome: status,
 	}
+	return expectation
 }
 
 func commandArgumentFormSelectionSetExpectation(locator CommandLocator, kind commandSelectionDetailKind, expected ...ArgumentFormLocator) InspectionExpectation {
@@ -365,11 +368,12 @@ func commandArgumentFormSelectionSetExpectation(locator CommandLocator, kind com
 	for index, value := range expected {
 		states[index] = value.state
 	}
-	return commandSelectionDetailExpectation{
+	expectation := commandSelectionDetailExpectation{
 		command: locator.state,
 		kind:    kind,
 		forms:   states,
 	}
+	return expectation
 }
 
 func expectedInspectionArgumentFormID(state *argumentFormLocatorState, inspection cli.Inspection) (cli.ArgumentFormID, locatorResolutionStatus, evaluationField) {
@@ -415,10 +419,11 @@ func expectedInspectionArgumentFormIDs(states []*argumentFormLocatorState, inspe
 }
 
 func commandSelectionExpectation(locator CommandLocator, selected bool) SelectionExpectation {
-	return commandSelectionExpectationValue{
+	value := commandSelectionExpectationValue{
 		locator:  locator.state,
 		selected: selected,
 	}
+	return value
 }
 
 func evaluateCommandSelection(state *commandLocatorState, selected bool, selection cli.CommandSelection, commands map[cli.CommandID]cli.CommandInspection) evaluationResult {
@@ -453,10 +458,11 @@ func selectionPresenceWord(selected bool) string {
 }
 
 func commandEntrySelectionExpectation(locator CommandEntryLocator, selected bool) SelectionExpectation {
-	return commandEntrySelectionExpectationValue{
+	value := commandEntrySelectionExpectationValue{
 		locator:  locator.state,
 		selected: selected,
 	}
+	return value
 }
 
 func evaluateCommandEntrySelection(id cli.CommandEntryID, selected bool, selection cli.CommandSelection) evaluationResult {
@@ -484,7 +490,10 @@ func selectionPathExactlyExpectation(locators []CommandLocator) SelectionExpecta
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return selectionPathExpectationValue{commands: states}
+	value := selectionPathExpectationValue{
+		commands: states,
+	}
+	return value
 }
 
 func evaluateSelectionPath(states []*commandLocatorState, selection cli.CommandSelection, commands map[cli.CommandID]cli.CommandInspection) evaluationResult {
@@ -519,7 +528,10 @@ func selectionStepsExactlyExpectation(locators []SelectionStepLocator) Selection
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return selectionStepsExpectationValue{steps: states}
+	value := selectionStepsExpectationValue{
+		steps: states,
+	}
+	return value
 }
 
 func evaluateSelectionSteps(states []*selectionStepLocatorState, selection cli.CommandSelection, commands map[cli.CommandID]cli.CommandInspection, entries map[cli.CommandEntryID]cli.CommandEntryInspection, defaults map[cli.CommandDefaultID]cli.CommandDefaultInspection, origins map[cli.InputOriginID]cli.InputOrigin) evaluationResult {
@@ -666,77 +678,97 @@ func resolveSelectionOriginID(state *inputOriginLocatorState, origins map[cli.In
 }
 
 func actionLocator(action cli.InvocationAction) InvocationActionLocator {
-	return InvocationActionLocator{state: &actionLocatorState{
+	state := &actionLocatorState{
 		valid:  true,
 		action: action,
-	}}
+	}
+	locator := InvocationActionLocator{
+		state: state,
+	}
+	return locator
 }
 
 func grammarProfileIDLocator(id cli.GrammarProfileID) GrammarProfileLocator {
-	return GrammarProfileLocator{state: &grammarProfileLocatorState{
+	state := &grammarProfileLocatorState{
 		mode: grammarProfileLocatorID,
 		id:   id,
-	}}
+	}
+	locator := GrammarProfileLocator{
+		state: state,
+	}
+	return locator
 }
 
 func actionSelectionExpectation(locator InvocationActionLocator, selected bool) InspectionExpectation {
-	return actionSelectionExpectationValue{
+	value := actionSelectionExpectationValue{
 		locator:  locator.state,
 		selected: selected,
 	}
+	return value
 }
 
 func actionTriggerExpectation(locator InvocationActionLocator, trigger cli.InvocationActionTrigger) InspectionExpectation {
-	return actionTriggerExpectationValue{
+	value := actionTriggerExpectationValue{
 		locator: locator.state,
 		trigger: trigger,
 	}
+	return value
 }
 
 func actionEntryExpectation(locator InvocationActionLocator, entry ActionEntryLocator) InspectionExpectation {
-	return actionEntryExpectationValue{
+	value := actionEntryExpectationValue{
 		action: locator.state,
 		entry:  entry.state,
 	}
+	return value
 }
 
 func actionOriginExpectation(locator InvocationActionLocator, origin InputOriginLocator) InspectionExpectation {
-	return actionOriginExpectationValue{
+	value := actionOriginExpectationValue{
 		action: locator.state,
 		origin: origin.state,
 	}
+	return value
 }
 
 func actionEntrySelectedExpectation(locator ActionEntryLocator, selected bool) InspectionExpectation {
-	return actionEntrySelectedExpectationValue{
+	value := actionEntrySelectedExpectationValue{
 		locator:  locator.state,
 		selected: selected,
 	}
+	return value
 }
 
 func grammarProfileSelectionExpectation(locator GrammarProfileLocator, selected bool) InspectionExpectation {
-	return grammarProfileSelectionExpectationValue{
+	value := grammarProfileSelectionExpectationValue{
 		locator:  locator.state,
 		selected: selected,
 	}
+	return value
 }
 
 func argumentFormOutcomeExpectation(locator ArgumentFormLocator, outcome cli.ArgumentFormOutcome) InspectionExpectation {
-	return argumentFormOutcomeExpectationValue{
+	value := argumentFormOutcomeExpectationValue{
 		locator: locator.state,
 		outcome: outcome,
 	}
+	return value
 }
 
 func argumentFormSelectedExpectation(locator ArgumentFormLocator, selected bool) InspectionExpectation {
-	return argumentFormSelectedExpectationValue{
+	value := argumentFormSelectedExpectationValue{
 		locator:  locator.state,
 		selected: selected,
 	}
+	return value
 }
 
 func commandDefaultSelectedExpectation(locator CommandDefaultLocator, selected bool) SelectionExpectation {
-	return commandDefaultSelectedExpectationValue{locator.state, selected}
+	value := commandDefaultSelectedExpectationValue{
+		locator:  locator.state,
+		selected: selected,
+	}
+	return value
 }
 
 func evaluateCommandDefaultSelection(state *commandDefaultLocatorState, selected bool, selection cli.CommandSelection) evaluationResult {
@@ -761,7 +793,11 @@ func evaluateCommandDefaultSelection(state *commandDefaultLocatorState, selected
 }
 
 func commandDefaultConditionOutcomeExpectation(locator CommandDefaultLocator, outcome cli.EvaluationOutcome) InspectionExpectation {
-	return commandDefaultConditionExpectationValue{locator.state, outcome}
+	value := commandDefaultConditionExpectationValue{
+		locator: locator.state,
+		outcome: outcome,
+	}
+	return value
 }
 
 func (commandSelectionDetailExpectation) inspectionExpectation() {}

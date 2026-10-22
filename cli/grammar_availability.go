@@ -203,10 +203,11 @@ func applyCommandAvailabilityAt(operation *invocation, analysis *analysisState, 
 			states[terminal] = enabled
 		}
 	}
-	return availabilityGrammar{
+	availability := availabilityGrammar{
 		base:     model,
 		commands: states,
-	}, true
+	}
+	return availability, true
 }
 
 func applyFlagAvailability(operation *invocation, grammar *grammarResult, materialize grammarConditionDemandFunc, model grammarView, path []CommandID, dialect dialect, token string, tokenIndex int) (grammarView, bool) {
@@ -272,10 +273,11 @@ func applyFlagAvailabilityWithFrontierAt(operation *invocation, analysis *analys
 		}
 		states[id] = enabled
 	}
-	return availabilityGrammar{
+	availability := availabilityGrammar{
 		base:  model,
 		flags: states,
-	}, true
+	}
+	return availability, true
 }
 
 func applyRequiredFlagAvailabilityAt(operation *invocation, analysis *analysisState, grammar *grammarResult, materialize grammarConditionDemandFunc, model grammarView, path []CommandID, tokenIndex int) (grammarView, bool) {
@@ -305,10 +307,11 @@ func applyRequiredFlagAvailabilityAt(operation *invocation, analysis *analysisSt
 	if len(targets) == 0 {
 		return model, true
 	}
-	return availabilityGrammar{
+	availability := availabilityGrammar{
 		base:  model,
 		flags: targets,
-	}, true
+	}
+	return availability, true
 }
 
 func applyArgumentAvailability(operation *invocation, grammar *grammarResult, materialize grammarConditionDemandFunc, model grammarView, command CommandID, tokenIndex int) (grammarView, bool) {
@@ -1279,9 +1282,10 @@ func effectiveCommandEntryLifecycle(analysis *analysisState, model grammarView, 
 func effectiveCommandEntryLifecycleWithCanonical(analysis *analysisState, model grammarView, entry commandEntryGrammar, canonicalLifecycles map[CommandID]ReleaseLifecycle) ReleaseLifecycle {
 	record, ok := analysis.effectiveModel.CommandEntry(entry.id)
 	if !ok {
-		return ReleaseLifecycle{
+		lifecycle := ReleaseLifecycle{
 			IntroducedIn: "\x00",
 		}
+		return lifecycle
 	}
 	life := record.lifecycle
 	switch entry.kind {
@@ -1302,15 +1306,17 @@ func effectiveCommandEntryLifecycleWithCanonical(analysis *analysisState, model 
 				canonical,
 			)
 		}
-		return ReleaseLifecycle{
+		lifecycle := ReleaseLifecycle{
 			IntroducedIn: "\x00",
 		}
+		return lifecycle
 	case CommandEntryShortcut:
 		path, err := canonicalCommandPath(analysis.effectiveModel, model, entry.parent, entry.target)
 		if err != nil || len(path) == 0 {
-			return ReleaseLifecycle{
+			lifecycle := ReleaseLifecycle{
 				IntroducedIn: "\x00",
 			}
+			return lifecycle
 		}
 		canonical, err := intersectCanonicalCommandPathLifecycle(
 			analysis.effectiveModel,
@@ -1318,15 +1324,17 @@ func effectiveCommandEntryLifecycleWithCanonical(analysis *analysisState, model 
 			path,
 		)
 		if err != nil {
-			return ReleaseLifecycle{
+			lifecycle := ReleaseLifecycle{
 				IntroducedIn: "\x00",
 			}
+			return lifecycle
 		}
 		return intersectEffectiveReleaseLifecycles(analysis.effectiveModel.Application().release, life, canonical)
 	default:
-		return ReleaseLifecycle{
+		lifecycle := ReleaseLifecycle{
 			IntroducedIn: "\x00",
 		}
+		return lifecycle
 	}
 }
 

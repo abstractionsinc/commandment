@@ -205,16 +205,22 @@ func semanticPresentation(description Description, examples []Example, hidden bo
 }
 
 func flagPresentation(value flagAcceptanceInput) (presentation, string, bool, bool) {
+	description := Description{
+		Short: value.description,
+	}
 	return snapshotPresentation(
-		Description{Short: value.description},
+		description,
 		nil,
 		value.hidden,
 	), value.valueName, value.required, value.localeSelector
 }
 
 func argumentPresentation(value argumentTermAcceptanceInput) presentation {
+	description := Description{
+		Short: value.description,
+	}
 	return snapshotPresentation(
-		Description{Short: value.description},
+		description,
 		nil,
 		value.hidden,
 	)
@@ -897,7 +903,9 @@ func (draft *declarationCandidate) buildGrammar() (grammarModel, bool, []rejecti
 	state := draft.grammar
 	root, ok := draft.rootCommand()
 	if !ok {
-		return grammarModel{}, true, []rejection{{Kind: rejectionStructuralInvalidity}}
+		return grammarModel{}, true, []rejection{{
+			Kind: rejectionStructuralInvalidity,
+		}}
 	}
 	input := grammarInput{
 		Root:            root,
@@ -1455,7 +1463,9 @@ func (draft *declarationCandidate) validateEarlySelectorFlag(command CommandID, 
 func (draft *declarationCandidate) validateEarlySelector(command CommandID, selector ValueID, destinations map[ValueID]destinationRecord) []rejection {
 	selectorRecord, ok := destinations[selector]
 	if !ok {
-		return []rejection{{Kind: rejectionStructuralInvalidity}}
+		return []rejection{{
+			Kind: rejectionStructuralInvalidity,
+		}}
 	}
 	position := selectorRecord.meta.position
 	var rejections []rejection
@@ -1510,7 +1520,9 @@ func (draft *declarationCandidate) validateEarlySelector(command CommandID, sele
 func (draft *declarationCandidate) validateGrammarProfileSelector(command CommandID, selector ValueID, profiles []grammarProfileRecord, hasDefault bool, destinations map[ValueID]destinationRecord, flags map[FlagID]flagRecord, forms map[ArgumentFormID]argumentFormRecord) []rejection {
 	selectorRecord, ok := destinations[selector]
 	if !ok {
-		return []rejection{{Kind: rejectionStructuralInvalidity}}
+		return []rejection{{
+			Kind: rejectionStructuralInvalidity,
+		}}
 	}
 	position := selectorRecord.meta.position
 	var rejections []rejection
@@ -1615,7 +1627,9 @@ func (draft *declarationCandidate) validateGrammarProfileSelector(command Comman
 // ownership is lifecycle-aware and lives in ValidateLifecycleLexicalCollisions.
 func validateGrammarStructure(model grammarModel) []rejection {
 	if !model.Valid() {
-		return []rejection{{Kind: rejectionStructuralInvalidity}}
+		return []rejection{{
+			Kind: rejectionStructuralInvalidity,
+		}}
 	}
 	commandRejections := validateCommandNamespaceStructure(model)
 	flagRejections := validateFlagNamespaceStructure(model)

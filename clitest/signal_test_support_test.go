@@ -22,7 +22,9 @@ func testSemanticSignals(t *testing.T, names ...string) []cli.Signal {
 		return cli.SignalNotification[string]{}, ctx.Err()
 	}
 	open := func(context.Context) (cli.SignalStream[string], error) {
-		stream := cli.SignalStream[string]{Receive: receive}
+		stream := cli.SignalStream[string]{
+			Receive: receive,
+		}
 		return stream, nil
 	}
 	signalSource := cli.SignalSource[string]{

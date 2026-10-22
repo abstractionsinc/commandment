@@ -41,9 +41,10 @@ type ruleOutcome struct {
 }
 
 func satisfiedRule() ruleOutcome {
-	return ruleOutcome{
+	outcome := ruleOutcome{
 		Kind: ruleOutcomeSatisfied,
 	}
+	return outcome
 }
 
 func violatedRule(violations ...violation) ruleOutcome {
@@ -51,16 +52,18 @@ func violatedRule(violations ...violation) ruleOutcome {
 	for i, violation := range violations {
 		copied[i] = violation.clone()
 	}
-	return ruleOutcome{
+	outcome := ruleOutcome{
 		Kind:       ruleOutcomeViolated,
 		Violations: copied,
 	}
+	return outcome
 }
 
 func upstreamBlockedRule() ruleOutcome {
-	return ruleOutcome{
+	outcome := ruleOutcome{
 		Kind: ruleOutcomeUpstreamBlocked,
 	}
+	return outcome
 }
 
 func ruleDiagnosticCount(outcome ruleOutcome) int {
@@ -418,16 +421,18 @@ func evaluateBuiltinRule(definition ruleDefinition, values valueAnalysis) ruleOu
 			if kind == RuleRequire {
 				return satisfiedRule()
 			}
-			return violatedRule(violation{
+			ruleViolation := violation{
 				Kind: ruleViolationInvalid,
-			})
+			}
+			return violatedRule(ruleViolation)
 		case destinationStateAbsent, destinationStateInactive:
 			if kind == RuleForbid {
 				return satisfiedRule()
 			}
-			return violatedRule(violation{
+			ruleViolation := violation{
 				Kind: ruleViolationInvalid,
-			})
+			}
+			return violatedRule(ruleViolation)
 		default:
 			return ruleOutcome{}
 		}
@@ -485,9 +490,10 @@ func evaluateBuiltinRule(definition ruleDefinition, values valueAnalysis) ruleOu
 		if matched {
 			return satisfiedRule()
 		}
-		return violatedRule(violation{
+		ruleViolation := violation{
 			Kind: ruleViolationConflict,
-		})
+		}
+		return violatedRule(ruleViolation)
 	}
 	for _, state := range states {
 		switch state.State {
@@ -513,9 +519,10 @@ func evaluateBuiltinRule(definition ruleDefinition, values valueAnalysis) ruleOu
 		if count >= rangeValue.Minimum() && (!bounded || count <= maximum) {
 			return satisfiedRule()
 		}
-		return violatedRule(violation{
+		ruleViolation := violation{
 			Kind: ruleViolationInvalid,
-		})
+		}
+		return violatedRule(ruleViolation)
 	}
 	predicate, ok := definition.BuiltinPredicate()
 	if !ok {
@@ -528,9 +535,10 @@ func evaluateBuiltinRule(definition ruleDefinition, values valueAnalysis) ruleOu
 	if predicate(raw) {
 		return satisfiedRule()
 	}
-	return violatedRule(violation{
+	ruleViolation := violation{
 		Kind: ruleViolationInvalid,
-	})
+	}
+	return violatedRule(ruleViolation)
 }
 
 func isPresenceGroupRule(kind RuleKind) bool {

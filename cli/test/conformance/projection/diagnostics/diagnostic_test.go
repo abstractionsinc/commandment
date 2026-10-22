@@ -58,7 +58,7 @@ func TestRunDynamicDomainDiagnosticPresentationIncludesOwningCommandWithoutRende
 	t.Parallel()
 	type config = diagnosticPresentationModeConfig
 	cause := errors.New("application-owned domain cause")
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "alienctl",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
@@ -70,7 +70,8 @@ func TestRunDynamicDomainDiagnosticPresentationIncludesOwningCommandWithoutRende
 			root.Flags.ValueFor(mode).Long("mode")
 		},
 		Run: func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--mode", "missing"},
@@ -164,14 +165,17 @@ func TestDiagnosticsExtractsDiagnosticReport(t *testing.T) {
 func TestDiagnosticsProjectsRebasedSourceClosedDetachedReport(t *testing.T) {
 	t.Parallel()
 	type config = diagnosticsSecretConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			secret := root.Values.Int(&root.Config.Secret).Sensitive()
 			root.Flags.ValueFor(secret).Long("secret").Sensitive()
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	args := []string{"--secret", "not-an-int"}
 	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: args,
@@ -214,15 +218,18 @@ func TestDiagnosticsProjectsRebasedSourceClosedDetachedReport(t *testing.T) {
 func TestDiagnosticsProjectsStructuredIdentityClassificationAndSourceMetadata(t *testing.T) {
 	t.Parallel()
 	type config = diagnosticsNameConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
 			root.Flags.ValueFor(name).Long("name")
 			root.Rule.Require(name)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{})
 	rule := clitest.Diagnostic(cli.DiagnosticRuleViolation).On(clitest.RootCommand())
 	proof.Require(t,
@@ -268,7 +275,7 @@ func TestDiagnosticsProjectsIntegrationFailureMetadata(t *testing.T) {
 		}},
 	})
 	var signal cli.Signal
-	actionApp := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "tool",
 		Run: func(ctx context.Context, _ *struct{}) error {
 			select {
@@ -292,7 +299,8 @@ func TestDiagnosticsProjectsIntegrationFailureMetadata(t *testing.T) {
 				}),
 			)
 		},
-	})
+	}
+	actionApp := clitest.Compile(t, definition)
 	actionDoneResult := make(chan error, 1)
 	go func() { actionDoneResult <- actionApp.Run(t.Context(), cli.RunRequest{}) }()
 	select {
@@ -328,7 +336,7 @@ func TestDiagnosticsProjectsIntegrationFailureMetadata(t *testing.T) {
 			Fidelity: cli.SignalSourceDeliveryFidelityExact,
 		}},
 	})
-	overflowApp := clitest.Compile(t, cli.Definition[struct{}]{
+	definitionUnderTest := cli.Definition[struct{}]{
 		Name: "overflow",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			semantic := root.Signals.Source(overflowSource).Signal("overflow")
@@ -341,7 +349,8 @@ func TestDiagnosticsProjectsIntegrationFailureMetadata(t *testing.T) {
 			<-ctx.Done()
 			return context.Cause(ctx)
 		},
-	})
+	}
+	overflowApp := clitest.Compile(t, definitionUnderTest)
 	overflowDone := make(chan error, 1)
 	go func() { overflowDone <- overflowApp.Run(t.Context(), cli.RunRequest{}) }()
 	select {
@@ -422,7 +431,7 @@ func TestDiagnosticsProjectsIntegrationFailureMetadata(t *testing.T) {
 func TestRemovedFlagSpellingReplacementOmitsUnprovenMachineRepair(t *testing.T) {
 	t.Parallel()
 	type config = diagnosticsModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -433,7 +442,8 @@ func TestRemovedFlagSpellingReplacementOmitsUnprovenMachineRepair(t *testing.T) 
 			newer := flag.Long("new")
 			old.ReplacedBy(newer)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	schema := clitest.Schema(app)
 	old := clitest.ResolveDeclaration(t, schema, clitest.RootCommand().Flag("--old").Spelling("--old"))
 	newer := clitest.ResolveDeclaration(t, schema, clitest.RootCommand().Flag("--new").Spelling("--new"))
@@ -476,22 +486,49 @@ func TestInputRejectionRejectsMalformedConstruction(t *testing.T) {
 		name string
 		got  cli.InputRejection
 	}{
-		{"empty code", cli.Rejection.Message("", "message")},
-		{"uppercase code", cli.Rejection.Message("Bad", "message")},
-		{"leading code hyphen", cli.Rejection.Message("-bad", "message")},
-		{"trailing code hyphen", cli.Rejection.Message("bad-", "message")},
-		{"double code hyphen", cli.Rejection.Message("bad--value", "message")},
-		{"invalid code byte", cli.Rejection.Message("bad_value", "message")},
-		{"empty nonsensitive message", cli.Rejection.Message("code", "")},
 		{
-			"repeated range",
-			cli.Rejection.Message("code", "message", cli.Rejection.At(0, 0, 0), cli.Rejection.At(0, 0, 0)),
+			name: "empty code",
+			got:  cli.Rejection.Message("", "message"),
 		},
-		{"reversed range", cli.Rejection.Message("code", "message", cli.Rejection.Across(1, 0, 0, 0))},
-		{"replacement without range", cli.Rejection.Message("code", "message", cli.Rejection.ReplaceWith("x"))},
 		{
-			"repeated replacement",
-			cli.Rejection.Message(
+			name: "uppercase code",
+			got:  cli.Rejection.Message("Bad", "message"),
+		},
+		{
+			name: "leading code hyphen",
+			got:  cli.Rejection.Message("-bad", "message"),
+		},
+		{
+			name: "trailing code hyphen",
+			got:  cli.Rejection.Message("bad-", "message"),
+		},
+		{
+			name: "double code hyphen",
+			got:  cli.Rejection.Message("bad--value", "message"),
+		},
+		{
+			name: "invalid code byte",
+			got:  cli.Rejection.Message("bad_value", "message"),
+		},
+		{
+			name: "empty nonsensitive message",
+			got:  cli.Rejection.Message("code", ""),
+		},
+		{
+			name: "repeated range",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.At(0, 0, 0), cli.Rejection.At(0, 0, 0)),
+		},
+		{
+			name: "reversed range",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.Across(1, 0, 0, 0)),
+		},
+		{
+			name: "replacement without range",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.ReplaceWith("x")),
+		},
+		{
+			name: "repeated replacement",
+			got: cli.Rejection.Message(
 				"code",
 				"message",
 				cli.Rejection.At(0, 0, 0),
@@ -499,16 +536,25 @@ func TestInputRejectionRejectsMalformedConstruction(t *testing.T) {
 				cli.Rejection.ReplaceWith("y"),
 			),
 		},
-		{"empty hint", cli.Rejection.Message("code", "message", cli.Rejection.Hint(""))},
-		{"repeated hint", cli.Rejection.Message("code", "message", cli.Rejection.Hint("x"), cli.Rejection.Hint("y"))},
-		{"duplicate expected", cli.Rejection.Message("code", "message", cli.Rejection.Expected("x", "x"))},
 		{
-			"duplicate suggested across options",
-			cli.Rejection.Message("code", "message", cli.Rejection.Suggest("x"), cli.Rejection.Suggest("x")),
+			name: "empty hint",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.Hint("")),
 		},
 		{
-			"repeated sensitive",
-			cli.Rejection.Message("code", "message", cli.Rejection.Sensitive(), cli.Rejection.Sensitive()),
+			name: "repeated hint",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.Hint("x"), cli.Rejection.Hint("y")),
+		},
+		{
+			name: "duplicate expected",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.Expected("x", "x")),
+		},
+		{
+			name: "duplicate suggested across options",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.Suggest("x"), cli.Rejection.Suggest("x")),
+		},
+		{
+			name: "repeated sensitive",
+			got:  cli.Rejection.Message("code", "message", cli.Rejection.Sensitive(), cli.Rejection.Sensitive()),
 		},
 	}
 	for _, test := range tests {
@@ -658,9 +704,11 @@ func TestLocaleSelectorInvalidStaticDeclarationsUseInvalidDeclarationDiagnostic(
 func TestLifecycleDiagnosticsAttributeExactInactiveDomainEntryAndFlagSpelling(t *testing.T) {
 	t.Parallel()
 	type config = diagnosticsSwitchModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "lifecycle",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "lifecycle",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			flag := root.Flags.Bool(&root.Config.Switch)
@@ -680,7 +728,8 @@ func TestLifecycleDiagnosticsAttributeExactInactiveDomainEntryAndFlagSpelling(t 
 			})
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	schema := clitest.Schema(app)
 	futureSpelling := clitest.ResolveDeclaration(
@@ -1150,163 +1199,274 @@ func TestDiagnosticProjectRuleKindsPreservePolicy(t *testing.T) {
 		want    cli.RuleKind
 		declare func(*cli.CommandBuilder[config])
 	}{
-		{"forbid", cli.RuleForbid, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 1)
-			root.Rule.Forbid(a)
-		}},
-		{"not empty", cli.RuleNotEmpty, func(root *cli.CommandBuilder[config]) {
-			s := root.Values.String(&root.Config.S)
-			root.Values.Default(s, "")
-			root.Rule.NotEmpty(s)
-		}},
-		{"in", cli.RuleIn, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 3)
-			root.Rule.In(a, 1, 2)
-		}},
-		{"not in", cli.RuleNotIn, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 3)
-			root.Rule.NotIn(a, 3, 4)
-		}},
-		{"equal", cli.RuleEqual, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 4)
-			root.Rule.Equal(a, 5)
-		}},
-		{"not equal", cli.RuleNotEqual, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 6)
-			root.Rule.NotEqual(a, 6)
-		}},
-		{"between", cli.RuleBetween, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 0)
-			root.Rule.Between(a, 1, 10)
-		}},
-		{"at least", cli.RuleAtLeast, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 6)
-			root.Rule.AtLeast(a, 7)
-		}},
-		{"at most", cli.RuleAtMost, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 9)
-			root.Rule.AtMost(a, 8)
-		}},
-		{"greater than", cli.RuleGreaterThan, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 9)
-			root.Rule.GreaterThan(a, 9)
-		}},
-		{"less than", cli.RuleLessThan, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			root.Values.Default(a, 10)
-			root.Rule.LessThan(a, 10)
-		}},
-		{"match", cli.RuleMatch, func(root *cli.CommandBuilder[config]) {
-			s := root.Values.String(&root.Config.S)
-			root.Values.Default(s, "bad")
-			root.Rule.Match(s, "^good$")
-		}},
-		{"item count", cli.RuleItemCount, func(root *cli.CommandBuilder[config]) {
-			v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
-			root.Values.Default(v, []string{})
-			root.Rule.ItemCount(v, cli.Count.Exactly(1))
-		}},
-		{"contains", cli.RuleContains, func(root *cli.CommandBuilder[config]) {
-			v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
-			root.Values.Default(v, []string{"x"})
-			root.Rule.Contains(v, "a")
-		}},
-		{"each in", cli.RuleEachIn, func(root *cli.CommandBuilder[config]) {
-			v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
-			root.Values.Default(v, []string{"c"})
-			root.Rule.EachIn(v, "a", "b")
-		}},
-		{"unique", cli.RuleUnique, func(root *cli.CommandBuilder[config]) {
-			v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
-			root.Values.Default(v, []string{"a", "a"})
-			root.Rule.Unique(v)
-		}},
-		{"entry count", cli.RuleEntryCount, func(root *cli.CommandBuilder[config]) {
-			v := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			root.Values.Default(v, map[string]string{"a": "1"})
-			root.Rule.EntryCount(v, cli.Count.Exactly(2))
-		}},
-		{"has keys", cli.RuleHasKeys, func(root *cli.CommandBuilder[config]) {
-			v := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			root.Values.Default(v, map[string]string{"b": "1"})
-			root.Rule.HasKeys(v, "a")
-		}},
-		{"keys in", cli.RuleKeysIn, func(root *cli.CommandBuilder[config]) {
-			v := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			root.Values.Default(v, map[string]string{"c": "1"})
-			root.Rule.KeysIn(v, "a", "b")
-		}},
-		{"subset of", cli.RuleSubsetOf, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
-			b := root.Values.Sequence(&root.Config.SeqB, cli.Value.String())
-			root.Values.Default(a, []string{"a"})
-			root.Values.Default(b, []string{"b"})
-			root.Rule.Compare.SubsetOf(a, b)
-		}},
-		{"disjoint", cli.RuleDisjoint, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
-			b := root.Values.Sequence(&root.Config.SeqB, cli.Value.String())
-			root.Values.Default(a, []string{"a"})
-			root.Values.Default(b, []string{"a"})
-			root.Rule.Compare.Disjoint(a, b)
-		}},
-		{"keys subset of", cli.RuleKeysSubsetOf, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			b := root.Values.Keyed(&root.Config.MapB, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			root.Values.Default(a, map[string]string{"a": "1"})
-			root.Values.Default(b, map[string]string{"b": "1"})
-			root.Rule.Compare.KeysSubsetOf(a, b)
-		}},
-		{"keys disjoint", cli.RuleKeysDisjoint, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			b := root.Values.Keyed(&root.Config.MapB, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			root.Values.Default(a, map[string]string{"a": "1"})
-			root.Values.Default(b, map[string]string{"a": "2"})
-			root.Rule.Compare.KeysDisjoint(a, b)
-		}},
-		{"exactly one", cli.RuleExactlyOne, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			b := root.Values.Int(&root.Config.B)
-			root.Values.Default(a, 1)
-			root.Values.Default(b, 2)
-			root.Rule.ExactlyOne(a, b)
-		}},
-		{"all or none", cli.RuleAllOrNone, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			b := root.Values.Int(&root.Config.B)
-			root.Values.Default(a, 1)
-			root.Rule.AllOrNone(a, b)
-		}},
-		{"at most one", cli.RuleAtMostOne, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			b := root.Values.Int(&root.Config.B)
-			root.Values.Default(a, 1)
-			root.Values.Default(b, 2)
-			root.Rule.AtMostOne(a, b)
-		}},
-		{"at least one", cli.RuleAtLeastOne, func(root *cli.CommandBuilder[config]) {
-			a := root.Values.Int(&root.Config.A)
-			b := root.Values.Int(&root.Config.B)
-			root.Rule.AtLeastOne(a, b)
-		}},
+		{
+			name: "forbid",
+			want: cli.RuleForbid,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 1)
+				root.Rule.Forbid(a)
+			},
+		},
+		{
+			name: "not empty",
+			want: cli.RuleNotEmpty,
+			declare: func(root *cli.CommandBuilder[config]) {
+				s := root.Values.String(&root.Config.S)
+				root.Values.Default(s, "")
+				root.Rule.NotEmpty(s)
+			},
+		},
+		{
+			name: "in",
+			want: cli.RuleIn,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 3)
+				root.Rule.In(a, 1, 2)
+			},
+		},
+		{
+			name: "not in",
+			want: cli.RuleNotIn,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 3)
+				root.Rule.NotIn(a, 3, 4)
+			},
+		},
+		{
+			name: "equal",
+			want: cli.RuleEqual,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 4)
+				root.Rule.Equal(a, 5)
+			},
+		},
+		{
+			name: "not equal",
+			want: cli.RuleNotEqual,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 6)
+				root.Rule.NotEqual(a, 6)
+			},
+		},
+		{
+			name: "between",
+			want: cli.RuleBetween,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 0)
+				root.Rule.Between(a, 1, 10)
+			},
+		},
+		{
+			name: "at least",
+			want: cli.RuleAtLeast,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 6)
+				root.Rule.AtLeast(a, 7)
+			},
+		},
+		{
+			name: "at most",
+			want: cli.RuleAtMost,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 9)
+				root.Rule.AtMost(a, 8)
+			},
+		},
+		{
+			name: "greater than",
+			want: cli.RuleGreaterThan,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 9)
+				root.Rule.GreaterThan(a, 9)
+			},
+		},
+		{
+			name: "less than",
+			want: cli.RuleLessThan,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				root.Values.Default(a, 10)
+				root.Rule.LessThan(a, 10)
+			},
+		},
+		{
+			name: "match",
+			want: cli.RuleMatch,
+			declare: func(root *cli.CommandBuilder[config]) {
+				s := root.Values.String(&root.Config.S)
+				root.Values.Default(s, "bad")
+				root.Rule.Match(s, "^good$")
+			},
+		},
+		{
+			name: "item count",
+			want: cli.RuleItemCount,
+			declare: func(root *cli.CommandBuilder[config]) {
+				v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
+				root.Values.Default(v, []string{})
+				root.Rule.ItemCount(v, cli.Count.Exactly(1))
+			},
+		},
+		{
+			name: "contains",
+			want: cli.RuleContains,
+			declare: func(root *cli.CommandBuilder[config]) {
+				v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
+				root.Values.Default(v, []string{"x"})
+				root.Rule.Contains(v, "a")
+			},
+		},
+		{
+			name: "each in",
+			want: cli.RuleEachIn,
+			declare: func(root *cli.CommandBuilder[config]) {
+				v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
+				root.Values.Default(v, []string{"c"})
+				root.Rule.EachIn(v, "a", "b")
+			},
+		},
+		{
+			name: "unique",
+			want: cli.RuleUnique,
+			declare: func(root *cli.CommandBuilder[config]) {
+				v := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
+				root.Values.Default(v, []string{"a", "a"})
+				root.Rule.Unique(v)
+			},
+		},
+		{
+			name: "entry count",
+			want: cli.RuleEntryCount,
+			declare: func(root *cli.CommandBuilder[config]) {
+				v := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				root.Values.Default(v, map[string]string{"a": "1"})
+				root.Rule.EntryCount(v, cli.Count.Exactly(2))
+			},
+		},
+		{
+			name: "has keys",
+			want: cli.RuleHasKeys,
+			declare: func(root *cli.CommandBuilder[config]) {
+				v := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				root.Values.Default(v, map[string]string{"b": "1"})
+				root.Rule.HasKeys(v, "a")
+			},
+		},
+		{
+			name: "keys in",
+			want: cli.RuleKeysIn,
+			declare: func(root *cli.CommandBuilder[config]) {
+				v := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				root.Values.Default(v, map[string]string{"c": "1"})
+				root.Rule.KeysIn(v, "a", "b")
+			},
+		},
+		{
+			name: "subset of",
+			want: cli.RuleSubsetOf,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
+				b := root.Values.Sequence(&root.Config.SeqB, cli.Value.String())
+				root.Values.Default(a, []string{"a"})
+				root.Values.Default(b, []string{"b"})
+				root.Rule.Compare.SubsetOf(a, b)
+			},
+		},
+		{
+			name: "disjoint",
+			want: cli.RuleDisjoint,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Sequence(&root.Config.SeqA, cli.Value.String())
+				b := root.Values.Sequence(&root.Config.SeqB, cli.Value.String())
+				root.Values.Default(a, []string{"a"})
+				root.Values.Default(b, []string{"a"})
+				root.Rule.Compare.Disjoint(a, b)
+			},
+		},
+		{
+			name: "keys subset of",
+			want: cli.RuleKeysSubsetOf,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				b := root.Values.Keyed(&root.Config.MapB, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				root.Values.Default(a, map[string]string{"a": "1"})
+				root.Values.Default(b, map[string]string{"b": "1"})
+				root.Rule.Compare.KeysSubsetOf(a, b)
+			},
+		},
+		{
+			name: "keys disjoint",
+			want: cli.RuleKeysDisjoint,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Keyed(&root.Config.MapA, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				b := root.Values.Keyed(&root.Config.MapB, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				root.Values.Default(a, map[string]string{"a": "1"})
+				root.Values.Default(b, map[string]string{"a": "2"})
+				root.Rule.Compare.KeysDisjoint(a, b)
+			},
+		},
+		{
+			name: "exactly one",
+			want: cli.RuleExactlyOne,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				b := root.Values.Int(&root.Config.B)
+				root.Values.Default(a, 1)
+				root.Values.Default(b, 2)
+				root.Rule.ExactlyOne(a, b)
+			},
+		},
+		{
+			name: "all or none",
+			want: cli.RuleAllOrNone,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				b := root.Values.Int(&root.Config.B)
+				root.Values.Default(a, 1)
+				root.Rule.AllOrNone(a, b)
+			},
+		},
+		{
+			name: "at most one",
+			want: cli.RuleAtMostOne,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				b := root.Values.Int(&root.Config.B)
+				root.Values.Default(a, 1)
+				root.Values.Default(b, 2)
+				root.Rule.AtMostOne(a, b)
+			},
+		},
+		{
+			name: "at least one",
+			want: cli.RuleAtLeastOne,
+			declare: func(root *cli.CommandBuilder[config]) {
+				a := root.Values.Int(&root.Config.A)
+				b := root.Values.Int(&root.Config.B)
+				root.Rule.AtLeastOne(a, b)
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			app := clitest.Compile(t, cli.Definition[config]{
-				Name:    "tool",
-				Help:    cli.HelpConfig{Disabled: true},
+			definition := cli.Definition[config]{
+				Name: "tool",
+				Help: cli.HelpConfig{
+					Disabled: true,
+				},
 				Declare: tc.declare,
-			})
+			}
+			app := clitest.Compile(t, definition)
 			clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
 				clitest.InspectionRejected(),
 				clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticRuleViolation).RuleKind(tc.want)),
@@ -1332,15 +1492,19 @@ func TestDiagnosticsProjectScalarRuleLiteralValueTypes(t *testing.T) {
 			app: func(t *testing.T) cli.Application {
 				t.Helper()
 				type config = diagnosticsValueConfig2
-				return clitest.Compile(t, cli.Definition[config]{
+				helpConfig := cli.HelpConfig{
+					Disabled: true,
+				}
+				definition := cli.Definition[config]{
 					Name: "tool",
-					Help: cli.HelpConfig{Disabled: true},
+					Help: helpConfig,
 					Declare: func(root *cli.CommandBuilder[config]) {
 						value := root.Values.Bool(&root.Config.Value)
 						root.Values.Default(value, false)
 						root.Rule.Equal(value, true)
 					},
-				})
+				}
+				return clitest.Compile(t, definition)
 			},
 		},
 		{
@@ -1351,15 +1515,19 @@ func TestDiagnosticsProjectScalarRuleLiteralValueTypes(t *testing.T) {
 			app: func(t *testing.T) cli.Application {
 				t.Helper()
 				type config = diagnosticsValueConfig3
-				return clitest.Compile(t, cli.Definition[config]{
+				helpConfig := cli.HelpConfig{
+					Disabled: true,
+				}
+				definition := cli.Definition[config]{
 					Name: "tool",
-					Help: cli.HelpConfig{Disabled: true},
+					Help: helpConfig,
 					Declare: func(root *cli.CommandBuilder[config]) {
 						value := root.Values.Uint(&root.Config.Value)
 						root.Values.Default(value, 1)
 						root.Rule.Equal(value, uint(2))
 					},
-				})
+				}
+				return clitest.Compile(t, definition)
 			},
 		},
 		{
@@ -1371,9 +1539,12 @@ func TestDiagnosticsProjectScalarRuleLiteralValueTypes(t *testing.T) {
 			app: func(t *testing.T) cli.Application {
 				t.Helper()
 				type config = diagnosticsValueConfig4
-				return clitest.Compile(t, cli.Definition[config]{
+				helpConfig := cli.HelpConfig{
+					Disabled: true,
+				}
+				definition := cli.Definition[config]{
 					Name: "tool",
-					Help: cli.HelpConfig{Disabled: true},
+					Help: helpConfig,
 					Declare: func(root *cli.CommandBuilder[config]) {
 						value := root.Values.Value(&root.Config.Value, cli.ValueCodec[diagnosticCustomValue]{
 							Name:     "custom",
@@ -1384,7 +1555,8 @@ func TestDiagnosticsProjectScalarRuleLiteralValueTypes(t *testing.T) {
 						root.Values.Default(value, diagnosticCustomValue("a"))
 						root.Rule.Equal(value, diagnosticCustomValue("b"))
 					},
-				})
+				}
+				return clitest.Compile(t, definition)
 			},
 		},
 	}
@@ -1404,9 +1576,11 @@ func TestDiagnosticViolationKindsPreservePublic(t *testing.T) {
 	t.Parallel()
 	type config = diagnosticsLeftRightConfig
 	var duplicateOrigins []cli.InputOriginID
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			left := root.Values.String(&root.Config.Left)
 			right := root.Values.String(&root.Config.Right)
@@ -1436,10 +1610,13 @@ func TestDiagnosticViolationKindsPreservePublic(t *testing.T) {
 				DependsOn(left).
 				DependsOn(right)
 			root.Rule.Validate("conflict", func(context.Context, *config, cli.Dependencies) ([]cli.Violation, error) {
-				return []cli.Violation{{Kind: cli.ViolationConflict}}, nil
+				return []cli.Violation{{
+					Kind: cli.ViolationConflict,
+				}}, nil
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--left", "a", "--right", "b"},
 	})
@@ -1535,13 +1712,16 @@ func TestDiagnosticsPreserveValueFailureSourceTierDispositionAndDeclaration(t *t
 	t.Run("argument", func(t *testing.T) {
 		t.Parallel()
 		type config = diagnosticsNumberConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "tool",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Arguments.Int(&root.Config.Number, "number")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		schema := clitest.Schema(app)
 		subject := clitest.ResolveDeclaration(t, schema, clitest.RootCommand().Argument("number"))
 		diagnostic := clitest.Diagnostic(cli.DiagnosticInvalidValue).On(subject)
@@ -1562,14 +1742,17 @@ func TestDiagnosticsPreserveValueFailureSourceTierDispositionAndDeclaration(t *t
 	t.Run("environment", func(t *testing.T) {
 		t.Parallel()
 		type config = diagnosticsNumberConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "tool",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				number := root.Values.Int(&root.Config.Number)
 				root.Values.Environment(number, "TOOL_NUMBER")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		schema := clitest.Schema(app)
 		subject := clitest.ResolveDeclaration(t, schema, clitest.RootCommand().Environment("TOOL_NUMBER"))
 		diagnostic := clitest.Diagnostic(cli.DiagnosticInvalidValue).On(subject)
@@ -1593,9 +1776,11 @@ func TestDiagnosticsPreserveValueFailureSourceTierDispositionAndDeclaration(t *t
 	t.Run("derived", func(t *testing.T) {
 		t.Parallel()
 		type config = diagnosticsDerivedConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "tool",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Values.Derive(
 					&root.Config.Derived,
@@ -1604,7 +1789,8 @@ func TestDiagnosticsPreserveValueFailureSourceTierDispositionAndDeclaration(t *t
 					}),
 				)
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		diagnostic := clitest.Diagnostic(cli.DiagnosticValueComputationFailure)
 		proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{})
 		proof.Require(t,
@@ -1620,9 +1806,11 @@ func TestDiagnosticsPreserveValueFailureSourceTierDispositionAndDeclaration(t *t
 	t.Run("resolved fact", func(t *testing.T) {
 		t.Parallel()
 		type config = diagnosticsFactConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "tool",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Facts.Resolve(
 					&root.Config.Fact,
@@ -1631,7 +1819,8 @@ func TestDiagnosticsPreserveValueFailureSourceTierDispositionAndDeclaration(t *t
 					},
 				)
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		diagnostic := clitest.Diagnostic(cli.DiagnosticFactResolutionFailure)
 		proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{})
 		proof.Require(t,
@@ -1650,7 +1839,7 @@ type diagnosticNoticeFixtureConfig struct{}
 func diagnosticNoticeDeliveryApp(t testing.TB, run func(), codes ...cli.AdvisoryCode) cli.Application {
 	t.Helper()
 	type config = diagnosticNoticeFixtureConfig
-	return clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "notices",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Subcommands.Command(cli.Command[config]{
@@ -1672,7 +1861,8 @@ func diagnosticNoticeDeliveryApp(t testing.TB, run func(), codes ...cli.Advisory
 				},
 			})
 		},
-	})
+	}
+	return clitest.Compile(t, definition)
 }
 
 type diagnosticTokenLanguageRejectionValueConfig struct{ Value string }
@@ -1680,9 +1870,11 @@ type diagnosticTokenLanguageRejectionValueConfig struct{ Value string }
 func diagnosticTokenLanguageInspection(ctx context.Context, t *testing.T, parse func(context.Context, []string) (string, error), args ...string) (cli.Inspection, error) {
 	t.Helper()
 	type config = diagnosticTokenLanguageRejectionValueConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "rejection",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			value := root.Values.String(&root.Config.Value)
 			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
@@ -1694,13 +1886,15 @@ func diagnosticTokenLanguageInspection(ctx context.Context, t *testing.T, parse 
 				})
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
-	return app.Inspect(ctx, cli.InspectionRequest{
+	request := cli.InspectionRequest{
 		Args: append([]string(nil), args...),
-	})
+	}
+	return app.Inspect(ctx, request)
 }
 
 func diagnosticInspectionHasDiagnosticCode(inspection cli.Inspection, code cli.DiagnosticCode) bool {
@@ -1715,15 +1909,22 @@ func diagnosticInspectionHasDiagnosticCode(inspection cli.Inspection, code cli.D
 func TestAnalyzeGrammarMissingMinimumOccurrencesHonorDiagnosticLimit(t *testing.T) {
 	t.Parallel()
 	type config struct{ A, B bool }
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Bool(&root.Config.A).Occurrences(cli.Count.OneOrMore()).Long("a")
 			root.Flags.Bool(&root.Config.B).Occurrences(cli.Count.OneOrMore()).Long("b")
 		},
+	}
+	app := clitest.Compile(t, definition)
+	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Limits: cli.AnalysisLimits{
+			Diagnostics: 1,
+		},
 	})
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{Limits: cli.AnalysisLimits{Diagnostics: 1}})
 	proof.Require(t, clitest.FailsWith(
 		clitest.DiagnosticAt(0).Code(cli.DiagnosticRepeatedFlag),
 		clitest.DiagnosticsTruncated(),
@@ -1743,17 +1944,22 @@ func TestAnalyzeGrammarStopsRecoveryAndMarksTruncatedWhenDiagnosticLimitExhausts
 		Output  string
 		Verbose bool
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Output).Long("output").ValueForms(cli.FlagValueFormSeparate)
 			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
-		Args:   []string{"--output", "--verbose"},
-		Limits: cli.AnalysisLimits{Diagnostics: 1},
+		Args: []string{"--output", "--verbose"},
+		Limits: cli.AnalysisLimits{
+			Diagnostics: 1,
+		},
 	})
 	proof.Require(t, clitest.FailsWith(
 		clitest.DiagnosticAt(0).Code(cli.DiagnosticMissingValue),

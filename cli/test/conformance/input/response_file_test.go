@@ -32,19 +32,20 @@ type responseFileConfig struct{}
 func responseFileApp(t *testing.T) cli.Application {
 	t.Helper()
 	type config = responseFileNameConfig
-	return responseFileMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ResponseFiles(true)
 			root.Flags.String(&root.Config.Name).Long("name")
 		},
-	})
+	}
+	return responseFileMustCompilePublic(t, definition)
 }
 
 func responseFileSequenceApp(t *testing.T) cli.Application {
 	t.Helper()
 	type config = responseFileValuesConfig
-	return responseFileMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ResponseFiles(true)
@@ -53,7 +54,8 @@ func responseFileSequenceApp(t *testing.T) cli.Application {
 				form.Sequence(values, "value", cli.Count.ZeroOrMore()).Greedy()
 			})
 		},
-	})
+	}
+	return responseFileMustCompilePublic(t, definition)
 }
 
 func declareResponseFileFixture(root *cli.CommandBuilder[struct{}]) {
@@ -97,19 +99,23 @@ func TestResponseFileLimitsAdapterPreservesAllLimitFields(t *testing.T) {
 	app := responseFileApp(t)
 	files := clitest.ResponseFiles{
 		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-			{Path: "one"}: {
+			{
+				Path: "one",
+			}: {
 				Key:      "one",
 				Revision: cli.Revision("r1"),
 				Content:  []byte("@two"),
 			},
-			{Path: "two"}: {
+			{
+				Path: "two",
+			}: {
 				Key:      "two",
 				Revision: cli.Revision("r1"),
 				Content:  []byte("--name value"),
 			},
 		},
 	}
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+	inspectionRequest := cli.InspectionRequest{
 		Args:          []string{"@one"},
 		ResponseFiles: files.Access(),
 		Limits: cli.AnalysisLimits{
@@ -122,8 +128,9 @@ func TestResponseFileLimitsAdapterPreservesAllLimitFields(t *testing.T) {
 				IncludeReferences: 10,
 			},
 		},
-	}).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+	}
+	clitest.Inspect(t.Context(), app, inspectionRequest).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
+	inspectionRequestUnderTest := cli.InspectionRequest{
 		Args:          []string{"@one"},
 		ResponseFiles: files.Access(),
 		Limits: cli.AnalysisLimits{
@@ -136,7 +143,8 @@ func TestResponseFileLimitsAdapterPreservesAllLimitFields(t *testing.T) {
 				IncludeReferences: 10,
 			},
 		},
-	}).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
+	}
+	clitest.Inspect(t.Context(), app, inspectionRequestUnderTest).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
 }
 
 func TestResponseFileCompleteOwnsMarkerBoundaryAndSnapshotsContribution(t *testing.T) {
@@ -176,7 +184,7 @@ func TestResponseFileCompleteOwnsMarkerBoundaryAndSnapshotsContribution(t *testi
 		Requests: &requests,
 	}
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"@fi"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -184,7 +192,8 @@ func TestResponseFileCompleteOwnsMarkerBoundaryAndSnapshotsContribution(t *testi
 			},
 			WorkingDirectory: "/work",
 			ResponseFiles:    files.Access(),
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("file.txt").Present())
 		return proof.Completion()
 	}()
@@ -210,19 +219,21 @@ func TestResponseFileCompleteRejectsPathExternalReplacementAndPreservesCallbackF
 				Start: 0,
 				End:   99,
 			}
-			return cli.CompletionContribution{
+			contribution := cli.CompletionContribution{
 				Replace: &r,
-			}, nil
+			}
+			return contribution, nil
 		},
 	}
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@fi"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
 			Byte:     3,
 		},
 		ResponseFiles: bad,
-	}).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()))
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()))
 
 	sentinel := errors.New("completion failed")
 	failure := cli.ResponseFileAccess{
@@ -230,14 +241,15 @@ func TestResponseFileCompleteRejectsPathExternalReplacementAndPreservesCallbackF
 			return cli.CompletionContribution{}, sentinel
 		},
 	}
-	proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequestUnderTest := cli.CompletionRequest{
 		Args: []string{"@fi"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
 			Byte:     3,
 		},
 		ResponseFiles: failure,
-	})
+	}
+	proof := clitest.Complete(t.Context(), app, completionRequestUnderTest)
 	proof.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticCompletionFailure).Present()))
 	_, err := proof.Completion()
 	if !errors.Is(err, sentinel) {
@@ -255,21 +267,31 @@ func TestResponseFileDiagnosticFailureMapsBoundedDiagnosticIdentities(t *testing
 		code   cli.DiagnosticCode
 	}{
 		{
-			"access unavailable",
-			cli.ResponseFileAccess{},
-			[]string{"@missing"},
-			cli.DiagnosticResponseFileAccessUnavailable,
+			name:   "access unavailable",
+			access: cli.ResponseFileAccess{},
+			args:   []string{"@missing"},
+			code:   cli.DiagnosticResponseFileAccessUnavailable,
 		},
-		{"load failure", cli.ResponseFileAccess{
-			Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
-				return cli.ResponseFile{}, errors.New("load failed")
+		{
+			name: "load failure",
+			access: cli.ResponseFileAccess{
+				Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
+					return cli.ResponseFile{}, errors.New("load failed")
+				},
 			},
-		}, []string{"@missing"}, cli.DiagnosticResponseFileLoadFailure},
-		{"invalid source", cli.ResponseFileAccess{
-			Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
-				return cli.ResponseFile{}, nil
+			args: []string{"@missing"},
+			code: cli.DiagnosticResponseFileLoadFailure,
+		},
+		{
+			name: "invalid source",
+			access: cli.ResponseFileAccess{
+				Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
+					return cli.ResponseFile{}, nil
+				},
 			},
-		}, []string{"@missing"}, cli.DiagnosticInvalidResponseFileSource},
+			args: []string{"@missing"},
+			code: cli.DiagnosticInvalidResponseFileSource,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -305,14 +327,16 @@ func TestResponseFileDiagnosticFailurePreservesCauseAndLimitIdentity(t *testing.
 
 	files := clitest.ResponseFiles{
 		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-			{Path: "x"}: {
+			{
+				Path: "x",
+			}: {
 				Key:      "x",
 				Revision: cli.Revision("r1"),
 				Content:  []byte("0123456789"),
 			},
 		},
 	}
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+	inspectionRequest := cli.InspectionRequest{
 		Args:          []string{"@x"},
 		ResponseFiles: files.Access(),
 		Limits: cli.AnalysisLimits{
@@ -325,7 +349,8 @@ func TestResponseFileDiagnosticFailurePreservesCauseAndLimitIdentity(t *testing.
 				IncludeReferences: 20,
 			},
 		},
-	}).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
+	}
+	clitest.Inspect(t.Context(), app, inspectionRequest).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
 }
 
 func TestResponseFileDiagnosticFailurePublishesSourceClosedFlatTextSpan(t *testing.T) {
@@ -333,7 +358,10 @@ func TestResponseFileDiagnosticFailurePublishesSourceClosedFlatTextSpan(t *testi
 	app := responseFileApp(t)
 	files := clitest.ResponseFiles{
 		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-			{Path: "root", Base: "/work"}: {
+			{
+				Path: "root",
+				Base: "/work",
+			}: {
 				Key:         "root-key",
 				Revision:    cli.Revision("r1"),
 				Location:    "virtual:root",
@@ -342,15 +370,19 @@ func TestResponseFileDiagnosticFailurePublishesSourceClosedFlatTextSpan(t *testi
 			},
 		},
 		LoadErrors: map[cli.ResponseFileRequest]error{
-			{Path: "missing", Base: "/work"}: errors.New("gone"),
+			{
+				Path: "missing",
+				Base: "/work",
+			}: errors.New("gone"),
 		},
 	}
 	diagnostic := clitest.Diagnostic(cli.DiagnosticResponseFileLoadFailure)
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+	inspectionRequest := cli.InspectionRequest{
 		Args:             []string{"@root"},
 		WorkingDirectory: "/work",
 		ResponseFiles:    files.Access(),
-	}).Require(
+	}
+	clitest.Inspect(t.Context(), app, inspectionRequest).Require(
 		t,
 		clitest.FailsWith(
 			diagnostic.Present(),
@@ -368,11 +400,12 @@ func TestExpandResponseArgumentsSharesSiblingSnapshotIdentityTransactionally(t *
 	access := cli.ResponseFileAccess{
 		Load: func(_ context.Context, r cli.ResponseFileRequest) (cli.ResponseFile, error) {
 			calls++
-			return cli.ResponseFile{
+			file := cli.ResponseFile{
 				Key:      r.Path,
 				Revision: cli.Revision("r1"),
 				Content:  []byte(r.Path),
-			}, nil
+			}
+			return file, nil
 		},
 	}
 	one := clitest.InputSourceByKey(cli.InputKindResponseFile, "one")
@@ -395,14 +428,15 @@ func TestExpandResponseArgumentsSharesSiblingCumulativeResponseBudgets(t *testin
 	app := responseFileSequenceApp(t)
 	access := cli.ResponseFileAccess{
 		Load: func(_ context.Context, r cli.ResponseFileRequest) (cli.ResponseFile, error) {
-			return cli.ResponseFile{
+			file := cli.ResponseFile{
 				Key:      r.Path,
 				Revision: cli.Revision("r1"),
 				Content:  []byte("1234567890"),
-			}, nil
+			}
+			return file, nil
 		},
 	}
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+	inspectionRequest := cli.InspectionRequest{
 		Args:          []string{"@one", "@two"},
 		ResponseFiles: access,
 		Limits: cli.AnalysisLimits{
@@ -415,7 +449,8 @@ func TestExpandResponseArgumentsSharesSiblingCumulativeResponseBudgets(t *testin
 				IncludeReferences: 10,
 			},
 		},
-	}).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
+	}
+	clitest.Inspect(t.Context(), app, inspectionRequest).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded).Present()))
 }
 
 func TestRevisionIsOpaqueComparableIngress(t *testing.T) {
@@ -440,7 +475,7 @@ func TestCompleteRejectsLateInvalidResponseFileContributionAtomically(t *testing
 		Name:    "tool",
 		Declare: func(root *cli.CommandBuilder[config]) { root.Dialect.ResponseFiles(true) },
 	})
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@pre"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -452,7 +487,7 @@ func TestCompleteRejectsLateInvalidResponseFileContributionAtomically(t *testing
 					Start: 1,
 					End:   3,
 				}
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Replace: &replace,
 					Candidates: []cli.CompletionCandidate{{
 						Value:   "prefix",
@@ -468,7 +503,8 @@ func TestCompleteRejectsLateInvalidResponseFileContributionAtomically(t *testing
 					}},
 					Spacing:   cli.CompletionSpacingNoSpace,
 					Truncated: true,
-				}, nil
+				}
+				return contribution, nil
 			},
 		},
 		Client: cli.CompletionClient{
@@ -481,7 +517,8 @@ func TestCompleteRejectsLateInvalidResponseFileContributionAtomically(t *testing
 				Messages: true,
 			},
 		},
-	}).Require(
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(
 		t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()),
 		clitest.CompletionPartial(),
@@ -513,7 +550,7 @@ func TestCompleteResponseFileTargetOwnsMarkerAndUsesPathRelativeCompleter(t *tes
 
 	var request cli.ResponseFileCompletionRequest
 	target := clitest.CompletionTarget(cli.CompletionTargetResponseFile)
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@fi"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -527,17 +564,19 @@ func TestCompleteResponseFileTargetOwnsMarkerAndUsesPathRelativeCompleter(t *tes
 					Start: 0,
 					End:   2,
 				}
-				return cli.CompletionContribution{
+				intent := &cli.CompletionNativeIntent{
+					Kind: cli.CompletionNativeFiles,
+					Mode: cli.CompletionNativeAlways,
+				}
+				contribution := cli.CompletionContribution{
 					Replace: &replace,
 					Candidates: []cli.CompletionCandidate{{
 						Value: "file.txt",
 						Kind:  cli.CompletionCandidateFile,
 					}},
-					Native: &cli.CompletionNativeIntent{
-						Kind: cli.CompletionNativeFiles,
-						Mode: cli.CompletionNativeAlways,
-					},
-				}, nil
+					Native: intent,
+				}
+				return contribution, nil
 			},
 		},
 		Client: cli.CompletionClient{
@@ -552,7 +591,8 @@ func TestCompleteResponseFileTargetOwnsMarkerAndUsesPathRelativeCompleter(t *tes
 				},
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionTargetsExactly(clitest.CompletionTargetAt(0)),
 		clitest.CompletionTargetAt(0).Kind(cli.CompletionTargetResponseFile),
 		target.OnSelectedCommand(),
@@ -625,7 +665,7 @@ func TestCompleteResponseFileSupportLoadsEarlierExpansionBeforeCompletingCurrent
 	}
 
 	loads, completions := 0, 0
-	result, err := app.Complete(t.Context(), cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@prior", "@fi"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -637,11 +677,12 @@ func TestCompleteResponseFileSupportLoadsEarlierExpansionBeforeCompletingCurrent
 				if request.Path != "prior" {
 					t.Fatalf("load path = %q", request.Path)
 				}
-				return cli.ResponseFile{
+				file := cli.ResponseFile{
 					Key:      "prior",
 					Revision: cli.Revision("r1"),
 					Content:  nil,
-				}, nil
+				}
+				return file, nil
 			},
 			Complete: func(context.Context, cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
 				completions++
@@ -654,7 +695,8 @@ func TestCompleteResponseFileSupportLoadsEarlierExpansionBeforeCompletingCurrent
 				Case: cli.CompletionCaseSensitive,
 			},
 		},
-	})
+	}
+	result, err := app.Complete(t.Context(), completionRequest)
 	if err != nil || loads != 1 || completions != 1 {
 		t.Fatalf("earlier response join = err %v loads=%d completions=%d", err, loads, completions)
 	}
@@ -672,7 +714,7 @@ func TestCompleteResponseFileCallbackFailureReturnsPartialTargetAndStructuredCom
 		Declare: func(root *cli.CommandBuilder[config]) { root.Dialect.ResponseFiles(true) },
 	})
 	cause := errors.New("response completion failed")
-	proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@fi"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -680,9 +722,12 @@ func TestCompleteResponseFileCallbackFailureReturnsPartialTargetAndStructuredCom
 		},
 		ResponseFiles: cli.ResponseFileAccess{
 			Complete: func(context.Context, cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
-					Candidates: []cli.CompletionCandidate{{Value: "must-not-commit"}},
-				}, cause
+				contribution := cli.CompletionContribution{
+					Candidates: []cli.CompletionCandidate{{
+						Value: "must-not-commit",
+					}},
+				}
+				return contribution, cause
 			},
 		},
 		Client: cli.CompletionClient{
@@ -691,7 +736,8 @@ func TestCompleteResponseFileCallbackFailureReturnsPartialTargetAndStructuredCom
 				Case: cli.CompletionCaseSensitive,
 			},
 		},
-	})
+	}
+	proof := clitest.Complete(t.Context(), app, completionRequest)
 	proof.Require(
 		t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticCompletionFailure).Present()),
@@ -731,11 +777,12 @@ func TestResponseExpansionFailureRollsBackLexicalFrameButPreservesAcceptedProvid
 			Load: func(_ context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
 				switch request.Path {
 				case "outer":
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:      "outer",
 						Revision: cli.Revision("r1"),
 						Content:  []byte("remote @broken"),
-					}, nil
+					}
+					return file, nil
 				case "broken":
 					loadedBroken = true
 					return cli.ResponseFile{}, nestedFailure
@@ -786,7 +833,9 @@ func TestResponseFileProviderDemandUsesChildFactSnapshot(t *testing.T) {
 			gate = root.Facts.Require(&root.Config.Gate)
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
 				providerCalls++
-				batch.Command(cli.Command[config]{Name: "remote"})
+				batch.Command(cli.Command[config]{
+					Name: "remote",
+				})
 				return nil
 			}, gate)
 		},
@@ -794,11 +843,12 @@ func TestResponseFileProviderDemandUsesChildFactSnapshot(t *testing.T) {
 
 	access := cli.ResponseFileAccess{
 		Load: func(_ context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
-			return cli.ResponseFile{
+			file := cli.ResponseFile{
 				Key:      request.Path,
 				Revision: cli.Revision("r1"),
 				Content:  []byte("remote"),
-			}, nil
+			}
+			return file, nil
 		},
 	}
 	facts := []cli.FactProvider{cli.FactsFor[config](func(_ context.Context, supply *cli.FactSupply[config]) error {
@@ -809,11 +859,12 @@ func TestResponseFileProviderDemandUsesChildFactSnapshot(t *testing.T) {
 		return nil
 	})}
 
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+	inspectionRequest := cli.InspectionRequest{
 		Args:          []string{"@args"},
 		Facts:         facts,
 		ResponseFiles: access,
-	}).Require(
+	}
+	clitest.Inspect(t.Context(), app, inspectionRequest).Require(
 		t,
 		clitest.InspectionReady(),
 		clitest.RootCommand().Command("remote").Exists(),
@@ -836,27 +887,31 @@ func TestResponseFileProviderDemandPreservesChildFactFailure(t *testing.T) {
 			root.Dialect.ResponseFiles(true)
 			gate = root.Facts.Require(&root.Config.Gate)
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
-				batch.Command(cli.Command[config]{Name: "remote"})
+				batch.Command(cli.Command[config]{
+					Name: "remote",
+				})
 				return nil
 			}, gate)
 		},
 	})
 
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+	inspectionRequest := cli.InspectionRequest{
 		Args: []string{"@args"},
 		Facts: []cli.FactProvider{cli.FactsFor[config](func(context.Context, *cli.FactSupply[config]) error {
 			return cause
 		})},
 		ResponseFiles: cli.ResponseFileAccess{
 			Load: func(_ context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
-				return cli.ResponseFile{
+				file := cli.ResponseFile{
 					Key:      request.Path,
 					Revision: cli.Revision("r1"),
 					Content:  []byte("remote"),
-				}, nil
+				}
+				return file, nil
 			},
 		},
-	})
+	}
+	proof := clitest.Inspect(t.Context(), app, inspectionRequest)
 	proof.Require(t,
 		clitest.InspectionRejected(),
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticFactSupplyFailure).Present()),
@@ -897,11 +952,12 @@ func TestResponseFileSelectsProviderCommandConsistentlyAcrossInspectionAndRun(t 
 			if request.Path != "args" {
 				return cli.ResponseFile{}, errors.New("unexpected response path")
 			}
-			return cli.ResponseFile{
+			file := cli.ResponseFile{
 				Key:      "args",
 				Revision: cli.Revision("r1"),
 				Content:  []byte("remote"),
-			}, nil
+			}
+			return file, nil
 		},
 	}
 	inspection, err := func() (cli.Inspection, error) {
@@ -987,10 +1043,11 @@ func TestInvocationNeedsResponseFileRecognitionIsLexicallyNarrow(t *testing.T) {
 					Load: func(_ context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
 						loads++
 						path = request.Path
-						return cli.ResponseFile{
+						file := cli.ResponseFile{
 							Key:      request.Path,
 							Revision: cli.Revision("r1"),
-						}, nil
+						}
+						return file, nil
 					},
 				},
 			})
@@ -1014,14 +1071,18 @@ func TestResponseFilePositionPreservesResponseFileContract(t *testing.T) {
 	})
 	files := clitest.ResponseFiles{
 		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-			{Path: "root"}: {
+			{
+				Path: "root",
+			}: {
 				Key:      "root",
 				Location: "virtual:root",
 				Content:  []byte("one\n@missing"),
 			},
 		},
 		LoadErrors: map[cli.ResponseFileRequest]error{
-			{Path: "missing"}: errors.New("gone"),
+			{
+				Path: "missing",
+			}: errors.New("gone"),
 		},
 	}
 	diagnostic := clitest.Diagnostic(cli.DiagnosticResponseFileLoadFailure)
@@ -1043,14 +1104,15 @@ func TestResponseFileCompleteHostProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := app.Complete(t.Context(), cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@fi"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
 			Byte:     3,
 		},
 		ResponseFiles: cli.ResponseFileAccess{},
-	})
+	}
+	result, err := app.Complete(t.Context(), completionRequest)
 	if err != nil {
 		t.Fatalf("Complete() with no response-file completer: %v", err)
 	}
@@ -1070,11 +1132,12 @@ func TestResponseFilePositionHostProtocol(t *testing.T) {
 	}
 	access := cli.ResponseFileAccess{
 		Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
-			return cli.ResponseFile{
+			file := cli.ResponseFile{
 				Key:      "root",
 				Location: "virtual:root",
 				Content:  []byte("value\r\n\""),
-			}, nil
+			}
+			return file, nil
 		},
 	}
 	_, err = app.Inspect(t.Context(), cli.InspectionRequest{
@@ -1111,10 +1174,11 @@ func TestResponseFileDiagnosticCodeHostProtocol(t *testing.T) {
 			Args: []string{"@root"},
 			ResponseFiles: cli.ResponseFileAccess{
 				Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:     "root",
 						Content: []byte{0xff},
-					}, nil
+					}
+					return file, nil
 				},
 			},
 		})
@@ -1136,10 +1200,11 @@ func TestResponseFileDiagnosticCodeHostProtocol(t *testing.T) {
 					if request.Path != "root" {
 						t.Fatalf("response path = %q, want root", request.Path)
 					}
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:     "root",
 						Content: []byte("@root"),
-					}, nil
+					}
+					return file, nil
 				},
 			},
 		})
@@ -1160,10 +1225,11 @@ func TestResponseFileDiagnosticCodeHostProtocol(t *testing.T) {
 			ResponseFiles: cli.ResponseFileAccess{
 				Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
 					cancel()
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:     "root",
 						Content: []byte("value"),
-					}, nil
+					}
+					return file, nil
 				},
 			},
 		})
@@ -1180,16 +1246,20 @@ func TestResponseFileDiagnosticCodeHostProtocol(t *testing.T) {
 func cutoverResponseApp(t *testing.T) cli.Application {
 	t.Helper()
 	type config struct{ Rest []string }
-	return clitest.Compile(t, cli.Definition[config]{
+	helpConfig := cli.HelpConfig{
+		Disabled: true,
+	}
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: helpConfig,
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ResponseFiles(true)
 			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
 				form.Strings(&form.Config.Rest, "REST", cli.Count.ZeroOrMore())
 			})
 		},
-	})
+	}
+	return clitest.Compile(t, definition)
 }
 
 func TestResponseExpansionEnforcesEveryFiniteBudget(t *testing.T) {
@@ -1201,54 +1271,121 @@ func TestResponseExpansionEnforcesEveryFiniteBudget(t *testing.T) {
 		reason string
 	}{
 		{
-			name:   "source bytes",
-			limits: cli.ResponseFileLimits{SourceBytes: 1},
-			files: clitest.ResponseFiles{Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-				{Path: "root"}: {Key: "root", Content: []byte("ab")},
-			}},
+			name: "source bytes",
+			limits: cli.ResponseFileLimits{
+				SourceBytes: 1,
+			},
+			files: clitest.ResponseFiles{
+				Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
+					{
+						Path: "root",
+					}: {
+						Key:     "root",
+						Content: []byte("ab"),
+					},
+				},
+			},
 			reason: "source-bytes",
 		},
 		{
-			name:   "total source bytes",
-			limits: cli.ResponseFileLimits{TotalSourceBytes: 2},
-			files: clitest.ResponseFiles{Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-				{Path: "root"}: {Key: "root", Content: []byte("@a")},
-				{Path: "a"}:    {Key: "a", Content: []byte("xx")},
-			}},
+			name: "total source bytes",
+			limits: cli.ResponseFileLimits{
+				TotalSourceBytes: 2,
+			},
+			files: clitest.ResponseFiles{
+				Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
+					{
+						Path: "root",
+					}: {
+						Key:     "root",
+						Content: []byte("@a"),
+					},
+					{
+						Path: "a",
+					}: {
+						Key:     "a",
+						Content: []byte("xx"),
+					},
+				},
+			},
 			reason: "total-source-bytes",
 		},
 		{
-			name:   "token bytes",
-			limits: cli.ResponseFileLimits{TokenBytes: 1},
-			files: clitest.ResponseFiles{Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-				{Path: "root"}: {Key: "root", Content: []byte("ab")},
-			}},
+			name: "token bytes",
+			limits: cli.ResponseFileLimits{
+				TokenBytes: 1,
+			},
+			files: clitest.ResponseFiles{
+				Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
+					{
+						Path: "root",
+					}: {
+						Key:     "root",
+						Content: []byte("ab"),
+					},
+				},
+			},
 			reason: "token-bytes",
 		},
 		{
-			name:   "total tokens",
-			limits: cli.ResponseFileLimits{TotalTokens: 1},
-			files: clitest.ResponseFiles{Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-				{Path: "root"}: {Key: "root", Content: []byte("a b")},
-			}},
+			name: "total tokens",
+			limits: cli.ResponseFileLimits{
+				TotalTokens: 1,
+			},
+			files: clitest.ResponseFiles{
+				Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
+					{
+						Path: "root",
+					}: {
+						Key:     "root",
+						Content: []byte("a b"),
+					},
+				},
+			},
 			reason: "total-tokens",
 		},
 		{
-			name:   "include references",
-			limits: cli.ResponseFileLimits{IncludeReferences: 1},
-			files: clitest.ResponseFiles{Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-				{Path: "root"}: {Key: "root", Content: []byte("@a")},
-				{Path: "a"}:    {Key: "a"},
-			}},
+			name: "include references",
+			limits: cli.ResponseFileLimits{
+				IncludeReferences: 1,
+			},
+			files: clitest.ResponseFiles{
+				Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
+					{
+						Path: "root",
+					}: {
+						Key:     "root",
+						Content: []byte("@a"),
+					},
+					{
+						Path: "a",
+					}: {
+						Key: "a",
+					},
+				},
+			},
 			reason: "include-references",
 		},
 		{
-			name:   "depth",
-			limits: cli.ResponseFileLimits{Depth: 1},
-			files: clitest.ResponseFiles{Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-				{Path: "root"}: {Key: "root", Content: []byte("@a")},
-				{Path: "a"}:    {Key: "a"},
-			}},
+			name: "depth",
+			limits: cli.ResponseFileLimits{
+				Depth: 1,
+			},
+			files: clitest.ResponseFiles{
+				Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
+					{
+						Path: "root",
+					}: {
+						Key:     "root",
+						Content: []byte("@a"),
+					},
+					{
+						Path: "a",
+					}: {
+						Key: "a",
+					},
+				},
+			},
 			reason: "depth",
 		},
 	}
@@ -1258,11 +1395,14 @@ func TestResponseExpansionEnforcesEveryFiniteBudget(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			diagnostic := clitest.Diagnostic(cli.DiagnosticResponseFileLimitExceeded)
-			clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+			inspectionRequest := cli.InspectionRequest{
 				Args:          []string{"@root"},
 				ResponseFiles: test.files.Access(),
-				Limits:        cli.AnalysisLimits{ResponseFiles: test.limits},
-			}).Require(t, clitest.FailsWith(diagnostic.Present(), diagnostic.Reason(test.reason)))
+				Limits: cli.AnalysisLimits{
+					ResponseFiles: test.limits,
+				},
+			}
+			clitest.Inspect(t.Context(), app, inspectionRequest).Require(t, clitest.FailsWith(diagnostic.Present(), diagnostic.Reason(test.reason)))
 		})
 	}
 }
@@ -1278,8 +1418,10 @@ func TestSensitiveResponseSourceRedactsFailureAndRetainsSourceIdentity(t *testin
 		root.Flags.Int(&root.Config.Count).Long("count")
 	}
 	definition := cli.Definition[config]{
-		Name:    "alienctl",
-		Help:    cli.HelpConfig{Disabled: true},
+		Name: "alienctl",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: declare,
 	}
 	app := clitest.Compile(t, definition)

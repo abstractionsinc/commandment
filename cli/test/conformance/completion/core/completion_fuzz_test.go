@@ -84,22 +84,24 @@ func FuzzCompleteShortcutResidualMatchesCanonicalTarget(f *testing.F) {
 			},
 		}
 
-		shortcut, shortcutErr := completionFuzzComplete(t, app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"quick", text},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
 				Byte:     len(text),
 			},
 			Client: client,
-		})
-		canonical, canonicalErr := completionFuzzComplete(t, app, cli.CompletionRequest{
+		}
+		shortcut, shortcutErr := completionFuzzComplete(t, app, completionRequest)
+		completionRequestUnderTest := cli.CompletionRequest{
 			Args: []string{"serve", "--mode", "fixed", text},
 			Cursor: cli.CompletionCursor{
 				Argument: 3,
 				Byte:     len(text),
 			},
 			Client: client,
-		})
+		}
+		canonical, canonicalErr := completionFuzzComplete(t, app, completionRequestUnderTest)
 		if (shortcutErr == nil) != (canonicalErr == nil) {
 			t.Fatalf("shortcut/canonical error parity = %v/%v", shortcutErr, canonicalErr)
 		}
@@ -154,7 +156,7 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 					Start: 0,
 					End:   request.Cursor,
 				}
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Replace: &replace,
 					Candidates: []cli.CompletionCandidate{
 						{
@@ -162,7 +164,8 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 							Replacement: []string{request.Text + "-replacement"},
 						},
 					},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("path")
 			root.Subcommands.Command(cli.Command[config]{
@@ -177,9 +180,12 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 						).CompleteTokensBy(
 							func(_ context.Context, _ *config, request cli.TokenLanguageCompletionRequest) (cli.CompletionContribution, error) {
 								tokenRequest = request
-								return cli.CompletionContribution{
-									Candidates: []cli.CompletionCandidate{{Value: "right"}},
-								}, nil
+								contribution := cli.CompletionContribution{
+									Candidates: []cli.CompletionCandidate{{
+										Value: "right",
+									}},
+								}
+								return contribution, nil
 							},
 						)
 					})
@@ -197,10 +203,11 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 						).DelegateCompletionBy(
 							func(_ context.Context, _ *config, request cli.CompletionDelegationRequest) (cli.CompletionDelegation, error) {
 								delegationRequest = request
-								return cli.CompletionDelegation{
+								delegation := cli.CompletionDelegation{
 									Args:   append([]string(nil), request.Args...),
 									Cursor: request.Cursor,
-								}, nil
+								}
+								return delegation, nil
 							},
 						)
 					})
@@ -223,14 +230,15 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 			},
 		}
 
-		command, err := completionFuzzComplete(t, app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{text},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
 				Byte:     len(text),
 			},
 			Client: client,
-		})
+		}
+		command, err := completionFuzzComplete(t, app, completionRequest)
 		if err != nil {
 			t.Fatalf("command Complete() error = %v", err)
 		}
@@ -240,14 +248,15 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 		}
 
 		valueRequest = cli.ValueCompletionRequest{}
-		value, err := completionFuzzComplete(t, app, cli.CompletionRequest{
+		completionRequestUnderTest := cli.CompletionRequest{
 			Args: []string{"--path", text},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
 				Byte:     len(text),
 			},
 			Client: client,
-		})
+		}
+		value, err := completionFuzzComplete(t, app, completionRequestUnderTest)
 		if err != nil {
 			t.Fatalf("value Complete() error = %v", err)
 		}
@@ -262,14 +271,15 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 		}
 
 		tokenRequest = cli.TokenLanguageCompletionRequest{}
-		token, err := completionFuzzComplete(t, app, cli.CompletionRequest{
+		completionRequestUnderTest2 := cli.CompletionRequest{
 			Args: []string{"tokens", "left", text},
 			Cursor: cli.CompletionCursor{
 				Argument: 2,
 				Byte:     len(text),
 			},
 			Client: client,
-		})
+		}
+		token, err := completionFuzzComplete(t, app, completionRequestUnderTest2)
 		if err != nil {
 			t.Fatalf("token Complete() error = %v", err)
 		}
@@ -308,7 +318,7 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 
 		loads = 0
 		responseRequest = cli.ResponseFileCompletionRequest{}
-		response, err := completionFuzzComplete(t, app, cli.CompletionRequest{
+		completionRequestUnderTest3 := cli.CompletionRequest{
 			Args: []string{"@" + text},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -321,12 +331,16 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 				},
 				Complete: func(_ context.Context, request cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
 					responseRequest = request
-					return cli.CompletionContribution{
-						Candidates: []cli.CompletionCandidate{{Value: request.Path + ".rsp"}},
-					}, nil
+					contribution := cli.CompletionContribution{
+						Candidates: []cli.CompletionCandidate{{
+							Value: request.Path + ".rsp",
+						}},
+					}
+					return contribution, nil
 				},
 			},
-		})
+		}
+		response, err := completionFuzzComplete(t, app, completionRequestUnderTest3)
 		if err != nil {
 			t.Fatalf("response Complete() error = %v", err)
 		}
@@ -341,22 +355,24 @@ func FuzzCompletionSemanticProperties(f *testing.F) {
 			t.Fatalf("response-file target missing: %#v", response.Targets)
 		}
 
-		first, firstErr := completionFuzzComplete(t, app, cli.CompletionRequest{
+		completionRequestUnderTest4 := cli.CompletionRequest{
 			Args: []string{"--path", text},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
 				Byte:     len(text),
 			},
 			Client: client,
-		})
-		second, secondErr := completionFuzzComplete(t, app, cli.CompletionRequest{
+		}
+		first, firstErr := completionFuzzComplete(t, app, completionRequestUnderTest4)
+		completionRequestUnderTest5 := cli.CompletionRequest{
 			Args: []string{"--path", text},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
 				Byte:     len(text),
 			},
 			Client: client,
-		})
+		}
+		second, secondErr := completionFuzzComplete(t, app, completionRequestUnderTest5)
 		if (firstErr == nil) != (secondErr == nil) ||
 			!equalCompletionFuzzSummary(completionFuzzShape(first), completionFuzzShape(second)) {
 			t.Fatalf(

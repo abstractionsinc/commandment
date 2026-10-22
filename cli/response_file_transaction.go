@@ -98,14 +98,17 @@ func cloneOperationIDsForResponse(ids operationIDs) operationIDs {
 	declaration := *ids.declarationIdentities.mustState()
 	operation := *ids.operationIdentities.mustState()
 
-	return operationIDs{
-		declarationIdentities: declarationIdentities{
-			state: &declaration,
-		},
-		operationIdentities: operationIdentities{
-			state: &operation,
-		},
+	identities := declarationIdentities{
+		state: &declaration,
 	}
+	operationIdentities := operationIdentities{
+		state: &operation,
+	}
+	ds := operationIDs{
+		declarationIdentities: identities,
+		operationIdentities:   operationIdentities,
+	}
+	return ds
 }
 
 func cloneEffectiveModelForResponse(parent *effectiveModel) *effectiveModel {
@@ -330,10 +333,11 @@ func cloneValueAnalysisForResponse(parent valueAnalysis, parentOwner, childOwner
 		if !ref.valid() || ref.owner != parentOwner {
 			panic("cli: invalid response-fork candidate reference")
 		}
-		return valueCandidateRef{
+		childRef := valueCandidateRef{
 			owner: childOwner,
 			index: ref.index,
 		}
+		return childRef
 	}
 
 	remappedCandidates := make(map[valueCandidateRef]valueCandidateObservation, len(child.Candidates))
@@ -491,17 +495,18 @@ func cloneFlagLexicalNamespaceForResponse(parent *flagLexicalNamespace) *flagLex
 	if parent == nil {
 		return nil
 	}
-	return &flagLexicalNamespace{
+	namespace := &flagLexicalNamespace{
 		flags:   append([]flagGrammar(nil), parent.flags...),
 		actions: append([]semanticActionFlagGrammar(nil), parent.actions...),
 	}
+	return namespace
 }
 
 func cloneFlagFrontierSnapshotForResponse(parent *flagFrontierSnapshot) *flagFrontierSnapshot {
 	if parent == nil {
 		return nil
 	}
-	return &flagFrontierSnapshot{
+	snapshot := &flagFrontierSnapshot{
 		active:        append([]flagGrammar(nil), parent.active...),
 		actions:       append([]semanticActionFlagGrammar(nil), parent.actions...),
 		selected:      append([]flagGrammar(nil), parent.selected...),
@@ -509,6 +514,7 @@ func cloneFlagFrontierSnapshotForResponse(parent *flagFrontierSnapshot) *flagFro
 		actionIndex:   cloneActionFlagMatchIndexForResponse(parent.actionIndex),
 		selectedIndex: cloneFlagMatchIndexForResponse(parent.selectedIndex),
 	}
+	return snapshot
 }
 
 func cloneFlagMatchIndexForResponse(parent flagMatchIndex) flagMatchIndex {
@@ -529,11 +535,12 @@ func cloneFlagMatchIndexForResponse(parent flagMatchIndex) flagMatchIndex {
 }
 
 func cloneActionFlagMatchIndexForResponse(parent actionFlagMatchIndex) actionFlagMatchIndex {
-	return actionFlagMatchIndex{
+	index := actionFlagMatchIndex{
 		actions:    append([]semanticActionFlagGrammar(nil), parent.actions...),
 		candidates: append([]actionFlagLexicalCandidate(nil), parent.candidates...),
 		exact:      cloneStringIntSlicesForResponse(parent.exact),
 	}
+	return index
 }
 
 func cloneStringIntSlicesForResponse(parent map[string][]int) map[string][]int {

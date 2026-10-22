@@ -93,7 +93,9 @@ func TestCompletionTargetOnPreservesIncompleteObservation(t *testing.T) {
 		if got.state == nil || !got.state.subjectSet {
 			t.Fatalf("completion target with invalid subject = %#v", got.state)
 		}
-		completion := cli.Completion{Targets: []cli.CompletionTarget{{}}}
+		completion := cli.Completion{
+			Targets: []cli.CompletionTarget{{}},
+		}
 		resolved := resolveCompletionTarget(got.state, completion)
 		if resolved.status != locatorResolutionInvalid {
 			t.Fatalf("completion target with invalid subject resolved = %#v", resolved)
@@ -244,7 +246,9 @@ func TestCompletionResolutionInternalStateFailsClosed(t *testing.T) {
 	t.Run("item target outside target set", func(t *testing.T) {
 		t.Parallel()
 		completion := cli.Completion{
-			Items: []cli.CompletionItem{{TargetIndexes: []int{0}}},
+			Items: []cli.CompletionItem{{
+				TargetIndexes: []int{0},
+			}},
 		}
 		got := resolveCompletionTarget(completionItemTargetAt(completionItemIndexLocator(0), 0).state, completion)
 		if got.status != locatorResolutionInvalid {
@@ -255,7 +259,9 @@ func TestCompletionResolutionInternalStateFailsClosed(t *testing.T) {
 	t.Run("native target outside target set", func(t *testing.T) {
 		t.Parallel()
 		completion := cli.Completion{
-			NativeRequests: []cli.CompletionNativeRequest{{TargetIndex: 0}},
+			NativeRequests: []cli.CompletionNativeRequest{{
+				TargetIndex: 0,
+			}},
 		}
 		got := resolveCompletionTarget(completionNativeRequestTarget(completionNativeRequestIndexLocator(0)).state, completion)
 		if got.status != locatorResolutionInvalid {

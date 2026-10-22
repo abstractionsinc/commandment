@@ -27,13 +27,12 @@ func (profiles *GrammarProfiles[C]) Switch[T comparable](selector destinationLik
 
 // Case declares a profile selected when the switch destination equals value.
 func (cases *GrammarProfileCases[C, T]) Case(value T, declare func(*CommandBuilder[C])) {
-	stageGrammarProfileCase(cases, value, false, declare)
+	stageGrammarProfileCase(cases, value, declare)
 }
 
 // Default declares the fallback profile used when no explicit case matches.
 func (cases *GrammarProfileCases[C, T]) Default(declare func(*CommandBuilder[C])) {
-	var zero T
-	stageGrammarProfileCase(cases, zero, true, declare)
+	stageGrammarProfileDefaultCase(cases, declare)
 }
 
 func stageGrammarProfileSwitch[C any, T comparable](profiles *GrammarProfiles[C], selector destinationLike[C, T], declare func(*GrammarProfileCases[C, T])) {
@@ -55,7 +54,7 @@ func stageGrammarProfileSwitch[C any, T comparable](profiles *GrammarProfiles[C]
 	declare(&cases)
 }
 
-func stageGrammarProfileCase[C any, T comparable](cases *GrammarProfileCases[C, T], value T, defaultCase bool, declare func(*CommandBuilder[C])) {
+func stageGrammarProfileCase[C any, T comparable](cases *GrammarProfileCases[C, T], value T, declare func(*CommandBuilder[C])) {
 	if cases == nil || cases.session == nil || !cases.switchRef.valid() {
 		return
 	}
@@ -67,7 +66,39 @@ func stageGrammarProfileCase[C any, T comparable](cases *GrammarProfileCases[C, 
 	contribution := draft.beginContribution()
 	defer contribution.rollback()
 
-	profile, valid := stageProfileCaseOnDraft(draft, command, cases.switchRef, value, defaultCase, declare != nil)
+	profile, valid := stageProfileCaseOnDraft(draft, command, cases.switchRef, value, declare != nil)
+	if !valid || declare == nil {
+		return
+	}
+
+	child := session.prepareChild(command)
+	builder := commandBuilder(cases.Config, child, profile)
+	if cause := child.invoke(func() {
+		declare(builder)
+	}); cause != nil {
+		abortBuilder(cause)
+	}
+	if contribution.rejected() {
+		return
+	}
+
+	contribution.commit()
+}
+
+func stageGrammarProfileDefaultCase[C any, T comparable](cases *GrammarProfileCases[C, T], declare func(*CommandBuilder[C])) {
+	if cases == nil || cases.session == nil || !cases.switchRef.valid() {
+		return
+	}
+
+	session := cases.session
+	draft, command, resume := session.suspend()
+	defer resume()
+
+	contribution := draft.beginContribution()
+	defer contribution.rollback()
+
+	var zero T
+	profile, valid := stageDefaultProfileCaseOnDraft(draft, command, cases.switchRef, zero, declare != nil)
 	if !valid || declare == nil {
 		return
 	}
@@ -112,21 +143,34 @@ func stageProfileSwitch(session *declarationSession, selector *destinationHandle
 	return ref, valid
 }
 
-func stageProfileCaseOnDraft(draft *declarationDraft, command commandRef, switchRef grammarProfileSwitchRef, value any, defaultCase, callbackPresent bool) (grammarProfileCaseRef, bool) {
-	if draft == nil || !switchRef.valid() {
-		return grammarProfileCaseRef{}, false
-	}
-
-	_, switchOK := draft.grammarProfileSwitches.resolve(draft, switchRef)
-	valid := callbackPresent && switchOK
+func stageProfileCaseOnDraft(draft *declarationDraft, command commandRef, switchRef grammarProfileSwitchRef, value any, callbackPresent bool) (grammarProfileCaseRef, bool) {
 	record := grammarProfileCaseDraft{
-		position:    draft.nextPosition(),
+		command:   command,
+		switchRef: switchRef,
+		value:     value,
+	}
+	return stageGrammarProfileCaseRecord(draft, record, callbackPresent)
+}
+
+func stageDefaultProfileCaseOnDraft(draft *declarationDraft, command commandRef, switchRef grammarProfileSwitchRef, value any, callbackPresent bool) (grammarProfileCaseRef, bool) {
+	record := grammarProfileCaseDraft{
 		command:     command,
 		switchRef:   switchRef,
 		value:       value,
-		defaultCase: defaultCase,
-		valid:       valid,
+		defaultCase: true,
 	}
+	return stageGrammarProfileCaseRecord(draft, record, callbackPresent)
+}
+
+func stageGrammarProfileCaseRecord(draft *declarationDraft, record grammarProfileCaseDraft, callbackPresent bool) (grammarProfileCaseRef, bool) {
+	if draft == nil || !record.switchRef.valid() {
+		return grammarProfileCaseRef{}, false
+	}
+
+	_, switchOK := draft.grammarProfileSwitches.resolve(draft, record.switchRef)
+	valid := callbackPresent && switchOK
+	record.position = draft.nextPosition()
+	record.valid = valid
 	ref := draft.grammarProfileCases.append(draft, record)
 	if !valid {
 		draft.reject(record.position, errInvalidAuthoringTransaction)
@@ -227,7 +271,7 @@ func stageStaticGrammarProfiles(input declarationPlan, source *declarationDraft,
 	return rootDialect, nil
 }
 
-func (draft *declarationCandidate) GrammarProfileCase(profile grammarProfileRef, selector acceptanceDestinationRef, value any, equal valueEquality, defaultCase bool, dialect dialectInput, position declarationPosition) {
+func (draft *declarationCandidate) GrammarProfileCase(profile grammarProfileRef, selector acceptanceDestinationRef, value any, equal valueEquality, dialect dialectInput, position declarationPosition) {
 	draft.mustOpen()
 	if !profile.OwnedBy(draft.owner) || !selector.OwnedBy(draft.owner) {
 		draft.reject(position)
@@ -245,7 +289,29 @@ func (draft *declarationCandidate) GrammarProfileCase(profile grammarProfileRef,
 	profileRecord.selector = selector.ID()
 	profileRecord.value = value
 	profileRecord.equal = equal
-	profileRecord.defaultCase = defaultCase
+	profileRecord.dialect = acceptDialect(dialect)
+	draft.input.GrammarProfiles[profileIndex] = profileRecord
+}
+
+func (draft *declarationCandidate) GrammarProfileDefaultCase(profile grammarProfileRef, selector acceptanceDestinationRef, value any, equal valueEquality, dialect dialectInput, position declarationPosition) {
+	draft.mustOpen()
+	if !profile.OwnedBy(draft.owner) || !selector.OwnedBy(draft.owner) {
+		draft.reject(position)
+		return
+	}
+	profileIndex, profileRecord, profileOK := draft.grammarProfileRecordForRef(profile)
+	_, selectorRecord, selectorOK := draft.destinationRecordForRef(selector)
+	if !profileOK || !selectorOK || profileRecord.command != selectorRecord.command {
+		draft.reject(position)
+		return
+	}
+	if equal == nil {
+		panic("semantic: invalid grammar-profile case")
+	}
+	profileRecord.selector = selector.ID()
+	profileRecord.value = value
+	profileRecord.equal = equal
+	profileRecord.defaultCase = true
 	profileRecord.dialect = acceptDialect(dialect)
 	draft.input.GrammarProfiles[profileIndex] = profileRecord
 }
@@ -483,10 +549,11 @@ type grammarProfileRecord struct {
 
 func acceptGrammarProfileRecord(id GrammarProfileID, command CommandID, position declarationPosition) grammarProfileRecord {
 	mustCommand(command)
-	return grammarProfileRecord{
+	record := grammarProfileRecord{
 		meta:    acceptRecordMeta(id, position),
 		command: command,
 	}
+	return record
 }
 
 func (record grammarProfileRecord) Selector() (ValueID, bool) {

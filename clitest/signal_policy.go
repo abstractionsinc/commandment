@@ -39,7 +39,10 @@ type SignalEndpointLocator struct {
 // SignalEndpointCount returns a reusable static declaration expectation that checks the number
 // of public signal endpoints in the exact Schema or Reference observation.
 func SignalEndpointCount(expected int) StaticDeclarationExpectation {
-	return signalEndpointCountExpectation{expected: expected}
+	expectation := signalEndpointCountExpectation{
+		expected: expected,
+	}
+	return expectation
 }
 
 // InspectionObservedSignalEndpointCount returns an Inspection expectation for the number of signal endpoints present in
@@ -53,10 +56,14 @@ func InspectionObservedSignalEndpointCount(expected int) InspectionExpectation {
 // Because status is not an identity, multiple matching endpoints are ambiguous and the expectation fails instead of depending
 // on map iteration order.
 func InspectionSignalEndpoint(status cli.SignalEndpointStatus) SignalEndpointLocator {
-	return SignalEndpointLocator{state: &signalEndpointLocatorState{
+	state := &signalEndpointLocatorState{
 		mode:   signalEndpointLocatorStatus,
 		status: status,
-	}}
+	}
+	locator := SignalEndpointLocator{
+		state: state,
+	}
+	return locator
 }
 
 // SignalPolicyByID returns a locator for the exact public SignalPolicyID in the observation
@@ -78,172 +85,194 @@ func (l CommandLocator) SignalPolicyAt(index int) SignalPolicyLocator {
 // Activation returns a locator that follows the public activation relationship from the located
 // signal policy. The returned locator carries locator coordinates, not observed state.
 func (locator SignalPolicyLocator) Activation() ConditionExpressionLocator {
-	return ConditionExpressionLocator{state: &conditionExpressionLocatorState{
+	state := &conditionExpressionLocatorState{
 		mode:         conditionExpressionLocatorSignalPolicyActivation,
 		signalPolicy: locator.state,
-	}}
+	}
+	conditionExpressionLocator := ConditionExpressionLocator{
+		state: state,
+	}
+	return conditionExpressionLocator
 }
 
 // Selector returns a locator that follows the public selector relationship from the located
 // signal policy. The returned locator carries locator coordinates, not observed state.
 func (locator SignalPolicyLocator) Selector() SignalSelectorLocator {
-	return SignalSelectorLocator{
+	signalSelectorLocator := SignalSelectorLocator{
 		policy: locator,
 	}
+	return signalSelectorLocator
 }
 
 // Occurrence returns a reusable declaration expectation that checks the public occurrence range
 // exposed by the located signal policy.
 func (locator SignalPolicyLocator) Occurrence(expected cli.SignalOccurrenceRange) DeclarationExpectation {
-	return signalPolicyOccurrenceExpectationValue{
+	value := signalPolicyOccurrenceExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Aggregation returns a reusable declaration expectation that checks the public aggregation
 // mode exposed by the located signal policy.
 func (locator SignalPolicyLocator) Aggregation(expected cli.SignalAggregation) DeclarationExpectation {
-	return signalPolicyAggregationExpectationValue{
+	value := signalPolicyAggregationExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Deferred returns a reusable declaration expectation that checks the public deferred state
 // exposed by the located signal policy.
 func (locator SignalPolicyLocator) Deferred() DeclarationExpectation {
-	return signalPolicyDeferredExpectationValue{
+	value := signalPolicyDeferredExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // NotDeferred returns a reusable declaration expectation that checks the located signal policy
 // is not deferred.
 func (locator SignalPolicyLocator) NotDeferred() DeclarationExpectation {
-	return signalPolicyDeferredExpectationValue{
+	value := signalPolicyDeferredExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // ContinuesMatching returns a reusable declaration expectation that checks the public
 // continue-matching state exposed by the located signal policy.
 func (locator SignalPolicyLocator) ContinuesMatching() DeclarationExpectation {
-	return signalPolicyContinueMatchingExpectationValue{
+	value := signalPolicyContinueMatchingExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // StopsMatching returns a reusable declaration expectation that checks the public stop-matching
 // state exposed by the located signal policy.
 func (locator SignalPolicyLocator) StopsMatching() DeclarationExpectation {
-	return signalPolicyContinueMatchingExpectationValue{
+	value := signalPolicyContinueMatchingExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Hint returns a reusable declaration expectation that checks the public hint exposed by the
 // located signal policy.
 func (locator SignalPolicyLocator) Hint(expected string) DeclarationExpectation {
-	return signalPolicyHintExpectationValue{
+	value := signalPolicyHintExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // ActionCount returns a reusable declaration expectation that checks the action count exposed
 // by the located signal policy.
 func (locator SignalPolicyLocator) ActionCount(expected int) DeclarationExpectation {
-	return signalPolicyActionCountExpectationValue{
+	value := signalPolicyActionCountExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // ActionAt returns a locator for the action at the supplied public ordered index of the located
 // signal policy. It does not search for or silently choose a first match.
 func (locator SignalPolicyLocator) ActionAt(index int) SignalActionLocator {
-	return SignalActionLocator{
+	signalActionLocator := SignalActionLocator{
 		policy: locator,
 		index:  index,
 	}
+	return signalActionLocator
 }
 
 // Origin returns an expectation that checks the located signal policy has the
 // framework-established DeclarationOrigin expected.
 func (locator SignalPolicyLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return signalPolicyOriginExpectationValue{
+	value := signalPolicyOriginExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Exists returns an expectation that checks the located signal policy exists in the relevant
 // public declaration observation.
 func (locator SignalPolicyLocator) Exists() DeclarationExpectation {
-	return signalPolicyExistenceExpectationValue{
+	value := signalPolicyExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located signal policy is absent from a
 // complete relevant public declaration domain; incomplete observation cannot manufacture
 // absence.
 func (locator SignalPolicyLocator) DoesNotExist() DeclarationExpectation {
-	return signalPolicyExistenceExpectationValue{
+	value := signalPolicyExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the signal policy has the requested declared
 // reachability.
 func (locator SignalPolicyLocator) Reachability(v cli.Reachability) DeclarationExpectation {
-	return signalPolicyReachabilityExpectationValue{
+	value := signalPolicyReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located signal policy is effective and
 // available in the public Reference observation.
 func (locator SignalPolicyLocator) Available() ReferenceExpectation {
-	return signalPolicyAvailabilityExpectationValue{
+	value := signalPolicyAvailabilityExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // Unavailable returns an expectation that checks the located signal policy is unavailable in
 // the public Reference observation.
 func (locator SignalPolicyLocator) Unavailable() ReferenceExpectation {
-	return signalPolicyAvailabilityExpectationValue{
+	value := signalPolicyAvailabilityExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Visible returns an expectation that checks the located signal policy is visible in the
 // public Reference observation.
 func (locator SignalPolicyLocator) Visible() ReferenceExpectation {
-	return signalPolicyVisibilityExpectationValue{
+	value := signalPolicyVisibilityExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // NotVisible returns an expectation that checks the located signal policy is not visible in
 // the public Reference observation.
 func (locator SignalPolicyLocator) NotVisible() ReferenceExpectation {
-	return signalPolicyVisibilityExpectationValue{
+	value := signalPolicyVisibilityExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Status returns an expectation that checks the signal policy's invocation-time status.
@@ -260,194 +289,216 @@ func (locator SignalPolicyLocator) ActivationOutcome(outcome cli.EvaluationOutco
 // RequiredSourceCapabilities returns an expectation that checks the policy declares exactly
 // the requested signal-source capabilities.
 func (locator SignalPolicyLocator) RequiredSourceCapabilities(v cli.SignalSourceCapabilities) DeclarationExpectation {
-	return signalPolicySourceCapabilitiesExpectationValue{
+	value := signalPolicySourceCapabilitiesExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // RequiredHostCapabilities returns an expectation that checks the policy declares exactly the
 // requested signal-host capabilities.
 func (locator SignalPolicyLocator) RequiredHostCapabilities(v cli.SignalHostCapabilities) DeclarationExpectation {
-	return signalPolicyHostCapabilitiesExpectationValue{
+	value := signalPolicyHostCapabilitiesExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Sensitive returns an expectation that checks the signal policy is declared sensitive; expectation
 // failures preserve redaction.
 func (locator SignalPolicyLocator) Sensitive() DeclarationExpectation {
-	return signalPolicySensitiveExpectationValue{locator: locator.state}
+	value := signalPolicySensitiveExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Kind returns a reusable declaration expectation that checks the public kind exposed by the
 // located signal selector.
 func (locator SignalSelectorLocator) Kind(expected cli.SignalSelectorKind) DeclarationExpectation {
-	return signalSelectorExpectationValue{
+	value := signalSelectorExpectationValue{
 		locator:  locator.policy.state,
 		property: signalSelectorExpectationKind,
 		kind:     expected,
 	}
+	return value
 }
 
 // SignalsExactly returns a reusable declaration expectation that checks the complete signal
 // list exactly in authoritative public order.
 func (locator SignalSelectorLocator) SignalsExactly(expected ...cli.Signal) DeclarationExpectation {
-	return signalSelectorExpectationValue{
+	value := signalSelectorExpectationValue{
 		locator:  locator.policy.state,
 		property: signalSelectorExpectationSignals,
 		signals:  slices.Clone(expected),
 	}
+	return value
 }
 
 // ExcludedSignalsExactly returns a reusable declaration expectation that checks the complete
 // excluded-signal list exactly in authoritative public order.
 func (locator SignalSelectorLocator) ExcludedSignalsExactly(expected ...cli.Signal) DeclarationExpectation {
-	return signalSelectorExpectationValue{
+	value := signalSelectorExpectationValue{
 		locator:  locator.policy.state,
 		property: signalSelectorExpectationExcludedSignals,
 		signals:  slices.Clone(expected),
 	}
+	return value
 }
 
 // OriginsExactly returns a reusable declaration expectation that checks the complete origin
 // list exactly in authoritative public order.
 func (locator SignalSelectorLocator) OriginsExactly(expected ...cli.SignalOrigin) DeclarationExpectation {
-	return signalSelectorExpectationValue{
+	value := signalSelectorExpectationValue{
 		locator:  locator.policy.state,
 		property: signalSelectorExpectationOrigins,
 		origins:  slices.Clone(expected),
 	}
+	return value
 }
 
 // ExcludedOriginsExactly returns a reusable declaration expectation that checks the complete
 // excluded-origin list exactly in authoritative public order.
 func (locator SignalSelectorLocator) ExcludedOriginsExactly(expected ...cli.SignalOrigin) DeclarationExpectation {
-	return signalSelectorExpectationValue{
+	value := signalSelectorExpectationValue{
 		locator:  locator.policy.state,
 		property: signalSelectorExpectationExcludedOrigins,
 		origins:  slices.Clone(expected),
 	}
+	return value
 }
 
 // ExcludedSender returns a reusable declaration expectation that checks the public excluded
 // sender exposed by the located signal selector.
 func (locator SignalSelectorLocator) ExcludedSender(expected string) DeclarationExpectation {
-	return signalSelectorExpectationValue{
+	value := signalSelectorExpectationValue{
 		locator:        locator.policy.state,
 		property:       signalSelectorExpectationExcludedSender,
 		excludedSender: expected,
 	}
+	return value
 }
 
 // PhasesExactly returns a reusable declaration expectation that checks the complete phase list
 // exactly in authoritative public order.
 func (locator SignalSelectorLocator) PhasesExactly(expected ...cli.SignalPhase) DeclarationExpectation {
-	return signalSelectorExpectationValue{
+	value := signalSelectorExpectationValue{
 		locator:  locator.policy.state,
 		property: signalSelectorExpectationPhases,
 		phases:   slices.Clone(expected),
 	}
+	return value
 }
 
 // Kind returns a reusable declaration expectation that checks the public kind exposed by the
 // located signal action.
 func (locator SignalActionLocator) Kind(expected cli.SignalActionKind) DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationKind,
 		kind:     expected,
 	}
+	return value
 }
 
 // Name returns a reusable declaration expectation that checks the public name exposed by the
 // located signal action.
 func (locator SignalActionLocator) Name(expected string) DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationName,
 		name:     expected,
 	}
+	return value
 }
 
 // Signal returns a reusable declaration expectation that checks the public signal exposed by
 // the located signal action.
 func (locator SignalActionLocator) Signal(expected cli.Signal) DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationSignal,
 		signal:   expected,
 	}
+	return value
 }
 
 // SignalRedacted returns a reusable declaration expectation that checks the public
 // signal-redacted state exposed by the located signal action.
 func (locator SignalActionLocator) SignalRedacted() DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationSignalRedacted,
 		boolean:  true,
 	}
+	return value
 }
 
 // Delayed returns a reusable declaration expectation that checks the public delayed state
 // exposed by the located signal action.
 func (locator SignalActionLocator) Delayed() DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationDelayed,
 		boolean:  true,
 	}
+	return value
 }
 
 // Immediate returns a reusable declaration expectation that checks the public immediate state
 // exposed by the located signal action.
 func (locator SignalActionLocator) Immediate() DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationDelayed,
 	}
+	return value
 }
 
 // Delay returns a reusable declaration expectation that checks the public delay exposed by the
 // located signal action.
 func (locator SignalActionLocator) Delay(expected time.Duration) DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationDelay,
 		delay:    expected,
 	}
+	return value
 }
 
 // DelayRedacted returns a reusable declaration expectation that checks the public
 // delay-redacted state exposed by the located signal action.
 func (locator SignalActionLocator) DelayRedacted() DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationDelayRedacted,
 		boolean:  true,
 	}
+	return value
 }
 
 // ExitCode returns a reusable declaration expectation that checks the public exit code exposed
 // by the located signal action.
 func (locator SignalActionLocator) ExitCode(expected int) DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationExitCode,
 		exitCode: expected,
 	}
+	return value
 }
 
 // Sensitive returns a reusable declaration expectation that checks the located signal action is
 // marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator SignalActionLocator) Sensitive() DeclarationExpectation {
-	return signalActionExpectationValue{
+	value := signalActionExpectationValue{
 		locator:  locator,
 		property: signalActionExpectationSensitive,
 		boolean:  true,
 	}
+	return value
 }
 
 // SignalEndpoint returns a locator by following the public endpoint identity carried by the
@@ -460,66 +511,73 @@ func (locator SignalActionLocator) SignalEndpoint() SignalEndpointLocator {
 // Endpoint returns a declaration expectation that checks the signal action's public EndpointID
 // resolves to the same signal-endpoint identity as the expected locator.
 func (locator SignalActionLocator) Endpoint(expected SignalEndpointLocator) DeclarationExpectation {
-	return signalActionEndpointExpectationValue{
+	value := signalActionEndpointExpectationValue{
 		locator:  locator,
 		expected: expected.state,
 	}
+	return value
 }
 
 // SignalValue returns a declaration expectation that checks the action's signal-value
 // relationship resolves to the same public value identity as the expected locator.
 func (locator SignalActionLocator) SignalValue(expected ValueLocator) DeclarationExpectation {
-	return signalActionValueExpectationValue{
+	value := signalActionValueExpectationValue{
 		locator:  locator,
 		expected: expected.state,
 	}
+	return value
 }
 
 // DelayValue returns a declaration expectation that checks the action's delay-value
 // relationship resolves to the same public value identity as the expected locator.
 func (locator SignalActionLocator) DelayValue(expected ValueLocator) DeclarationExpectation {
-	return signalActionValueExpectationValue{
+	value := signalActionValueExpectationValue{
 		locator:  locator,
 		expected: expected.state,
 		delay:    true,
 	}
+	return value
 }
 
 // Capacity returns a reusable declaration expectation that checks the public capacity exposed
 // by the located signal endpoint.
 func (locator SignalEndpointLocator) Capacity(expected int) DeclarationExpectation {
-	return signalEndpointCapacityExpectationValue{
+	value := signalEndpointCapacityExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Origin returns an expectation that checks the located signal endpoint has the
 // framework-established DeclarationOrigin expected.
 func (locator SignalEndpointLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return signalEndpointOriginExpectationValue{
+	value := signalEndpointOriginExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Exists returns an expectation that checks the located signal endpoint exists in the relevant
 // public declaration observation.
 func (locator SignalEndpointLocator) Exists() DeclarationExpectation {
-	return signalEndpointExistenceExpectationValue{
+	value := signalEndpointExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located signal endpoint is absent from a
 // complete relevant public declaration domain; incomplete observation cannot manufacture
 // absence.
 func (locator SignalEndpointLocator) DoesNotExist() DeclarationExpectation {
-	return signalEndpointExistenceExpectationValue{
+	value := signalEndpointExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Status returns an expectation that checks the signal endpoint's invocation-time status.
@@ -757,7 +815,10 @@ func commandSignalPolicyAtLocator(parent CommandLocator, index int) SignalPolicy
 		index:   index,
 	}
 
-	return SignalPolicyLocator{state: state}
+	locator := SignalPolicyLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveSignalActionSchema(locator SignalActionLocator, schema *cli.Schema) (cli.SignalAction, locatorResolutionStatus, evaluationField) {
@@ -809,7 +870,10 @@ func signalActionEndpointLocator(action SignalActionLocator) SignalEndpointLocat
 		actionIndex: action.index,
 	}
 
-	return SignalEndpointLocator{state: state}
+	locator := SignalEndpointLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveExpectedSignalEndpointSchema(state *signalEndpointLocatorState, schema *cli.Schema) (cli.SignalEndpointID, locatorResolutionStatus, evaluationField) {
@@ -890,7 +954,10 @@ func signalPolicyIDLocator(id cli.SignalPolicyID) SignalPolicyLocator {
 		id:   id,
 	}
 
-	return SignalPolicyLocator{state: state}
+	locator := SignalPolicyLocator{
+		state: state,
+	}
+	return locator
 }
 
 func signalEndpointIDLocator(id cli.SignalEndpointID) SignalEndpointLocator {
@@ -899,7 +966,10 @@ func signalEndpointIDLocator(id cli.SignalEndpointID) SignalEndpointLocator {
 		id:   id,
 	}
 
-	return SignalEndpointLocator{state: state}
+	locator := SignalEndpointLocator{
+		state: state,
+	}
+	return locator
 }
 
 func executionAdmissionSignalPolicyIndexLocator(admission *executionAdmissionLocatorState, index int) SignalPolicyLocator {
@@ -911,7 +981,10 @@ func executionAdmissionSignalPolicyIndexLocator(admission *executionAdmissionLoc
 		index: index,
 	}
 
-	return SignalPolicyLocator{state: state}
+	locator := SignalPolicyLocator{
+		state: state,
+	}
+	return locator
 }
 
 func executionAdmissionSignalEndpointIndexLocator(admission *executionAdmissionLocatorState, index int) SignalEndpointLocator {
@@ -923,7 +996,10 @@ func executionAdmissionSignalEndpointIndexLocator(admission *executionAdmissionL
 		index: index,
 	}
 
-	return SignalEndpointLocator{state: state}
+	locator := SignalEndpointLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveTypedSignalPolicyID(state *signalPolicyLocatorState, inspection cli.Inspection) (cli.SignalPolicyID, locatorResolutionStatus, evaluationField) {
@@ -1039,31 +1115,35 @@ func executionAdmissionSignalEndpointsExactlyExpectation(admission *executionAdm
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return executionAdmissionSignalEndpointsExactlyExpectationValue{
+	value := executionAdmissionSignalEndpointsExactlyExpectationValue{
 		admission: admission,
 		locators:  states,
 	}
+	return value
 }
 
 func signalPolicyStatusExpectation(locator SignalPolicyLocator, status cli.SignalPolicyStatus) InspectionExpectation {
-	return signalPolicyStatusExpectationValue{
+	value := signalPolicyStatusExpectationValue{
 		locator: locator.state,
 		status:  status,
 	}
+	return value
 }
 
 func signalPolicyActivationOutcomeExpectation(locator SignalPolicyLocator, outcome cli.EvaluationOutcome) InspectionExpectation {
-	return signalPolicyActivationOutcomeExpectationValue{
+	value := signalPolicyActivationOutcomeExpectationValue{
 		locator: locator.state,
 		outcome: outcome,
 	}
+	return value
 }
 
 func signalEndpointStatusExpectation(locator SignalEndpointLocator, status cli.SignalEndpointStatus) InspectionExpectation {
-	return signalEndpointStatusExpectationValue{
+	value := signalEndpointStatusExpectationValue{
 		locator: locator.state,
 		status:  status,
 	}
+	return value
 }
 
 func signalEndpointPoliciesExpectation(locator SignalEndpointLocator, effective bool, policies []SignalPolicyLocator) InspectionExpectation {
@@ -1071,11 +1151,12 @@ func signalEndpointPoliciesExpectation(locator SignalEndpointLocator, effective 
 	for index, policy := range policies {
 		states[index] = policy.state
 	}
-	return signalEndpointPoliciesExactExpectation{
+	expectation := signalEndpointPoliciesExactExpectation{
 		locator:   locator.state,
 		effective: effective,
 		states:    states,
 	}
+	return expectation
 }
 
 func signalPolicyLocatorStates(values []SignalPolicyLocator) []*signalPolicyLocatorState {

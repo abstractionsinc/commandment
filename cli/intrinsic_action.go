@@ -78,28 +78,52 @@ func (entries *HelpActionEntries) Long(name string) helpFlagEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return helpFlagEntry{state: declareActionFlag(entries.session, actionFlag{long: name})}
+	flag := actionFlag{
+		long: name,
+	}
+	entry := helpFlagEntry{
+		state: declareActionFlag(entries.session, flag),
+	}
+	return entry
 }
 
 func (entries *HelpActionEntries) Short(name rune) helpFlagEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return helpFlagEntry{state: declareActionFlag(entries.session, actionFlag{short: name})}
+	flag := actionFlag{
+		short: name,
+	}
+	entry := helpFlagEntry{
+		state: declareActionFlag(entries.session, flag),
+	}
+	return entry
 }
 
 func (entries *HelpActionEntries) Literal(spelling string) helpFlagEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return helpFlagEntry{state: declareActionFlag(entries.session, actionFlag{literal: spelling})}
+	flag := actionFlag{
+		literal: spelling,
+	}
+	entry := helpFlagEntry{
+		state: declareActionFlag(entries.session, flag),
+	}
+	return entry
 }
 
 func (entries *HelpActionEntries) Command(name string) helpCommandEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return helpCommandEntry{state: declareActionCommand(entries.session, actionCommand{name: name})}
+	command := actionCommand{
+		name: name,
+	}
+	entry := helpCommandEntry{
+		state: declareActionCommand(entries.session, command),
+	}
+	return entry
 }
 
 func (entry helpFlagEntry) helpEntryTarget() *actionEntryDeclarationState { return entry.state }
@@ -161,28 +185,52 @@ func (entries *VersionActionEntries) Long(name string) versionFlagEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return versionFlagEntry{state: declareActionFlag(entries.session, actionFlag{long: name})}
+	flag := actionFlag{
+		long: name,
+	}
+	entry := versionFlagEntry{
+		state: declareActionFlag(entries.session, flag),
+	}
+	return entry
 }
 
 func (entries *VersionActionEntries) Short(name rune) versionFlagEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return versionFlagEntry{state: declareActionFlag(entries.session, actionFlag{short: name})}
+	flag := actionFlag{
+		short: name,
+	}
+	entry := versionFlagEntry{
+		state: declareActionFlag(entries.session, flag),
+	}
+	return entry
 }
 
 func (entries *VersionActionEntries) Literal(spelling string) versionFlagEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return versionFlagEntry{state: declareActionFlag(entries.session, actionFlag{literal: spelling})}
+	flag := actionFlag{
+		literal: spelling,
+	}
+	entry := versionFlagEntry{
+		state: declareActionFlag(entries.session, flag),
+	}
+	return entry
 }
 
 func (entries *VersionActionEntries) Command(name string) versionCommandEntry {
 	if entries == nil {
 		panicBuilderMisuse()
 	}
-	return versionCommandEntry{state: declareActionCommand(entries.session, actionCommand{name: name})}
+	command := actionCommand{
+		name: name,
+	}
+	entry := versionCommandEntry{
+		state: declareActionCommand(entries.session, command),
+	}
+	return entry
 }
 
 func (entry versionFlagEntry) Hidden() versionFlagEntry {
@@ -633,35 +681,47 @@ const (
 
 func captureHelpActionEntries(replace func(*HelpActionEntries)) ([]authoringActionEntry, error) {
 	if replace == nil {
+		description := Description{
+			Short: standardHelpActionDescription,
+		}
+		flag := actionFlag{
+			long:        "help",
+			description: description,
+		}
+		returnedDescription := Description{
+			Short: standardHelpActionDescription,
+		}
+		actionFlag := actionFlag{
+			short:       'h',
+			description: returnedDescription,
+		}
+		description2 := Description{
+			Short: standardHelpActionDescription,
+		}
+		command := actionCommand{
+			name:        "help",
+			description: description2,
+		}
 		return []authoringActionEntry{
 			{
-				kind:   authoringActionEntryFlag,
-				action: intrinsicActionHelp,
-				origin: DeclarationOriginFrontend,
-				flag: actionFlag{
-					long:        "help",
-					description: Description{Short: standardHelpActionDescription},
-				},
+				kind:        authoringActionEntryFlag,
+				action:      intrinsicActionHelp,
+				origin:      DeclarationOriginFrontend,
+				flag:        flag,
 				replacement: -1,
 			},
 			{
-				kind:   authoringActionEntryFlag,
-				action: intrinsicActionHelp,
-				origin: DeclarationOriginFrontend,
-				flag: actionFlag{
-					short:       'h',
-					description: Description{Short: standardHelpActionDescription},
-				},
+				kind:        authoringActionEntryFlag,
+				action:      intrinsicActionHelp,
+				origin:      DeclarationOriginFrontend,
+				flag:        actionFlag,
 				replacement: -1,
 			},
 			{
-				kind:   authoringActionEntryCommand,
-				action: intrinsicActionHelp,
-				origin: DeclarationOriginFrontend,
-				command: actionCommand{
-					name:        "help",
-					description: Description{Short: standardHelpActionDescription},
-				},
+				kind:        authoringActionEntryCommand,
+				action:      intrinsicActionHelp,
+				origin:      DeclarationOriginFrontend,
+				command:     command,
 				replacement: -1,
 			},
 		}, nil
@@ -674,7 +734,11 @@ func captureHelpActionEntries(replace func(*HelpActionEntries)) ([]authoringActi
 		draft: scope,
 		state: actionEntrySessionPrepared,
 	}
-	if cause := session.invoke(func() { replace(&HelpActionEntries{session: session}) }); cause != nil {
+	if cause := session.invoke(func() {
+		replace(&HelpActionEntries{
+			session: session,
+		})
+	}); cause != nil {
 		return nil, cause
 	}
 	return closeActionEntryScope(scope)
@@ -682,15 +746,19 @@ func captureHelpActionEntries(replace func(*HelpActionEntries)) ([]authoringActi
 
 func captureVersionActionEntries(replace func(*VersionActionEntries)) ([]authoringActionEntry, error) {
 	if replace == nil {
+		description := Description{
+			Short: standardVersionActionDescription,
+		}
+		flag := actionFlag{
+			long:        "version",
+			description: description,
+		}
 		return []authoringActionEntry{
 			{
-				kind:   authoringActionEntryFlag,
-				action: intrinsicActionVersion,
-				origin: DeclarationOriginFrontend,
-				flag: actionFlag{
-					long:        "version",
-					description: Description{Short: standardVersionActionDescription},
-				},
+				kind:        authoringActionEntryFlag,
+				action:      intrinsicActionVersion,
+				origin:      DeclarationOriginFrontend,
+				flag:        flag,
 				replacement: -1,
 			},
 		}, nil
@@ -703,7 +771,11 @@ func captureVersionActionEntries(replace func(*VersionActionEntries)) ([]authori
 		draft: scope,
 		state: actionEntrySessionPrepared,
 	}
-	if cause := session.invoke(func() { replace(&VersionActionEntries{session: session}) }); cause != nil {
+	if cause := session.invoke(func() {
+		replace(&VersionActionEntries{
+			session: session,
+		})
+	}); cause != nil {
 		return nil, cause
 	}
 	return closeActionEntryScope(scope)
@@ -1108,10 +1180,11 @@ type actionEntryRecord struct {
 
 func acceptActionEntryRecord(id ActionEntryID, parent CommandID, position declarationPosition) actionEntryRecord {
 	mustCommand(parent)
-	return actionEntryRecord{
+	record := actionEntryRecord{
 		meta:   acceptRecordMeta(id, position),
 		parent: parent,
 	}
+	return record
 }
 
 func (record actionEntryRecord) Replacement() (ActionEntryID, bool) {

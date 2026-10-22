@@ -152,11 +152,12 @@ func prepareStaticArtifactSource(valid bool, application applicationMetadata, re
 	if err != nil {
 		return nil, err
 	}
-	return &staticArtifactSource{
+	source := &staticArtifactSource{
 		staticTopology: topology,
 		application:    application,
 		analysis:       analysis,
-	}, nil
+	}
+	return source, nil
 }
 
 func prepareSchemaProjector(valid bool, application applicationMetadata, records staticRecords, grammar grammarView, analysis staticAnalysis) (*schemaProjector, error) {
@@ -164,7 +165,10 @@ func prepareSchemaProjector(valid bool, application applicationMetadata, records
 	if err != nil {
 		return nil, err
 	}
-	return &schemaProjector{staticArtifactSource: source}, nil
+	projector := &schemaProjector{
+		staticArtifactSource: source,
+	}
+	return projector, nil
 }
 
 func putRecordIndex[I comparable](index map[I]int, id I, position int) bool {
@@ -987,7 +991,9 @@ func projectShortcutDefaults(shortcut shortcutDefinition, destination func(Value
 			return nil, errInvalidModelTopology
 		}
 		sensitive := value.Source().Sensitive()
-		projected := CommandShortcutDefaultSchema{Sensitive: sensitive}
+		projected := CommandShortcutDefaultSchema{
+			Sensitive: sensitive,
+		}
 		switch value.Kind() {
 		case shortcutDefaultKindDestination:
 			record, ok := destination(value.Destination())
@@ -1004,7 +1010,9 @@ func projectShortcutDefaults(shortcut shortcutDefinition, destination func(Value
 			projected.Spelling = value.Spelling()
 			for _, text := range value.Values() {
 				literal := ValueLiteral{
-					Type:      ValueType{Kind: ValueKindString},
+					Type: ValueType{
+						Kind: ValueKindString,
+					},
 					Text:      text,
 					Sensitive: sensitive,
 				}
@@ -1048,20 +1056,22 @@ func projectValueLiteralRecord(record destinationRecord, value any, sensitive bo
 		return ValueLiteral{}, errInvalidModelTopology
 	}
 	if sensitive {
-		return ValueLiteral{
+		literal := ValueLiteral{
 			Type:      valueType,
 			Sensitive: true,
 			Redacted:  true,
-		}, nil
+		}
+		return literal, nil
 	}
 	text, err := language.Format(value)
 	if err != nil {
 		return ValueLiteral{}, errInvalidModelTopology
 	}
-	return ValueLiteral{
+	literal := ValueLiteral{
 		Type: valueType,
 		Text: text,
-	}, nil
+	}
+	return literal, nil
 }
 
 func (p *staticArtifactSource) projectGrammarProfileSet(command CommandID) (GrammarProfileSet, bool, error) {
@@ -1069,7 +1079,9 @@ func (p *staticArtifactSource) projectGrammarProfileSet(command CommandID) (Gram
 	if len(ids) == 0 {
 		return GrammarProfileSet{}, false, nil
 	}
-	set := GrammarProfileSet{Profiles: make(map[GrammarProfileID]GrammarProfile, len(ids))}
+	set := GrammarProfileSet{
+		Profiles: make(map[GrammarProfileID]GrammarProfile, len(ids)),
+	}
 	var defaultID GrammarProfileID
 	for _, id := range ids {
 		record, ok := p.grammarProfile(id)
@@ -1140,7 +1152,9 @@ func (p *staticArtifactSource) projectHelp(command CommandID) HelpSchema {
 				Profile: group.profile,
 			}
 			for _, entry := range group.CommandEntries() {
-				item := HelpCommandGroupEntrySchema{Profile: group.profile}
+				item := HelpCommandGroupEntrySchema{
+					Profile: group.profile,
+				}
 				switch entry.Kind() {
 				case HelpCommandGroupEntryCommandEntry:
 					item.Kind = HelpCommandGroupEntryCommandEntry
@@ -1349,7 +1363,9 @@ func (p *schemaProjector) projectActionsAndGrammar(result *Schema) error {
 			}
 		}
 		if grammar.tokenName != "" {
-			public.TokenLanguage = &TokenLanguageSyntax{Fragments: grammar.TokenSyntax()}
+			public.TokenLanguage = &TokenLanguageSyntax{
+				Fragments: grammar.TokenSyntax(),
+			}
 		}
 		completion, present := record.Completion()
 		public.Completion, err = projectCompletion(completion, present)
@@ -1479,7 +1495,9 @@ func (p *schemaProjector) projectValuesAndDomains(result *Schema) error {
 		}
 	}
 	for _, record := range p.records.valueDomains {
-		public := ValueDomainSchema{Entries: record.Entries()}
+		public := ValueDomainSchema{
+			Entries: record.Entries(),
+		}
 		for _, use := range record.Uses() {
 			public.Uses = append(public.Uses, ValueDomainUse{
 				Destination: use.destination,
@@ -1494,12 +1512,14 @@ func (p *schemaProjector) projectValuesAndDomains(result *Schema) error {
 			return err
 		}
 		result.ValueDomainEntries[record.meta.id] = ValueDomainEntrySchema{
-			ID:             record.meta.id,
-			Kind:           valueDomainEntryKind(record.kind),
-			Origin:         DeclarationOriginApplication,
-			Name:           record.name,
-			Canonical:      record.canonical,
-			Description:    Description{Short: record.description},
+			ID:        record.meta.id,
+			Kind:      valueDomainEntryKind(record.kind),
+			Origin:    DeclarationOriginApplication,
+			Name:      record.name,
+			Canonical: record.canonical,
+			Description: Description{
+				Short: record.description,
+			},
 			Hidden:         record.hidden,
 			Release:        releaseLifecycle(record.lifecycle),
 			LifecycleState: state,
@@ -1581,19 +1601,21 @@ func (p *staticArtifactSource) projectConditionTarget(target conditionTarget) (D
 		if !ok {
 			return DeclarationIdentity{}, 0, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind: DeclarationKindFlag,
 			Flag: target.Flag(),
-		}, record.command, nil
+		}
+		return identity, record.command, nil
 	case conditionTargetArgumentForm:
 		record, ok := p.argumentForm(target.ArgumentForm())
 		if !ok {
 			return DeclarationIdentity{}, 0, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:         DeclarationKindArgumentForm,
 			ArgumentForm: target.ArgumentForm(),
-		}, record.command, nil
+		}
+		return identity, record.command, nil
 	case conditionTargetArgumentTerm:
 		record, ok := p.argumentTerm(target.ArgumentTerm())
 		if !ok {
@@ -1603,18 +1625,20 @@ func (p *staticArtifactSource) projectConditionTarget(target conditionTarget) (D
 		if !ok {
 			return DeclarationIdentity{}, 0, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:         DeclarationKindArgumentTerm,
 			ArgumentTerm: target.ArgumentTerm(),
-		}, form.command, nil
+		}
+		return identity, form.command, nil
 	case conditionTargetCommand:
 		if _, ok := p.command(target.Command()); !ok {
 			return DeclarationIdentity{}, 0, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:    DeclarationKindCommand,
 			Command: target.Command(),
-		}, target.Command(), nil
+		}
+		return identity, target.Command(), nil
 	default:
 		return DeclarationIdentity{}, 0, errInvalidModelTopology
 	}
@@ -2015,55 +2039,61 @@ func (p *staticArtifactSource) projectReplacementIdentity(identity declarationRe
 		if !ok {
 			return DeclarationIdentity{}, ReleaseLifecycle{}, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		declarationIdentity := DeclarationIdentity{
 			Kind:         DeclarationKindCommandEntry,
 			CommandEntry: identity.CommandEntry(),
-		}, record.lifecycle, nil
+		}
+		return declarationIdentity, record.lifecycle, nil
 	case declarationReplacementKindFlag:
 		record, ok := p.flag(identity.Flag())
 		if !ok {
 			return DeclarationIdentity{}, ReleaseLifecycle{}, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		declarationIdentity := DeclarationIdentity{
 			Kind: DeclarationKindFlag,
 			Flag: identity.Flag(),
-		}, record.lifecycle, nil
+		}
+		return declarationIdentity, record.lifecycle, nil
 	case declarationReplacementKindFlagSpelling:
 		record, ok := p.flagSpelling(identity.FlagSpelling())
 		if !ok {
 			return DeclarationIdentity{}, ReleaseLifecycle{}, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		declarationIdentity := DeclarationIdentity{
 			Kind:         DeclarationKindFlagSpelling,
 			FlagSpelling: identity.FlagSpelling(),
-		}, record.lifecycle, nil
+		}
+		return declarationIdentity, record.lifecycle, nil
 	case declarationReplacementKindArgumentForm:
 		record, ok := p.argumentForm(identity.ArgumentForm())
 		if !ok {
 			return DeclarationIdentity{}, ReleaseLifecycle{}, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		declarationIdentity := DeclarationIdentity{
 			Kind:         DeclarationKindArgumentForm,
 			ArgumentForm: identity.ArgumentForm(),
-		}, record.lifecycle, nil
+		}
+		return declarationIdentity, record.lifecycle, nil
 	case declarationReplacementKindArgumentTerm:
 		record, ok := p.argumentTerm(identity.ArgumentTerm())
 		if !ok {
 			return DeclarationIdentity{}, ReleaseLifecycle{}, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		declarationIdentity := DeclarationIdentity{
 			Kind:         DeclarationKindArgumentTerm,
 			ArgumentTerm: identity.ArgumentTerm(),
-		}, record.lifecycle, nil
+		}
+		return declarationIdentity, record.lifecycle, nil
 	case declarationReplacementKindEnvironmentInput:
 		record, ok := p.environmentInput(identity.EnvironmentInput())
 		if !ok {
 			return DeclarationIdentity{}, ReleaseLifecycle{}, errInvalidModelTopology
 		}
-		return DeclarationIdentity{
+		declarationIdentity := DeclarationIdentity{
 			Kind:             DeclarationKindEnvironmentInput,
 			EnvironmentInput: identity.EnvironmentInput(),
-		}, record.lifecycle, nil
+		}
+		return declarationIdentity, record.lifecycle, nil
 	default:
 		return DeclarationIdentity{}, ReleaseLifecycle{}, errInvalidModelTopology
 	}

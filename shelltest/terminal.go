@@ -29,16 +29,19 @@ type terminalSession struct {
 func startTerminalSession(parent context.Context, executable string, args []string, workspace string, environment []string) (*terminalSession, error) {
 	process, err := startTerminalProcess(parent, executable, args, workspace, environment)
 	if err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "start real shell editor",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	session := &terminalSession{
 		process:  process,
 		readDone: make(chan struct{}),
 	}
-	session.input = &lockedWriter{writer: process}
+	session.input = &lockedWriter{
+		writer: process,
+	}
 	output := &terminalOutput{
 		changed:      make(chan struct{}, 1),
 		available:    true,
@@ -86,23 +89,26 @@ func (session *terminalSession) waitQuiet(parent context.Context, subject string
 			timer.Reset(terminalQuietPeriod)
 		case <-timer.C:
 			if err := session.readError(); err != nil {
-				return 0, failureError{
+				failure := failureError{
 					subject: subject,
 					cause:   err,
 				}
+				return 0, failure
 			}
 			if err := session.output.failure(); err != nil {
-				return 0, failureError{
+				failure := failureError{
 					subject: subject,
 					cause:   err,
 				}
+				return 0, failure
 			}
 			if session.process.exited() {
-				return 0, failureError{
+				failure := failureError{
 					subject: subject,
 					detail:  session.diagnostics(),
 					cause:   session.process.waitError(),
 				}
+				return 0, failure
 			}
 			current := session.output.currentGeneration()
 			if current != generation {
@@ -112,27 +118,30 @@ func (session *terminalSession) waitQuiet(parent context.Context, subject string
 			}
 			return generation, nil
 		case <-session.process.done():
-			return 0, failureError{
+			failure := failureError{
 				subject: subject,
 				detail:  session.diagnostics(),
 				cause:   session.process.waitError(),
 			}
+			return 0, failure
 		case <-ctx.Done():
-			return 0, failureError{
+			failure := failureError{
 				subject: subject,
 				detail:  session.diagnostics(),
 				cause:   ctx.Err(),
 			}
+			return 0, failure
 		}
 	}
 }
 
 func (session *terminalSession) enter(input Input) error {
 	if _, err := io.WriteString(session.input, input.BeforeCursor+input.AfterCursor); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "enter shell editor input",
 			cause:   err,
 		}
+		return failure
 	}
 	count := utf8.RuneCountInString(input.AfterCursor)
 	if count == 0 {
@@ -140,17 +149,21 @@ func (session *terminalSession) enter(input Input) error {
 	}
 	applicationMode, known := session.output.mode()
 	if !known {
-		return failureError{subject: "terminal cursor-key mode is not provable"}
+		failure := failureError{
+			subject: "terminal cursor-key mode is not provable",
+		}
+		return failure
 	}
 	left := "\x1b[D"
 	if applicationMode {
 		left = "\x1bOD"
 	}
 	if _, err := io.WriteString(session.input, strings.Repeat(left, count)); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "move shell editor cursor",
 			cause:   err,
 		}
+		return failure
 	}
 	return nil
 }
@@ -158,10 +171,11 @@ func (session *terminalSession) enter(input Input) error {
 func (session *terminalSession) complete() error {
 	_, err := io.WriteString(session.input, "\t")
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "send shell completion action",
 			cause:   err,
 		}
+		return failure
 	}
 	return nil
 }
@@ -174,16 +188,20 @@ func (session *terminalSession) finalScreen(parent context.Context) ([]string, e
 		}
 		lines, ok := session.output.snapshot(generation)
 		if err := session.output.failure(); err != nil {
-			return nil, failureError{
+			failure := failureError{
 				subject: "wait for final terminal quiet",
 				cause:   err,
 			}
+			return nil, failure
 		}
 		if ok {
 			return lines, nil
 		}
 		if session.output.currentGeneration() == generation {
-			return nil, failureError{subject: "settled terminal presentation is unavailable"}
+			failure := failureError{
+				subject: "settled terminal presentation is unavailable",
+			}
+			return nil, failure
 		}
 	}
 }
@@ -195,19 +213,21 @@ func (session *terminalSession) cleanup(parent context.Context) error {
 	select {
 	case <-session.process.done():
 	case <-ctx.Done():
-		return failureError{
+		failure := failureError{
 			subject: "terminate real shell editor",
 			cause:   ctx.Err(),
 		}
+		return failure
 	}
 	session.process.closeTerminal()
 	select {
 	case <-session.readDone:
 	case <-ctx.Done():
-		return failureError{
+		failure := failureError{
 			subject: "drain real shell editor output",
 			cause:   ctx.Err(),
 		}
+		return failure
 	}
 	return nil
 }
@@ -229,10 +249,11 @@ func (writer *lockedWriter) Write(data []byte) (int, error) {
 	writer.mu.Lock()
 	defer writer.mu.Unlock()
 	if err := writeAll(writer.writer, data); err != nil {
-		return 0, failureError{
+		failure := failureError{
 			subject: "write terminal input",
 			cause:   err,
 		}
+		return 0, failure
 	}
 	return len(data), nil
 }

@@ -212,26 +212,46 @@ func TestStaticHelpGroupExactnessRejectsWrongProfilesEntriesAndIndexes(t *testin
 		expectation StaticDeclarationExpectation
 		contains    string
 	}{
-		{"command group index absent", CommandByID(1).HelpCommandGroupAt(1).Exists(), "exists=false"},
-		{"flag group index absent", CommandByID(1).HelpFlagGroupAt(1).Exists(), "exists=false"},
-		{"command group no-profile mismatch", CommandByID(1).HelpCommandGroup("Commands").NoProfile(), "profile"},
 		{
-			"command group profile mismatch",
-			CommandByID(1).HelpCommandGroup("Commands").Profile(GrammarProfileByID(8)),
-			"profile",
+			name:        "command group index absent",
+			expectation: CommandByID(1).HelpCommandGroupAt(1).Exists(),
+			contains:    "exists=false",
 		},
 		{
-			"flag group profile mismatch",
-			CommandByID(1).HelpFlagGroup("Options").Profile(GrammarProfileByID(8)),
-			"profile",
+			name:        "flag group index absent",
+			expectation: CommandByID(1).HelpFlagGroupAt(1).Exists(),
+			contains:    "exists=false",
 		},
-		{"entry count mismatch", CommandByID(1).HelpCommandGroup("Commands").EntriesExactly(), "entries"},
 		{
-			"entry identity mismatch",
-			CommandByID(1).HelpCommandGroup("Commands").EntriesExactly(CommandEntryByID(3)),
-			"entry",
+			name:        "command group no-profile mismatch",
+			expectation: CommandByID(1).HelpCommandGroup("Commands").NoProfile(),
+			contains:    "profile",
 		},
-		{"flag identity mismatch", CommandByID(1).HelpFlagGroup("Options").FlagsExactly(FlagByID(5)), "flag"},
+		{
+			name:        "command group profile mismatch",
+			expectation: CommandByID(1).HelpCommandGroup("Commands").Profile(GrammarProfileByID(8)),
+			contains:    "profile",
+		},
+		{
+			name:        "flag group profile mismatch",
+			expectation: CommandByID(1).HelpFlagGroup("Options").Profile(GrammarProfileByID(8)),
+			contains:    "profile",
+		},
+		{
+			name:        "entry count mismatch",
+			expectation: CommandByID(1).HelpCommandGroup("Commands").EntriesExactly(),
+			contains:    "entries",
+		},
+		{
+			name:        "entry identity mismatch",
+			expectation: CommandByID(1).HelpCommandGroup("Commands").EntriesExactly(CommandEntryByID(3)),
+			contains:    "entry",
+		},
+		{
+			name:        "flag identity mismatch",
+			expectation: CommandByID(1).HelpFlagGroup("Options").FlagsExactly(FlagByID(5)),
+			contains:    "flag",
+		},
 	}
 	for _, check := range checks {
 		t.Run(check.name, func(t *testing.T) {
@@ -289,7 +309,9 @@ func TestHelpCommandGroupPreservesResolutionStatus(t *testing.T) {
 		mode:  helpGroupLocatorIndex,
 		index: 0,
 	}
-	groups := []cli.HelpCommandGroupSchema{{Title: "commands"}}
+	groups := []cli.HelpCommandGroupSchema{{
+		Title: "commands",
+	}}
 	got := selectHelpCommandGroup(state, groups, evaluationText("root"))
 	if got.status != locatorResolutionFound || got.group.Title != "commands" {
 		t.Fatalf("resolution = %#v", got)
@@ -321,7 +343,11 @@ func TestHelpFlagGroupPreservesResolutionStatus(t *testing.T) {
 		mode:  helpGroupLocatorTitle,
 		title: "flags",
 	}
-	groups := []cli.HelpFlagGroupSchema{{Title: "flags"}, {Title: "flags"}}
+	groups := []cli.HelpFlagGroupSchema{{
+		Title: "flags",
+	}, {
+		Title: "flags",
+	}}
 	got := selectHelpFlagGroup(state, groups, evaluationText("root"))
 	if got.status != locatorResolutionAmbiguous {
 		t.Fatalf("resolution = %#v", got)
@@ -352,7 +378,9 @@ func TestHelpCommandGroupPropertyPreservesPropertyTruth(t *testing.T) {
 				ID:   1,
 				Path: []string{},
 				Help: cli.HelpSchema{
-					CommandGroups: []cli.HelpCommandGroupSchema{{Title: "actual"}},
+					CommandGroups: []cli.HelpCommandGroupSchema{{
+						Title: "actual",
+					}},
 				},
 			}},
 		}
@@ -361,7 +389,9 @@ func TestHelpCommandGroupPropertyPreservesPropertyTruth(t *testing.T) {
 				ID:   1,
 				Path: []string{},
 				Help: cli.HelpSchema{
-					CommandGroups: []cli.HelpCommandGroupSchema{{Title: "actual"}},
+					CommandGroups: []cli.HelpCommandGroupSchema{{
+						Title: "actual",
+					}},
 				},
 			}},
 		}
@@ -399,7 +429,9 @@ func TestHelpFlagGroupPropertyPreservesPropertyTruth(t *testing.T) {
 				ID:   1,
 				Path: []string{},
 				Help: cli.HelpSchema{
-					FlagGroups: []cli.HelpFlagGroupSchema{{Title: "actual"}},
+					FlagGroups: []cli.HelpFlagGroupSchema{{
+						Title: "actual",
+					}},
 				},
 			}},
 		}
@@ -600,7 +632,9 @@ func TestHelpFlagGroupFlagsRejectsSemanticMismatch(t *testing.T) {
 				ID:   1,
 				Path: []string{},
 				Help: cli.HelpSchema{
-					FlagGroups: []cli.HelpFlagGroupSchema{{Title: "flags"}},
+					FlagGroups: []cli.HelpFlagGroupSchema{{
+						Title: "flags",
+					}},
 				},
 			}},
 		}
@@ -609,7 +643,9 @@ func TestHelpFlagGroupFlagsRejectsSemanticMismatch(t *testing.T) {
 				ID:   1,
 				Path: []string{},
 				Help: cli.HelpSchema{
-					FlagGroups: []cli.HelpFlagGroupSchema{{Title: "flags"}},
+					FlagGroups: []cli.HelpFlagGroupSchema{{
+						Title: "flags",
+					}},
 				},
 			}},
 		}
@@ -652,7 +688,9 @@ func TestHelpFlagIDsPreservesExactMembershipAndOrder(t *testing.T) {
 
 func TestHelpGroupInternalStateFailsClosed(t *testing.T) {
 	t.Parallel()
-	wrongEntry := &commandEntryLocatorState{mode: commandEntryLocatorMode(255)}
+	wrongEntry := &commandEntryLocatorState{
+		mode: commandEntryLocatorMode(255),
+	}
 
 	if got := resolveSchemaHelpCommandGroup(nil, &cli.Schema{}); got.status != locatorResolutionInvalid {
 		t.Fatalf("schema command group = %#v", got)
@@ -677,21 +715,38 @@ func TestHelpGroupInternalStateFailsClosed(t *testing.T) {
 		t.Fatalf("flag selector = %#v", got)
 	}
 
-	for name, state := range map[string]*helpCommandGroupEntryState{
-		"nil": nil,
-		"entry invalid locator": {
-			kind:  helpCommandGroupEntryEntry,
-			entry: wrongEntry,
+	for _, test := range []struct {
+		name  string
+		state *helpCommandGroupEntryState
+	}{
+		{
+			name:  "nil",
+			state: nil,
 		},
-		"provider invalid locator": {
-			kind:     helpCommandGroupEntryProvider,
-			provider: &commandProviderLocatorState{},
+		{
+			name: "entry invalid locator",
+			state: &helpCommandGroupEntryState{
+				kind:  helpCommandGroupEntryEntry,
+				entry: wrongEntry,
+			},
 		},
-		"unknown entry kind": {
-			kind:  helpCommandGroupEntryInvalid,
-			entry: wrongEntry,
+		{
+			name: "provider invalid locator",
+			state: &helpCommandGroupEntryState{
+				kind:     helpCommandGroupEntryProvider,
+				provider: &commandProviderLocatorState{},
+			},
+		},
+		{
+			name: "unknown entry kind",
+			state: &helpCommandGroupEntryState{
+				kind:  helpCommandGroupEntryInvalid,
+				entry: wrongEntry,
+			},
 		},
 	} {
+		name := test.name
+		state := test.state
 		t.Run("schema entry "+name, func(t *testing.T) {
 			t.Parallel()
 			if _, status, _ := resolveHelpCommandGroupEntrySchema(
@@ -712,7 +767,9 @@ func TestHelpGroupInternalStateFailsClosed(t *testing.T) {
 		})
 	}
 
-	invalidFlags := []*flagLocatorState{{mode: flagLocatorMode(255)}}
+	invalidFlags := []*flagLocatorState{{
+		mode: flagLocatorMode(255),
+	}}
 	if _, status, _ := resolveHelpFlagIDsSchema(invalidFlags, &cli.Schema{}); status != locatorResolutionInvalid {
 		t.Fatalf("schema flags = %v", status)
 	}
@@ -731,10 +788,14 @@ func TestHelpCommandGroupAbsenceIsPreservedAcrossStaticObservations(t *testing.T
 	t.Parallel()
 
 	schema := &cli.Schema{
-		Commands: map[cli.CommandID]cli.CommandSchema{1: {ID: 1}},
+		Commands: map[cli.CommandID]cli.CommandSchema{1: {
+			ID: 1,
+		}},
 	}
 	reference := cli.Reference{
-		Commands: map[cli.CommandID]cli.CommandReference{1: {ID: 1}},
+		Commands: map[cli.CommandID]cli.CommandReference{1: {
+			ID: 1,
+		}},
 	}
 	expectation := CommandByID(1).HelpCommandGroup("missing").DoesNotExist()
 	if got := schemaExpectationOutcome(t, expectation, schema); got.status != evaluationProved {

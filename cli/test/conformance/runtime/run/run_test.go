@@ -53,11 +53,12 @@ func TestExecuteVersionActionWritesVersionWithoutCallingHandlerAndPropagatesWrit
 	type config = frontendActionConfig
 	var output strings.Builder
 	called := false
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("v1.2.3", "v1.2.3"),
 		Run:     func(context.Context, *config) error { called = true; return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--version"},
 		Stdout: &output,
@@ -83,14 +84,15 @@ func TestExecuteVersionActionWritesVersionWithoutCallingHandlerAndPropagatesWrit
 func TestExecuteVersionActionUsesUnicodeCodePointCommitBound(t *testing.T) {
 	t.Parallel()
 	var output strings.Builder
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("1.2.3"),
 		Version: cli.VersionConfig{
 			Commit:       "αβγdelta",
 			CommitLength: 3,
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--version"},
 		Stdout: &output,
@@ -143,7 +145,7 @@ func TestWithInvocationObservationContextPreservesInvocationInvariant(t *testing
 	type rootConfig = invocationContextRootConfig
 	type childConfig = invocationContextLocaleSelectionChildConfig
 	var first cli.CommandSelection
-	app := runMustCompilePublic(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -168,7 +170,8 @@ func TestWithInvocationObservationContextPreservesInvocationInvariant(t *testing
 				},
 			})
 		},
-	})
+	}
+	app := runMustCompilePublic(t, definition)
 	contextProof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args:   []string{"child"},
 		Locale: "en-US",
@@ -236,7 +239,7 @@ func TestStabilizeInvocationRuntimeContextUsesCanonicalLocalePrecedenceAndBorrow
 	stderr := new(bytes.Buffer)
 	var wantLocale cli.Locale
 	var runs int
-	app := runMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -260,31 +263,35 @@ func TestStabilizeInvocationRuntimeContextUsesCanonicalLocalePrecedenceAndBorrow
 			}
 			return nil
 		},
-	})
+	}
+	app := runMustCompilePublic(t, definition)
 	wantLocale = "fr-CA-x-host"
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Locale: "fr-ca-x-host",
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatalf("host locale Run: %v", err)
 	}
 	wantLocale = "de-DE"
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequestUnderTest := cli.RunRequest{
 		Args:   []string{"--locale", "de-DE"},
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequestUnderTest); err != nil {
 		t.Fatalf("selector locale Run: %v", err)
 	}
 	wantLocale = "en"
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequestUnderTest2 := cli.RunRequest{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequestUnderTest2); err != nil {
 		t.Fatalf("source locale Run: %v", err)
 	}
 	if runs != 3 {
@@ -296,14 +303,15 @@ func TestStabilizeInvocationRuntimeContextRejectsInvalidHigherPrecedenceLocaleWi
 	t.Parallel()
 	type config = invocationContextLocaleConfig
 	called := false
-	app := runMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
 		},
 		Declare: func(root *cli.CommandBuilder[config]) { root.Access.Locale(&root.Config.Locale) },
 		Run:     func(context.Context, *config) error { called = true; return nil },
-	})
+	}
+	app := runMustCompilePublic(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Locale: "not_a_locale",
 	})
@@ -327,11 +335,12 @@ func TestInvocationRuntimeStreamHelpersHaveHarmlessNoStateBehavior(t *testing.T)
 			return nil
 		},
 	})
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 }
@@ -398,7 +407,7 @@ func TestRunApplicationPreservesRunSemantics(t *testing.T) {
 	t.Parallel()
 	type config = runCountConfig
 	var seen []*config
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Middleware: []cli.Middleware[config]{func(ctx context.Context, cfg *config, next cli.MiddlewareNext) error {
 			cfg.count++
@@ -412,7 +421,8 @@ func TestRunApplicationPreservesRunSemantics(t *testing.T) {
 			seen = append(seen, cfg)
 			return nil
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -444,9 +454,11 @@ func TestRunNonRunnableCommandReportsSelectedCommandWithoutExecution(t *testing.
 	t.Parallel()
 	rootMiddlewareCalls := 0
 	childMiddlewareCalls := 0
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "commandment",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Middleware: []cli.Middleware[struct{}]{func(ctx context.Context, _ *struct{}, next cli.MiddlewareNext) error {
 			rootMiddlewareCalls++
 			return next(ctx)
@@ -462,9 +474,12 @@ func TestRunNonRunnableCommandReportsSelectedCommandWithoutExecution(t *testing.
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
-	inspection, inspectErr := app.Inspect(t.Context(), cli.InspectionRequest{Args: []string{"child"}})
+	inspection, inspectErr := app.Inspect(t.Context(), cli.InspectionRequest{
+		Args: []string{"child"},
+	})
 	if inspectErr != nil {
 		t.Fatalf("Inspect() error = %v", inspectErr)
 	}
@@ -487,7 +502,9 @@ func TestRunNonRunnableCommandReportsSelectedCommandWithoutExecution(t *testing.
 		t.Fatal("child command missing from Schema")
 	}
 
-	err := app.Run(t.Context(), cli.RunRequest{Args: []string{"child"}})
+	err := app.Run(t.Context(), cli.RunRequest{
+		Args: []string{"child"},
+	})
 	if err == nil {
 		t.Fatal("Run() error = nil, want not-runnable diagnostic")
 	}
@@ -526,9 +543,11 @@ func TestRunFrameworkDiagnosticLocalizationUsesFrameworkOwnerAndDetachedSnapshot
 		"message":                          "message-cadre-fr",
 		"selected command is not runnable": "commande sélectionnée non exécutable",
 	}
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "commandment",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Localization: cli.Localization{
 			DefaultLocale: "en",
 			Bundles: []cli.TranslationBundle{{
@@ -540,9 +559,12 @@ func TestRunFrameworkDiagnosticLocalizationUsesFrameworkOwnerAndDetachedSnapshot
 			Locale:       "fr",
 			Translations: frameworkTranslations,
 		}},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
-	err := app.Run(t.Context(), cli.RunRequest{Locale: "fr"})
+	err := app.Run(t.Context(), cli.RunRequest{
+		Locale: "fr",
+	})
 	if err == nil {
 		t.Fatal("Run() error = nil, want not-runnable diagnostic")
 	}
@@ -579,7 +601,7 @@ func TestRunGrammarDiagnosticFailurePreservesRunSemantics(t *testing.T) {
 	type config = runConfig
 	middlewareCalled := false
 	handlerCalled := false
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Middleware: []cli.Middleware[config]{func(ctx context.Context, _ *config, next cli.MiddlewareNext) error {
 			middlewareCalled = true
@@ -589,7 +611,8 @@ func TestRunGrammarDiagnosticFailurePreservesRunSemantics(t *testing.T) {
 			handlerCalled = true
 			return nil
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--definitely-unknown"},
 	})
@@ -603,7 +626,7 @@ func TestRunDoesNotRejectResponseCapableApplicationWithoutResponseLexicalEntry(t
 	t.Parallel()
 	type config = runConfig
 	called := 0
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ResponseFiles(true)
@@ -612,7 +635,8 @@ func TestRunDoesNotRejectResponseCapableApplicationWithoutResponseLexicalEntry(t
 			called++
 			return nil
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -729,14 +753,15 @@ func TestDeclaredExecutionAccessLowersProjectsAndRealizesSelectedAncestorAndFaci
 	stdin := strings.NewReader("input")
 	stdout := &strings.Builder{}
 	stderr := &strings.Builder{}
-	err = app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Args:             []string{"--profile", "prod", "child"},
 		WorkingDirectory: "/workspace",
 		Stdin:            stdin,
 		Stdout:           stdout,
 		Stderr:           stderr,
 		Locale:           "en-US",
-	})
+	}
+	err = app.Run(t.Context(), runRequest)
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -801,7 +826,7 @@ func TestRunAdmitsSupportedSelectedPathOnlyAfterAccessRealization(t *testing.T) 
 	type childConfig = runProfileLocaleChildConfig
 	applicationErr := errors.New("application failure")
 	var order []string
-	app, err := cli.Compile(cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "commandment",
 		Middleware: []cli.Middleware[rootConfig]{
 			func(ctx context.Context, config *rootConfig, next cli.MiddlewareNext) error {
@@ -830,7 +855,8 @@ func TestRunAdmitsSupportedSelectedPathOnlyAfterAccessRealization(t *testing.T) 
 				},
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -850,7 +876,7 @@ func TestRunAdmitsSupportedSelectedPathOnlyAfterAccessRealization(t *testing.T) 
 func TestLocaleSelectorUniqueApplicationDeclarationCompilesAndProjects(t *testing.T) {
 	t.Parallel()
 	type config = runLocaleConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -862,7 +888,8 @@ func TestLocaleSelectorUniqueApplicationDeclarationCompilesAndProjects(t *testin
 			root.Flags.ValueFor(locale).LocaleSelector().Occurrences(cli.Count.Optional()).
 				Long("locale")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	locale := clitest.RootCommand().Flag("--locale")
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().FlagsExactly(locale),
@@ -951,9 +978,11 @@ func TestRunMaterializesProviderCommandAndRealizesProviderProducedAccess(t *test
 	providerCalls := 0
 	handlerCalls := 0
 	var observed string
-	app, err := cli.Compile(cli.Definition[rootConfig]{
-		Name:            "tool",
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[rootConfig]{
+		Name: "tool",
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			profile := root.Values.String(&root.Config.Profile)
 			root.Flags.ValueFor(profile).Long("profile")
@@ -977,7 +1006,8 @@ func TestRunMaterializesProviderCommandAndRealizesProviderProducedAccess(t *test
 				return nil
 			}, profile)
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -1003,7 +1033,7 @@ func TestRunVersionActionBypassesApplicationExecution(t *testing.T) {
 	var output strings.Builder
 	middlewareCalled := false
 	handlerCalled := false
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "commandment",
 		Release: cli.Release.Ordered("v1.2.3", "v1.2.3"),
 		Middleware: []cli.Middleware[config]{func(ctx context.Context, _ *config, next cli.MiddlewareNext) error {
@@ -1014,7 +1044,8 @@ func TestRunVersionActionBypassesApplicationExecution(t *testing.T) {
 			handlerCalled = true
 			return errors.New("must not execute")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -1224,21 +1255,25 @@ func TestTokenLanguageFlagUsesRetainedRuntimeParserAndFormatter(t *testing.T) {
 		Parse: func(_ context.Context, tokens []string) (runTokenPairValue, error) {
 			parseCalls.Add(1)
 			received = append([]string(nil), tokens...)
-			return runTokenPairValue{
+			value := runTokenPairValue{
 				Left:  tokens[0],
 				Right: tokens[1],
-			}, nil
+			}
+			return value, nil
 		},
 		Format: func(value runTokenPairValue) []string { return []string{"flag-" + value.Left, "flag-" + value.Right} },
 	}
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			pair := root.Values.Value(&root.Config.Pair, runTokenPairCodec())
 			root.Flags.Tokens(pair, language).Long("pair")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1280,10 +1315,11 @@ func TestProviderProducedTokenLanguageUsesCanonicalRuntimeCarrier(t *testing.T) 
 								Parse: func(_ context.Context, tokens []string) (runTokenPairValue, error) {
 									parseCalls.Add(1)
 									received = append([]string(nil), tokens...)
-									return runTokenPairValue{
+									value := runTokenPairValue{
 										Left:  tokens[0],
 										Right: tokens[1],
-									}, nil
+									}
+									return value, nil
 								},
 								Format: func(value runTokenPairValue) []string {
 									return []string{"provider-" + value.Left, "provider-" + value.Right}
@@ -1332,7 +1368,7 @@ func TestFinalizeRunFailuresPreservesRunSemantics(t *testing.T) {
 	noticeCause := errors.New("notice delivery")
 	callerCause := errors.New("caller cancellation")
 	ctx, cancel := context.WithCancelCause(t.Context())
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Advisory.Always(cli.Advisory{
@@ -1342,7 +1378,8 @@ func TestFinalizeRunFailuresPreservesRunSemantics(t *testing.T) {
 			})
 		},
 		Run: func(context.Context, *config) error { cancel(callerCause); return primary },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	got := app.Run(ctx, cli.RunRequest{
 		Notify: func(context.Context, cli.Notice) error { return noticeCause },
 	})
@@ -1375,7 +1412,7 @@ func TestRunRejectsInvalidAnalysisLimits(t *testing.T) {
 
 func TestRunReportsMiddlewareProtocolViolation(t *testing.T) {
 	t.Parallel()
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "middleware-protocol",
 		Middleware: []cli.Middleware[struct{}]{func(ctx context.Context, _ *struct{}, next cli.MiddlewareNext) error {
 			if err := next(ctx); err != nil {
@@ -1384,7 +1421,8 @@ func TestRunReportsMiddlewareProtocolViolation(t *testing.T) {
 			return next(ctx)
 		}},
 		Run: func(context.Context, *struct{}) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{})
 	if err == nil {
 		t.Fatal("Run() error = nil, want middleware protocol violation")
@@ -1395,13 +1433,14 @@ func TestRunReportsMiddlewareProtocolViolation(t *testing.T) {
 func TestRunPreservesResponseFileLoadFailure(t *testing.T) {
 	t.Parallel()
 	loadErr := errors.New("response load")
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "response-run",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			root.Dialect.ResponseFiles(true)
 		},
 		Run: func(context.Context, *struct{}) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"@missing"},
 		ResponseFiles: cli.ResponseFileAccess{
@@ -1419,7 +1458,7 @@ func TestRunPreservesResponseFileLoadFailure(t *testing.T) {
 func TestRunPreservesCommandProviderFailure(t *testing.T) {
 	t.Parallel()
 	providerErr := errors.New("command provider")
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "provider-run",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			root.Subcommands.CommandsFrom(
@@ -1427,7 +1466,8 @@ func TestRunPreservesCommandProviderFailure(t *testing.T) {
 			)
 		},
 		Run: func(context.Context, *struct{}) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"remote"},
 	})
@@ -1442,7 +1482,7 @@ func TestRunPreservesProviderFailureAndIndependentCallerCancellation(t *testing.
 	callerCancellation := errors.New("caller cancellation")
 	started := make(chan struct{})
 	release := make(chan struct{})
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "provider-run",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			root.Subcommands.CommandsFrom(func(context.Context, *cli.CommandBatch[struct{}]) error {
@@ -1452,7 +1492,8 @@ func TestRunPreservesProviderFailureAndIndependentCallerCancellation(t *testing.
 			})
 		},
 		Run: func(context.Context, *struct{}) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	ctx, cancel := context.WithCancelCause(t.Context())
 	result := make(chan error, 1)
 	go func() { result <- app.Run(ctx, cli.RunRequest{}) }()
@@ -1476,7 +1517,7 @@ func TestRunMaterializesDemandedValueDomain(t *testing.T) {
 	t.Parallel()
 	type config = runModeConfig
 	calls := 0
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "domain-run",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
@@ -1489,7 +1530,8 @@ func TestRunMaterializesDemandedValueDomain(t *testing.T) {
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
 		Run: func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--mode", "ready"},
 	}); err != nil {
@@ -1504,7 +1546,7 @@ func TestRunPreservesDemandedValueDomainFailure(t *testing.T) {
 	t.Parallel()
 	type config = runModeConfig
 	domainErr := errors.New("value domain")
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "domain-run-failure",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
@@ -1515,7 +1557,8 @@ func TestRunPreservesDemandedValueDomainFailure(t *testing.T) {
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
 		Run: func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--mode", "ready"},
 	})
@@ -1528,13 +1571,14 @@ func TestRunPreservesDemandedValueDomainFailure(t *testing.T) {
 func TestRunReportsValueDiagnostic(t *testing.T) {
 	t.Parallel()
 	type config = runCountConfig2
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "value-diagnostic",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Int(&root.Config.Count).Long("count")
 		},
 		Run: func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--count", "not-an-integer"},
 	})
@@ -1554,7 +1598,7 @@ func TestRunObservesResolutionCancellationAfterPolicyAnalysis(t *testing.T) {
 			Fidelity: cli.SignalSourceDeliveryFidelityExact,
 		}},
 	})
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "resolution-cancel-after-policy",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			registered := root.Signals.Source(source)
@@ -1577,7 +1621,8 @@ func TestRunObservesResolutionCancellationAfterPolicyAnalysis(t *testing.T) {
 			handlerCalled = true
 			return nil
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	done := make(chan error, 1)
 	go func() {
 		done <- app.Run(t.Context(), cli.RunRequest{})
@@ -1627,7 +1672,7 @@ type runTokenPairValue struct {
 }
 
 func runTokenPairCodec() cli.ValueCodec[runTokenPairValue] {
-	return cli.ValueCodec[runTokenPairValue]{
+	codec := cli.ValueCodec[runTokenPairValue]{
 		Name: "pair-value",
 		Parse: func(text string) (runTokenPairValue, error) {
 			return runTokenPairValue{}, fmt.Errorf("destination codec must not parse token-language input %q", text)
@@ -1635,6 +1680,7 @@ func runTokenPairCodec() cli.ValueCodec[runTokenPairValue] {
 		Format:   func(value runTokenPairValue) string { return value.Left + ":" + value.Right },
 		Snapshot: cli.Value.Assign[runTokenPairValue](),
 	}
+	return codec
 }
 
 func stringsJoinForTest(tokens []string) string { return strings.Join(tokens, "/") }

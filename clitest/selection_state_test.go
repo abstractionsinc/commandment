@@ -1,7 +1,6 @@
 package clitest
 
 import (
-	"context"
 	"testing"
 
 	"github.com/abstractionsinc/commandment/cli"
@@ -40,7 +39,9 @@ func TestAdditionalSelectionExpectations(t *testing.T) {
 				},
 			},
 		},
-		Origins: map[cli.InputOriginID]cli.InputOrigin{origin: {ID: origin}},
+		Origins: map[cli.InputOriginID]cli.InputOrigin{origin: {
+			ID: origin,
+		}},
 		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormInspection{
 			31: {
 				ID:      31,
@@ -97,8 +98,13 @@ func TestCommandSelectionDetailExpectations(t *testing.T) {
 		},
 	}
 	locator := CommandByID(root)
-	state := &inspectionResultState{observation: inspection, err: nil}
-	(InspectionResult{state: state}).Require(t,
+	state := &inspectionResultState{
+		observation: inspection,
+		err:         nil,
+	}
+	(InspectionResult{
+		state: state,
+	}).Require(t,
 		locator.DefaultSelectionOutcome(cli.DefaultCommandSelectionSelected),
 		locator.DefaultCandidatesExactly(CommandDefaultByID(def1), CommandDefaultByID(def2)),
 		locator.ApplicableDefaultsExactly(CommandDefaultByID(def1)),
@@ -119,16 +125,26 @@ func TestCommandEntrySelectionUsesInspectionAndCompletion(t *testing.T) {
 		}},
 	}
 	expectation := CommandEntryByID(entryID).Selected()
-	(InspectionResult{state: &inspectionResultState{observation: cli.Inspection{
-		Selection: cli.InvocationSelection{
-			Command: selection,
+	(InspectionResult{
+		state: &inspectionResultState{
+			observation: cli.Inspection{
+				Selection: cli.InvocationSelection{
+					Command: selection,
+				},
+			},
+			err: nil,
 		},
-	}, err: nil}}).Require(t,
+	}).Require(t,
 
 		expectation)
-	(CompletionResult{state: &completionResultState{observation: cli.Completion{
-		Selection: selection,
-	}, err: nil}}).Require(t,
+	(CompletionResult{
+		state: &completionResultState{
+			observation: cli.Completion{
+				Selection: selection,
+			},
+			err: nil,
+		},
+	}).Require(t,
 
 		expectation)
 }
@@ -206,7 +222,9 @@ func TestSelectionNegativePartialIdentityAndCompletionLaws(t *testing.T) {
 				ConditionOutcome: cli.EvaluationOutcomeSatisfied,
 			},
 		},
-		Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {ID: originID}},
+		Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {
+			ID: originID,
+		}},
 		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormInspection{
 			formID: {
 				ID:      formID,
@@ -216,19 +234,51 @@ func TestSelectionNegativePartialIdentityAndCompletionLaws(t *testing.T) {
 		},
 	}
 
-	for name, expectation := range map[string]InspectionExpectation{
-		"unselected command dischecks not-selected": CommandByID(serveID).NotSelected(),
-		"missing command dischecks selected":        CommandByID(99).Selected(),
-		"entry absent from steps":                   CommandEntryByID(99).Selected(),
-		"entry present dischecks not-selected":      CommandEntryByID(entryID).NotSelected(),
-		"profile absent":                            GrammarProfileByID(99).Selected(),
-		"form absent":                               ArgumentFormByID(99).Selected(),
-		"form present dischecks not-selected":       ArgumentFormByID(formID).NotSelected(),
-		"default present dischecks not-selected":    CommandDefaultByID(defaultID).NotSelected(),
-		"default condition mismatch": CommandDefaultByID(defaultID).ConditionOutcome(
-			cli.EvaluationOutcomeUnsatisfied,
-		),
+	for _, test := range []struct {
+		name        string
+		expectation InspectionExpectation
+	}{
+		{
+			name:        "unselected command dischecks not-selected",
+			expectation: CommandByID(serveID).NotSelected(),
+		},
+		{
+			name:        "missing command dischecks selected",
+			expectation: CommandByID(99).Selected(),
+		},
+		{
+			name:        "entry absent from steps",
+			expectation: CommandEntryByID(99).Selected(),
+		},
+		{
+			name:        "entry present dischecks not-selected",
+			expectation: CommandEntryByID(entryID).NotSelected(),
+		},
+		{
+			name:        "profile absent",
+			expectation: GrammarProfileByID(99).Selected(),
+		},
+		{
+			name:        "form absent",
+			expectation: ArgumentFormByID(99).Selected(),
+		},
+		{
+			name:        "form present dischecks not-selected",
+			expectation: ArgumentFormByID(formID).NotSelected(),
+		},
+		{
+			name:        "default present dischecks not-selected",
+			expectation: CommandDefaultByID(defaultID).NotSelected(),
+		},
+		{
+			name: "default condition mismatch",
+			expectation: CommandDefaultByID(defaultID).ConditionOutcome(
+				cli.EvaluationOutcomeUnsatisfied,
+			),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := inspectionExpectationOutcome(t, expectation, inspection); got.status != evaluationDisproved {
 			t.Fatalf("%s = %#v, want disproved", name, got)
 		}
@@ -271,14 +321,33 @@ func TestSelectionNegativePartialIdentityAndCompletionLaws(t *testing.T) {
 
 	completion := cli.Completion{
 		Selection: selection,
-		Origins:   map[cli.InputOriginID]cli.InputOrigin{originID: {ID: originID}},
+		Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {
+			ID: originID,
+		}},
 	}
-	for name, expectation := range map[string]CompletionExpectation{
-		"default selected":     CommandDefaultByID(defaultID).Selected(),
-		"default not selected": CommandDefaultByID(99).NotSelected(),
-		"entry selected":       CommandEntryByID(entryID).Selected(),
-		"entry not selected":   CommandEntryByID(99).NotSelected(),
+	for _, test := range []struct {
+		name        string
+		expectation CompletionExpectation
+	}{
+		{
+			name:        "default selected",
+			expectation: CommandDefaultByID(defaultID).Selected(),
+		},
+		{
+			name:        "default not selected",
+			expectation: CommandDefaultByID(99).NotSelected(),
+		},
+		{
+			name:        "entry selected",
+			expectation: CommandEntryByID(entryID).Selected(),
+		},
+		{
+			name:        "entry not selected",
+			expectation: CommandEntryByID(99).NotSelected(),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		evaluator, ok := expectation.(interface {
 			evaluateCompletion(completion cli.Completion, err error) evaluationResult
 		})
@@ -510,7 +579,11 @@ func TestCommandPathResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Run("deterministic match ordering: incomplete observation", func(t *testing.T) {
 		t.Parallel()
 		inspection := map[cli.CommandID]cli.CommandInspection{
-			2: {ID: 2}, 1: {ID: 1},
+			2: {
+				ID: 2,
+			}, 1: {
+				ID: 1,
+			},
 		}
 		_, status, actual := resolveInspectionCommandPath([]string{"x"}, inspection)
 		if status != locatorResolutionAmbiguous || renderEvaluationField(actual) != "matches root-command IDs; count=2" {
@@ -519,7 +592,11 @@ func TestCommandPathResolutionPreservesResolutionStatus(t *testing.T) {
 	})
 	t.Run("ambiguous root: ambiguous identity", func(t *testing.T) {
 		t.Parallel()
-		inspection := map[cli.CommandID]cli.CommandInspection{1: {ID: 1}, 2: {ID: 2}}
+		inspection := map[cli.CommandID]cli.CommandInspection{1: {
+			ID: 1,
+		}, 2: {
+			ID: 2,
+		}}
 		_, status, _ := resolveInspectionCommandPath(nil, inspection)
 		if status != locatorResolutionAmbiguous {
 			t.Fatalf("ambiguous roots = %v", status)
@@ -527,7 +604,9 @@ func TestCommandPathResolutionPreservesResolutionStatus(t *testing.T) {
 	})
 	t.Run("matching observation", func(t *testing.T) {
 		t.Parallel()
-		inspection := map[cli.CommandID]cli.CommandInspection{1: {ID: 1}}
+		inspection := map[cli.CommandID]cli.CommandInspection{1: {
+			ID: 1,
+		}}
 		id, status, actual := resolveInspectionCommandPath(nil, inspection)
 		if id != 1 || status != locatorResolutionFound || renderEvaluationField(actual) != "" {
 			t.Fatalf("root path = id %v status %v actual %q", id, status, actual)
@@ -634,7 +713,10 @@ func TestSelectionStepsPreserveTypedSemanticStatus(t *testing.T) {
 	t.Run("exact entry", func(t *testing.T) {
 		t.Parallel()
 		step := CommandEntryByID(7).SelectionStep()
-		selectionStep := cli.CommandSelectionStep{Kind: cli.CommandSelectionStepEntry, Entry: 7}
+		selectionStep := cli.CommandSelectionStep{
+			Kind:  cli.CommandSelectionStepEntry,
+			Entry: 7,
+		}
 		outcome := matchSelectionStep(step.state, selectionStep, nil, nil, nil, nil)
 		if outcome.status != evaluationProved {
 			t.Fatalf("entry step = %#v", outcome)
@@ -644,7 +726,9 @@ func TestSelectionStepsPreserveTypedSemanticStatus(t *testing.T) {
 	t.Run("human entry needs observable lookup domain", func(t *testing.T) {
 		t.Parallel()
 		step := CommandByID(1).Alias("legacy").SelectionStep()
-		outcome := matchSelectionStep(step.state, cli.CommandSelectionStep{Kind: cli.CommandSelectionStepEntry}, nil, nil, nil, nil)
+		outcome := matchSelectionStep(step.state, cli.CommandSelectionStep{
+			Kind: cli.CommandSelectionStepEntry,
+		}, nil, nil, nil, nil)
 		if outcome.status != evaluationNotProvable {
 			t.Fatalf("unobservable human entry = %#v", outcome)
 		}
@@ -653,7 +737,10 @@ func TestSelectionStepsPreserveTypedSemanticStatus(t *testing.T) {
 	t.Run("exact default", func(t *testing.T) {
 		t.Parallel()
 		step := CommandDefaultByID(9).SelectionStep()
-		selectionStep := cli.CommandSelectionStep{Kind: cli.CommandSelectionStepDefault, Default: 9}
+		selectionStep := cli.CommandSelectionStep{
+			Kind:    cli.CommandSelectionStepDefault,
+			Default: 9,
+		}
 		outcome := matchSelectionStep(step.state, selectionStep, nil, nil, nil, nil)
 		if outcome.status != evaluationProved {
 			t.Fatalf("default step = %#v", outcome)
@@ -670,14 +757,18 @@ func TestSelectionStepsPreserveTypedSemanticStatus(t *testing.T) {
 			Input:    origin,
 			Commands: []cli.CommandID{2, 3},
 		}
-		origins := map[cli.InputOriginID]cli.InputOrigin{origin: {ID: origin}}
+		origins := map[cli.InputOriginID]cli.InputOrigin{origin: {
+			ID: origin,
+		}}
 		outcome := matchSelectionStep(step.state, observed, nil, nil, nil, origins)
 		if outcome.status != evaluationProved {
 			t.Fatalf("exact step = %#v", outcome)
 		}
 
 		observed.Commands = []cli.CommandID{3, 2}
-		firstOrigins := map[cli.InputOriginID]cli.InputOrigin{origin: {ID: origin}}
+		firstOrigins := map[cli.InputOriginID]cli.InputOrigin{origin: {
+			ID: origin,
+		}}
 		outcome = matchSelectionStep(step.state, observed, nil, nil, nil, firstOrigins)
 		if outcome.status != evaluationDisproved {
 			t.Fatalf("reordered commands = %#v", outcome)
@@ -690,10 +781,18 @@ func TestSelectionStepsPreserveTypedSemanticStatus(t *testing.T) {
 			CommandEntryByID(7).SelectionStep().state,
 			CommandDefaultByID(9).SelectionStep().state,
 		}
-		selection := cli.CommandSelection{Steps: []cli.CommandSelectionStep{
-			{Kind: cli.CommandSelectionStepEntry, Entry: 7},
-			{Kind: cli.CommandSelectionStepDefault, Default: 9},
-		}}
+		selection := cli.CommandSelection{
+			Steps: []cli.CommandSelectionStep{
+				{
+					Kind:  cli.CommandSelectionStepEntry,
+					Entry: 7,
+				},
+				{
+					Kind:    cli.CommandSelectionStepDefault,
+					Default: 9,
+				},
+			},
+		}
 		if outcome := evaluateSelectionSteps(states, selection, nil, nil, nil, nil); outcome.status != evaluationProved {
 			t.Fatalf("selection steps = %#v", outcome)
 		}
@@ -745,7 +844,9 @@ func TestOriginIDResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Run("input origin parent index: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
 		state := InputOriginByID(zero).ParentAt(1).state
-		origins := map[cli.InputOriginID]cli.InputOrigin{zero: {ID: zero}}
+		origins := map[cli.InputOriginID]cli.InputOrigin{zero: {
+			ID: zero,
+		}}
 		_, status, actual := resolveSelectionOriginID(state, origins)
 		if status != locatorResolutionAbsent || renderEvaluationField(actual) != "origin parent relationship is absent" {
 			t.Fatalf("missing parent edge = %v %q", status, actual)
@@ -799,14 +900,22 @@ func TestActionPropertyPreservesPropertyTruth(t *testing.T) {
 		t.Parallel()
 		expectation := actionTriggerExpectation(actionLocator(cli.InvocationActionHelp), cli.InvocationActionTriggerEntry)
 		inspection := cli.Inspection{
-			Selection: cli.InvocationSelection{Action: cli.InvocationActionSelection{Selected: cli.InvocationActionVersion}},
+			Selection: cli.InvocationSelection{
+				Action: cli.InvocationActionSelection{
+					Selected: cli.InvocationActionVersion,
+				},
+			},
 		}
 		outcome := inspectionExpectationOutcome(t, expectation, inspection)
 		if outcome.status != evaluationDisproved {
 			t.Fatalf("action subject mismatch = %#v", outcome)
 		}
 		firstInspection := cli.Inspection{
-			Selection: cli.InvocationSelection{Action: cli.InvocationActionSelection{Selected: cli.InvocationActionHelp}},
+			Selection: cli.InvocationSelection{
+				Action: cli.InvocationActionSelection{
+					Selected: cli.InvocationActionHelp,
+				},
+			},
 		}
 		outcome = inspectionExpectationOutcome(t, expectation, firstInspection)
 		if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) == "" {
@@ -822,7 +931,11 @@ func TestActionEntryRejectsInvalidCoordinates(t *testing.T) {
 		t.Parallel()
 		expectation := actionEntryExpectation(actionLocator(cli.InvocationActionHelp), ActionEntryLocator{})
 		inspection := cli.Inspection{
-			Selection: cli.InvocationSelection{Action: cli.InvocationActionSelection{Selected: cli.InvocationActionHelp}},
+			Selection: cli.InvocationSelection{
+				Action: cli.InvocationActionSelection{
+					Selected: cli.InvocationActionHelp,
+				},
+			},
 		}
 		outcome := inspectionExpectationOutcome(t, expectation, inspection)
 		if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) != "invalid action entry locator" {
@@ -834,8 +947,14 @@ func TestActionEntryRejectsInvalidCoordinates(t *testing.T) {
 		entry := CommandByID(1).ActionEntryAt(0)
 		expectation := actionEntryExpectation(actionLocator(cli.InvocationActionHelp), entry)
 		inspection := cli.Inspection{
-			Selection: cli.InvocationSelection{Action: cli.InvocationActionSelection{Selected: cli.InvocationActionHelp}},
-			Commands:  map[cli.CommandID]cli.CommandInspection{1: {ID: 1}},
+			Selection: cli.InvocationSelection{
+				Action: cli.InvocationActionSelection{
+					Selected: cli.InvocationActionHelp,
+				},
+			},
+			Commands: map[cli.CommandID]cli.CommandInspection{1: {
+				ID: 1,
+			}},
 		}
 		outcome := inspectionExpectationOutcome(t, expectation, inspection)
 		if outcome.status == evaluationProved {
@@ -849,7 +968,12 @@ func TestActionEntryRejectsSemanticMismatch(t *testing.T) {
 
 	expectation := actionEntryExpectation(actionLocator(cli.InvocationActionHelp), ActionEntryByID(1))
 	inspection := cli.Inspection{
-		Selection: cli.InvocationSelection{Action: cli.InvocationActionSelection{Selected: cli.InvocationActionHelp, Entry: 2}},
+		Selection: cli.InvocationSelection{
+			Action: cli.InvocationActionSelection{
+				Selected: cli.InvocationActionHelp,
+				Entry:    2,
+			},
+		},
 	}
 	outcome := inspectionExpectationOutcome(t, expectation, inspection)
 	if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) != "action entry 2" {
@@ -865,7 +989,11 @@ func TestActionOriginRejectsSemanticMismatch(t *testing.T) {
 		t.Parallel()
 		unresolved := actionOriginExpectation(actionLocator(cli.InvocationActionHelp), InputOriginByID(origin).ParentAt(0))
 		firstInspection := cli.Inspection{
-			Selection: cli.InvocationSelection{Action: cli.InvocationActionSelection{Selected: cli.InvocationActionHelp}},
+			Selection: cli.InvocationSelection{
+				Action: cli.InvocationActionSelection{
+					Selected: cli.InvocationActionHelp,
+				},
+			},
 			Truncated: true,
 		}
 		outcome := inspectionExpectationOutcome(t, unresolved, firstInspection)
@@ -881,8 +1009,10 @@ func TestActionOriginRejectsSemanticMismatch(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Compile: %v", err)
 		}
-		request := cli.InspectionRequest{Args: []string{"--version", "unexpected"}}
-		inspection, _ := app.Inspect(context.Background(), request)
+		request := cli.InspectionRequest{
+			Args: []string{"--version", "unexpected"},
+		}
+		inspection, _ := app.Inspect(t.Context(), request)
 		if inspection.Selection.Action.Input == origin {
 			t.Fatal("fixture did not establish a distinct action input origin")
 		}
@@ -999,7 +1129,9 @@ func TestActionEntrySelectedPreservesSemanticStatus(t *testing.T) {
 					ActionEntries: []cli.ActionEntryID{entryID},
 				},
 			},
-			ActionEntries: map[cli.ActionEntryID]cli.ActionEntryInspection{entryID: {ID: entryID}},
+			ActionEntries: map[cli.ActionEntryID]cli.ActionEntryInspection{entryID: {
+				ID: entryID,
+			}},
 			Selection: cli.InvocationSelection{
 				Action: cli.InvocationActionSelection{
 					Entry: entryID,
@@ -1064,7 +1196,9 @@ func TestArgumentFormResolutionPreservesResolutionOutcome(t *testing.T) {
 	t.Run("expected subject unresolved: matching observation", func(t *testing.T) {
 		t.Parallel()
 		state := CommandByID(1).ArgumentFormAt(0).state
-		resolution := resolveInspectionArgumentFormLocator(state, cli.Inspection{Truncated: true})
+		resolution := resolveInspectionArgumentFormLocator(state, cli.Inspection{
+			Truncated: true,
+		})
 		if resolution.status != locatorResolutionNotProvable {
 			t.Fatalf("unresolved form = %#v", resolution)
 		}
@@ -1092,7 +1226,9 @@ func TestArgumentFormInspectionPreservesSemanticOutcome(t *testing.T) {
 	expectation := argumentFormOutcomeExpectation(ArgumentFormByID(formID), cli.ArgumentFormOutcomeSelected)
 	t.Run("argument form: incomplete observation", func(t *testing.T) {
 		t.Parallel()
-		outcome := inspectionExpectationOutcome(t, expectation, cli.Inspection{Truncated: true})
+		outcome := inspectionExpectationOutcome(t, expectation, cli.Inspection{
+			Truncated: true,
+		})
 		if outcome.status != evaluationNotProvable {
 			t.Fatalf("truncated form = %#v", outcome)
 		}
@@ -1212,7 +1348,10 @@ func TestSelectionInternalStateFailsClosed(t *testing.T) {
 	if _, status, _ := resolveSelectionOriginID(wrong, nil); status != locatorResolutionInvalid {
 		t.Fatalf("origin status = %v, want invalid", status)
 	}
-	expectation := commandDefaultConditionExpectationValue{locator: &commandDefaultLocatorState{}, outcome: cli.EvaluationOutcomeSatisfied}
+	expectation := commandDefaultConditionExpectationValue{
+		locator: &commandDefaultLocatorState{},
+		outcome: cli.EvaluationOutcomeSatisfied,
+	}
 	if got := expectation.evaluateInspection(cli.Inspection{}, nil); got.status != evaluationDisproved {
 		t.Fatalf("command default condition = %#v", got)
 	}
@@ -1223,14 +1362,24 @@ func TestSelectionStateConservesNestedResolutionFailures(t *testing.T) {
 
 	rootID, childID := cli.CommandID(1), cli.CommandID(2)
 	commands := map[cli.CommandID]cli.CommandInspection{
-		rootID:  {ID: rootID, Children: []cli.CommandID{childID}, NamespaceCompleteness: cli.CommandNamespaceComplete},
-		childID: {ID: childID, Name: "child", Path: []string{"child"}},
+		rootID: {
+			ID:                    rootID,
+			Children:              []cli.CommandID{childID},
+			NamespaceCompleteness: cli.CommandNamespaceComplete,
+		},
+		childID: {
+			ID:   childID,
+			Name: "child",
+			Path: []string{"child"},
+		},
 	}
 	if got, status, _ := resolveInspectionCommandPath([]string{"child"}, commands); status != locatorResolutionFound || got != childID {
 		t.Fatalf("resolved path = %d, %v", got, status)
 	}
 
-	step := cli.CommandSelectionStep{Kind: cli.CommandSelectionStepDefault}
+	step := cli.CommandSelectionStep{
+		Kind: cli.CommandSelectionStepDefault,
+	}
 	state := &selectionStepLocatorState{
 		kind:           selectionStepLocatorDefault,
 		commandDefault: &commandDefaultLocatorState{},
@@ -1244,8 +1393,13 @@ func TestSelectionStateConservesNestedResolutionFailures(t *testing.T) {
 		commandDefault: CommandDefaultByID(1).state,
 		origin:         &inputOriginLocatorState{},
 	}
-	selectionStep := cli.CommandSelectionStep{Kind: cli.CommandSelectionStepDefault, Default: 1}
-	firstInspection := map[cli.CommandDefaultID]cli.CommandDefaultInspection{1: {ID: 1}}
+	selectionStep := cli.CommandSelectionStep{
+		Kind:    cli.CommandSelectionStepDefault,
+		Default: 1,
+	}
+	firstInspection := map[cli.CommandDefaultID]cli.CommandDefaultInspection{1: {
+		ID: 1,
+	}}
 	if got := matchSelectionStep(state, selectionStep, commands, nil, firstInspection, nil); got.status != evaluationDisproved {
 		t.Fatalf("invalid configured origin = %#v", got)
 	}
@@ -1255,8 +1409,14 @@ func TestSelectionStateConservesNestedResolutionFailures(t *testing.T) {
 		commandDefault: CommandDefaultByID(1).state,
 		commands:       []*commandLocatorState{{}},
 	}
-	firstSelectionStep := cli.CommandSelectionStep{Kind: cli.CommandSelectionStepDefault, Default: 1, Commands: []cli.CommandID{1}}
-	secondInspection := map[cli.CommandDefaultID]cli.CommandDefaultInspection{1: {ID: 1}}
+	firstSelectionStep := cli.CommandSelectionStep{
+		Kind:     cli.CommandSelectionStepDefault,
+		Default:  1,
+		Commands: []cli.CommandID{1},
+	}
+	secondInspection := map[cli.CommandDefaultID]cli.CommandDefaultInspection{1: {
+		ID: 1,
+	}}
 	if got := matchSelectionStep(state, firstSelectionStep, commands, nil, secondInspection, nil); got.status != evaluationDisproved {
 		t.Fatalf("invalid selected command = %#v", got)
 	}
@@ -1264,17 +1424,28 @@ func TestSelectionStateConservesNestedResolutionFailures(t *testing.T) {
 	if _, status, _ := resolveSelectionOriginID(nil, nil); status != locatorResolutionInvalid {
 		t.Fatalf("nil origin status = %v", status)
 	}
-	if _, status, _ := resolveSelectionOriginID(&inputOriginLocatorState{mode: inputOriginLocatorParentIndex}, nil); status != locatorResolutionInvalid {
+	if _, status, _ := resolveSelectionOriginID(&inputOriginLocatorState{
+		mode: inputOriginLocatorParentIndex,
+	}, nil); status != locatorResolutionInvalid {
 		t.Fatalf("invalid origin parent status = %v", status)
 	}
 
 	originExpectation := actionOriginExpectation(InvocationAction(cli.InvocationActionHelp), InputOriginLocator{})
-	inspection := cli.Inspection{Selection: cli.InvocationSelection{Action: cli.InvocationActionSelection{Selected: cli.InvocationActionHelp}}}
+	inspection := cli.Inspection{
+		Selection: cli.InvocationSelection{
+			Action: cli.InvocationActionSelection{
+				Selected: cli.InvocationActionHelp,
+			},
+		},
+	}
 	if got := inspectionExpectationOutcome(t, originExpectation, inspection); got.status != evaluationDisproved {
 		t.Fatalf("invalid action origin = %#v", got)
 	}
 
-	selected := actionEntrySelectedExpectationValue{locator: &actionEntryLocatorState{}, selected: true}
+	selected := actionEntrySelectedExpectationValue{
+		locator:  &actionEntryLocatorState{},
+		selected: true,
+	}
 	if got := selected.evaluateInspection(cli.Inspection{}, nil); got.status != evaluationDisproved {
 		t.Fatalf("invalid action entry = %#v", got)
 	}

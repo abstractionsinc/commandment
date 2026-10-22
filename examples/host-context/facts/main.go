@@ -46,7 +46,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	request := cli.RunRequest{Args: os.Args[1:], Facts: []cli.FactProvider{facts}}
+	request := cli.RunRequest{
+		Args:  os.Args[1:],
+		Facts: []cli.FactProvider{facts},
+	}
 	if err := app.Run(context.Background(), request); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(cli.ExitCode(err))

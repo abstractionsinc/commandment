@@ -31,11 +31,12 @@ type presentation struct {
 }
 
 func snapshotPresentation(description Description, examples []Example, hidden bool) presentation {
-	return presentation{
+	snapshot := presentation{
 		description: description,
 		examples:    append([]Example(nil), examples...),
 		hidden:      hidden,
 	}
+	return snapshot
 }
 
 func (presentation presentation) Examples() []Example {
@@ -113,10 +114,11 @@ type profile struct {
 type renderProfileKey struct{}
 
 func defaultProfile(destination presentationDestination) profile {
-	return profile{
+	defaultProfile := profile{
 		Width:       fallbackWidth,
 		Destination: destination,
 	}
+	return defaultProfile
 }
 
 func withProfile(ctx context.Context, profile profile) context.Context {

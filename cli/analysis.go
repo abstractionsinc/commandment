@@ -164,10 +164,11 @@ func (operation *invocation) materializeGrammarNamespaceAt(ctx context.Context, 
 		return grammarNamespaceMaterialization{}
 	}
 	materialized := operation.materializeProviderNamespaceAt(ctx, analysis, demand)
-	return grammarNamespaceMaterialization{
+	materialization := grammarNamespaceMaterialization{
 		Changed:  materialized.changed,
 		Complete: materialized.complete,
 	}
+	return materialization
 }
 
 func (operation *invocation) evaluateGrammarCondition(ctx context.Context, demand grammarConditionDemand) conditionOutcome {
@@ -268,7 +269,10 @@ type operationIdentities struct {
 }
 
 func allocateOperationIdentities() operationIdentities {
-	return operationIdentities{state: &operationIdentityState{}}
+	identities := operationIdentities{
+		state: &operationIdentityState{},
+	}
+	return identities
 }
 
 func (ids operationIdentities) mustState() *operationIdentityState {
@@ -279,11 +283,17 @@ func (ids operationIdentities) mustState() *operationIdentityState {
 }
 
 func (ids operationIdentities) AllocateInputSourceID() InputSourceID {
-	return InputSourceID{value: ids.mustState().inputSource.allocate()}
+	id := InputSourceID{
+		value: ids.mustState().inputSource.allocate(),
+	}
+	return id
 }
 
 func (ids operationIdentities) AllocateInputOriginID() InputOriginID {
-	return InputOriginID{value: ids.mustState().inputOrigin.allocate()}
+	id := InputOriginID{
+		value: ids.mustState().inputOrigin.allocate(),
+	}
+	return id
 }
 
 type operationIDs struct {
@@ -292,19 +302,24 @@ type operationIDs struct {
 }
 
 func allocateOperationIDs(baseline staticIdentityBaseline) operationIDs {
-	return operationIDs{
+	ds := operationIDs{
 		declarationIdentities: restoreDeclarationIdentities(baseline),
 		operationIdentities:   allocateOperationIdentities(),
 	}
+	return ds
 }
 
 func (ids operationIDs) ForkDeclarations() operationIDs {
 	declaration := *ids.declarationIdentities.mustState()
 	declaration.sealed = false
-	return operationIDs{
-		declarationIdentities: declarationIdentities{state: &declaration},
+	identities := declarationIdentities{
+		state: &declaration,
+	}
+	ds := operationIDs{
+		declarationIdentities: identities,
 		operationIdentities:   ids.operationIdentities,
 	}
+	return ds
 }
 
 func (ids operationIDs) CommitDeclarations(fork operationIDs) {

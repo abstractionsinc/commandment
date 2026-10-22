@@ -19,7 +19,10 @@ type frameworkPresentationState struct {
 }
 
 func prepareFrameworkPresentationState(localization localizationSnapshot) *frameworkPresentationState {
-	return &frameworkPresentationState{localization: localization}
+	state := &frameworkPresentationState{
+		localization: localization,
+	}
+	return state
 }
 
 // FinalizeLocale records the already-validated effective locale. Repeating the
@@ -710,10 +713,11 @@ const frameworkDefaultLocale Locale = "en"
 // Commandment-owned presentation. The framework source/default locale is owned by Commandment and
 // intentionally has no public configuration field.
 func snapshotFrameworkLocalization(bundles []TranslationBundle) (localizationSnapshot, error) {
-	return snapshotLocalization(Localization{
+	localization := Localization{
 		DefaultLocale: frameworkDefaultLocale,
 		Bundles:       bundles,
-	})
+	}
+	return snapshotLocalization(localization)
 }
 
 func publicLocalization(localization localizationSnapshot) Localization {

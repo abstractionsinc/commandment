@@ -63,6 +63,7 @@ func TestCompletionMatrix(t *testing.T) {
 }
 
 func TestShellCompletion(t *testing.T) {
+	t.Parallel()
 	if !*shellCompletionEnabled {
 		t.Skip("real-shell completion tests require make test-shell-completion")
 	}
@@ -77,12 +78,30 @@ func TestShellCompletion(t *testing.T) {
 		t.Fatalf("shell completion compatibility has no proof cases for %s", runtime.GOOS)
 	}
 
-	t.Run("bash", func(t *testing.T) { testBash(t, matrix) })
-	t.Run("elvish", func(t *testing.T) { testElvish(t, matrix) })
-	t.Run("fish", func(t *testing.T) { testFish(t, matrix) })
-	t.Run("nushell", func(t *testing.T) { testNushell(t, matrix) })
-	t.Run("powershell", func(t *testing.T) { testPowerShell(t, matrix) })
-	t.Run("zsh", func(t *testing.T) { testZsh(t, matrix) })
+	t.Run("bash", func(t *testing.T) {
+		t.Parallel()
+		testBash(t, matrix)
+	})
+	t.Run("elvish", func(t *testing.T) {
+		t.Parallel()
+		testElvish(t, matrix)
+	})
+	t.Run("fish", func(t *testing.T) {
+		t.Parallel()
+		testFish(t, matrix)
+	})
+	t.Run("nushell", func(t *testing.T) {
+		t.Parallel()
+		testNushell(t, matrix)
+	})
+	t.Run("powershell", func(t *testing.T) {
+		t.Parallel()
+		testPowerShell(t, matrix)
+	})
+	t.Run("zsh", func(t *testing.T) {
+		t.Parallel()
+		testZsh(t, matrix)
+	})
 }
 
 func completionRuntime(t *testing.T, matrix []completionMatrixRow, family, version string) string {
@@ -220,12 +239,16 @@ func compileShellCommandApplication(t *testing.T) cli.Application {
 		Name: "alienctl",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			root.Subcommands.Command(cli.Command[struct{}]{
-				Name:        "analyze",
-				Description: cli.Description{Short: "analyze recovered evidence"},
+				Name: "analyze",
+				Description: cli.Description{
+					Short: "analyze recovered evidence",
+				},
 			})
 			root.Subcommands.Command(cli.Command[struct{}]{
-				Name:        "abduct",
-				Description: cli.Description{Short: "abduct a terrestrial specimen"},
+				Name: "abduct",
+				Description: cli.Description{
+					Short: "abduct a terrestrial specimen",
+				},
 			})
 		},
 	})
@@ -262,7 +285,11 @@ func interpretShellObservation(observation shelltest.Observation) (shellObservat
 	if screen == nil {
 		return shellObservation{}, errors.New("settled shell screen unavailable")
 	}
-	return shellObservation{version: version, screen: screen}, nil
+	result := shellObservation{
+		version: version,
+		screen:  screen,
+	}
+	return result, nil
 }
 
 func requireRuntimeVersion(t *testing.T, observation shellObservation, expected string) {

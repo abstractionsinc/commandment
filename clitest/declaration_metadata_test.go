@@ -39,38 +39,174 @@ func declarationMetadataFixtures(origin cli.DeclarationOrigin, release cli.Relea
 		ValueDomainEntries: map[cli.ValueDomainEntryID]cli.ValueDomainEntryInspection{},
 	}
 
-	schema.CommandEntries[1] = cli.CommandEntrySchema{ID: 1, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	reference.CommandEntries[1] = cli.CommandEntryReference{ID: 1, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	inspection.CommandEntries[1] = cli.CommandEntryInspection{ID: 1, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	schema.CommandEntries[1] = cli.CommandEntrySchema{
+		ID:             1,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	reference.CommandEntries[1] = cli.CommandEntryReference{
+		ID:             1,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	inspection.CommandEntries[1] = cli.CommandEntryInspection{
+		ID:             1,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 
-	schema.ActionEntries[2] = cli.ActionEntrySchema{ID: 2, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	reference.ActionEntries[2] = cli.ActionEntryReference{ID: 2, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	inspection.ActionEntries[2] = cli.ActionEntryInspection{ID: 2, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	schema.ActionEntries[2] = cli.ActionEntrySchema{
+		ID:             2,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	reference.ActionEntries[2] = cli.ActionEntryReference{
+		ID:             2,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	inspection.ActionEntries[2] = cli.ActionEntryInspection{
+		ID:             2,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 
-	schema.Flags[3] = cli.FlagSchema{ID: 3, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	reference.Flags[3] = cli.FlagReference{ID: 3, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	inspection.Flags[3] = cli.FlagInspection{ID: 3, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	schema.Flags[3] = cli.FlagSchema{
+		ID:             3,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	reference.Flags[3] = cli.FlagReference{
+		ID:             3,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	inspection.Flags[3] = cli.FlagInspection{
+		ID:             3,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 
-	schema.FlagSpellings[4] = cli.FlagSpellingSchema{ID: 4, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	reference.FlagSpellings[4] = cli.FlagSpellingReference{ID: 4, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	inspection.FlagSpellings[4] = cli.FlagSpellingInspection{ID: 4, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	schema.FlagSpellings[4] = cli.FlagSpellingSchema{
+		ID:             4,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	reference.FlagSpellings[4] = cli.FlagSpellingReference{
+		ID:             4,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	inspection.FlagSpellings[4] = cli.FlagSpellingInspection{
+		ID:             4,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 
-	schema.ArgumentForms[5] = cli.ArgumentFormSchema{ID: 5, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	reference.ArgumentForms[5] = cli.ArgumentFormReference{ID: 5, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	inspection.ArgumentForms[5] = cli.ArgumentFormInspection{ID: 5, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	schema.ArgumentForms[5] = cli.ArgumentFormSchema{
+		ID:             5,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	reference.ArgumentForms[5] = cli.ArgumentFormReference{
+		ID:             5,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	inspection.ArgumentForms[5] = cli.ArgumentFormInspection{
+		ID:             5,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 
-	schema.ArgumentTerms[6] = cli.ArgumentTermSchema{ID: 6, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	reference.ArgumentTerms[6] = cli.ArgumentTermReference{ID: 6, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	inspection.ArgumentTerms[6] = cli.ArgumentTermInspection{ID: 6, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	schema.ArgumentTerms[6] = cli.ArgumentTermSchema{
+		ID:             6,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	reference.ArgumentTerms[6] = cli.ArgumentTermReference{
+		ID:             6,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	inspection.ArgumentTerms[6] = cli.ArgumentTermInspection{
+		ID:             6,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 
-	environment := cli.EnvironmentInputSchema{ID: 7, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	environment := cli.EnvironmentInputSchema{
+		ID:             7,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 	schema.EnvironmentInputs[7] = environment
-	reference.EnvironmentInputs[7] = cli.EnvironmentInputReference{EnvironmentInputSchema: environment}
-	inspection.EnvironmentInputs[7] = cli.EnvironmentInputInspection{EnvironmentInputSchema: environment}
+	reference.EnvironmentInputs[7] = cli.EnvironmentInputReference{
+		EnvironmentInputSchema: environment,
+	}
+	inspection.EnvironmentInputs[7] = cli.EnvironmentInputInspection{
+		EnvironmentInputSchema: environment,
+	}
 
-	schema.ValueDomainEntries[8] = cli.ValueDomainEntrySchema{ID: 8, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	reference.ValueDomainEntries[8] = cli.ValueDomainEntryReference{ID: 8, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
-	inspection.ValueDomainEntries[8] = cli.ValueDomainEntryInspection{ID: 8, Origin: origin, Release: release, LifecycleState: lifecycle, Replacement: replacement}
+	schema.ValueDomainEntries[8] = cli.ValueDomainEntrySchema{
+		ID:             8,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	reference.ValueDomainEntries[8] = cli.ValueDomainEntryReference{
+		ID:             8,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
+	inspection.ValueDomainEntries[8] = cli.ValueDomainEntryInspection{
+		ID:             8,
+		Origin:         origin,
+		Release:        release,
+		LifecycleState: lifecycle,
+		Replacement:    replacement,
+	}
 
 	return schema, reference, inspection
 }
@@ -177,7 +313,9 @@ func TestValueDomainEntryReplacementUsesTheSamePublicDeclarationLaw(t *testing.T
 			8: {
 				ID:          8,
 				Replacement: replacement,
-			}, 9: {ID: 9},
+			}, 9: {
+				ID: 9,
+			},
 		},
 	}
 	reference := cli.Reference{
@@ -185,7 +323,9 @@ func TestValueDomainEntryReplacementUsesTheSamePublicDeclarationLaw(t *testing.T
 			8: {
 				ID:          8,
 				Replacement: replacement,
-			}, 9: {ID: 9},
+			}, 9: {
+				ID: 9,
+			},
 		},
 	}
 	inspection := cli.Inspection{
@@ -193,7 +333,9 @@ func TestValueDomainEntryReplacementUsesTheSamePublicDeclarationLaw(t *testing.T
 			8: {
 				ID:          8,
 				Replacement: replacement,
-			}, 9: {ID: 9},
+			}, 9: {
+				ID: 9,
+			},
 		},
 	}
 	expectation := ValueDomainEntryByID(8).ReplacedBy(ValueDomainEntryByID(9))
@@ -322,7 +464,9 @@ func TestDeclarationMetadataRejectsPresentReplacementAbsentMetadataAndReleaseMis
 				},
 				Replacement: replacement,
 			},
-			9: {ID: 9},
+			9: {
+				ID: 9,
+			},
 		},
 	}
 	if got := inspectionExpectationOutcome(
@@ -577,7 +721,9 @@ func TestDeclarationReplacementMetadataPreservesMissingAndMismatchOutcomes(t *te
 	}
 	schema := &cli.Schema{
 		Flags: map[cli.FlagID]cli.FlagSchema{
-			1: {ID: 1},
+			1: {
+				ID: 1,
+			},
 			2: {
 				ID:          2,
 				Replacement: replacement,
@@ -586,7 +732,9 @@ func TestDeclarationReplacementMetadataPreservesMissingAndMismatchOutcomes(t *te
 	}
 	reference := cli.Reference{
 		Flags: map[cli.FlagID]cli.FlagReference{
-			1: {ID: 1},
+			1: {
+				ID: 1,
+			},
 			2: {
 				ID:          2,
 				Replacement: replacement,

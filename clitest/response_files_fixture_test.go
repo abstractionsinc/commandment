@@ -13,7 +13,9 @@ import (
 func TestResponseFilesZeroValueIsValidAndMissingRoutesFailDeterministically(t *testing.T) {
 	t.Parallel()
 	var files ResponseFiles
-	request := cli.ResponseFileRequest{Path: "missing"}
+	request := cli.ResponseFileRequest{
+		Path: "missing",
+	}
 	if _, err := files.Access().Load(t.Context(), request); !errors.Is(err, errResponseFileRouteMissing) {
 		t.Fatalf("Load() error = %v, want %v", err, errResponseFileRouteMissing)
 	}
@@ -21,7 +23,10 @@ func TestResponseFilesZeroValueIsValidAndMissingRoutesFailDeterministically(t *t
 
 func TestResponseFilesMatchesExactLoadRoutesAndSnapshotsAtAccess(t *testing.T) {
 	t.Parallel()
-	request := cli.ResponseFileRequest{Path: "./args.txt", Base: "/workspace"}
+	request := cli.ResponseFileRequest{
+		Path: "./args.txt",
+		Base: "/workspace",
+	}
 	response := cli.ResponseFile{
 		Key:         "logical-key",
 		Revision:    cli.Revision("r1"),
@@ -38,7 +43,9 @@ func TestResponseFilesMatchesExactLoadRoutesAndSnapshotsAtAccess(t *testing.T) {
 	access := files.Access()
 
 	response.Content[0] = 'X'
-	files.Loads[request] = cli.ResponseFile{Content: []byte("changed")}
+	files.Loads[request] = cli.ResponseFile{
+		Content: []byte("changed"),
+	}
 
 	got, err := access.Load(t.Context(), request)
 	if err != nil {
@@ -69,11 +76,19 @@ func TestResponseFilesMatchesExactLoadRoutesAndSnapshotsAtAccess(t *testing.T) {
 
 func TestResponseFilesDoesNotNormalizeOrInventLoadRoutes(t *testing.T) {
 	t.Parallel()
-	registered := cli.ResponseFileRequest{Path: "./args.txt", Base: "/workspace"}
-	files := ResponseFiles{
-		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{registered: {Content: []byte("ok")}},
+	registered := cli.ResponseFileRequest{
+		Path: "./args.txt",
+		Base: "/workspace",
 	}
-	lookup := cli.ResponseFileRequest{Path: "args.txt", Base: "/workspace"}
+	files := ResponseFiles{
+		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{registered: {
+			Content: []byte("ok"),
+		}},
+	}
+	lookup := cli.ResponseFileRequest{
+		Path: "args.txt",
+		Base: "/workspace",
+	}
 	if _, err := files.Access().Load(t.Context(), lookup); !errors.Is(err, errResponseFileRouteMissing) {
 		t.Fatalf("non-exact Load() error = %v, want %v", err, errResponseFileRouteMissing)
 	}
@@ -81,8 +96,12 @@ func TestResponseFilesDoesNotNormalizeOrInventLoadRoutes(t *testing.T) {
 
 func TestResponseFilesPreservesConfiguredFailures(t *testing.T) {
 	t.Parallel()
-	loadRequest := cli.ResponseFileRequest{Path: "broken.txt"}
-	completionRequest := cli.ResponseFileCompletionRequest{Path: "broken"}
+	loadRequest := cli.ResponseFileRequest{
+		Path: "broken.txt",
+	}
+	completionRequest := cli.ResponseFileCompletionRequest{
+		Path: "broken",
+	}
 	loadErr := errors.New("load failed")
 	completionErr := errors.New("completion failed")
 	files := ResponseFiles{
@@ -100,8 +119,12 @@ func TestResponseFilesPreservesConfiguredFailures(t *testing.T) {
 
 func TestResponseFilesRejectsInvalidDeclarationsAtAccess(t *testing.T) {
 	t.Parallel()
-	loadRequest := cli.ResponseFileRequest{Path: "load"}
-	completionRequest := cli.ResponseFileCompletionRequest{Path: "complete"}
+	loadRequest := cli.ResponseFileRequest{
+		Path: "load",
+	}
+	completionRequest := cli.ResponseFileCompletionRequest{
+		Path: "complete",
+	}
 	tests := []struct {
 		name  string
 		files ResponseFiles
@@ -155,9 +178,19 @@ func TestResponseFilesRejectsInvalidDeclarationsAtAccess(t *testing.T) {
 
 func TestResponseFilesSnapshotsCompletionContributionDeeply(t *testing.T) {
 	t.Parallel()
-	request := cli.ResponseFileCompletionRequest{Path: "ar", Base: "/workspace", Cursor: 2}
-	replace := &cli.CompletionRange{Start: 0, End: 2}
-	native := &cli.CompletionNativeIntent{Kind: cli.CompletionNativeFiles, Mode: cli.CompletionNativeAlways}
+	request := cli.ResponseFileCompletionRequest{
+		Path:   "ar",
+		Base:   "/workspace",
+		Cursor: 2,
+	}
+	replace := &cli.CompletionRange{
+		Start: 0,
+		End:   2,
+	}
+	native := &cli.CompletionNativeIntent{
+		Kind: cli.CompletionNativeFiles,
+		Mode: cli.CompletionNativeAlways,
+	}
 	contribution := cli.CompletionContribution{
 		Replace: replace,
 		Candidates: []cli.CompletionCandidate{{
@@ -166,9 +199,15 @@ func TestResponseFilesSnapshotsCompletionContributionDeeply(t *testing.T) {
 			SearchTerms:      []string{"args", "txt"},
 			CommitCharacters: []rune{'/'},
 		}},
-		Groups:   []cli.CompletionGroup{{ID: "files", Label: "Files"}},
-		Messages: []cli.CompletionMessage{{Kind: cli.CompletionMessageInformation, Text: "message"}},
-		Native:   native,
+		Groups: []cli.CompletionGroup{{
+			ID:    "files",
+			Label: "Files",
+		}},
+		Messages: []cli.CompletionMessage{{
+			Kind: cli.CompletionMessageInformation,
+			Text: "message",
+		}},
+		Native: native,
 	}
 	var requests ResponseFileRequests
 	files := ResponseFiles{
@@ -201,10 +240,14 @@ func TestResponseFilesSnapshotsCompletionContributionDeeply(t *testing.T) {
 
 func TestResponseFilesRecordsCanceledRequests(t *testing.T) {
 	t.Parallel()
-	request := cli.ResponseFileRequest{Path: "args.txt"}
+	request := cli.ResponseFileRequest{
+		Path: "args.txt",
+	}
 	var requests ResponseFileRequests
 	files := ResponseFiles{
-		Loads:    map[cli.ResponseFileRequest]cli.ResponseFile{request: {Content: []byte("ignored")}},
+		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{request: {
+			Content: []byte("ignored"),
+		}},
 		Requests: &requests,
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -223,10 +266,15 @@ func TestResponseFilesRecordsCanceledRequests(t *testing.T) {
 
 func TestResponseFileRequestsConcurrentRecordingIsRaceSafe(t *testing.T) {
 	t.Parallel()
-	request := cli.ResponseFileRequest{Path: "args.txt", Base: "/workspace"}
+	request := cli.ResponseFileRequest{
+		Path: "args.txt",
+		Base: "/workspace",
+	}
 	var requests ResponseFileRequests
 	files := ResponseFiles{
-		Loads:    map[cli.ResponseFileRequest]cli.ResponseFile{request: {Content: []byte("ok")}},
+		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{request: {
+			Content: []byte("ok"),
+		}},
 		Requests: &requests,
 	}
 	access := files.Access()

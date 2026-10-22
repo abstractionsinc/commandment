@@ -33,55 +33,64 @@ func (l CommandLocator) ConditionAt(index int) ConditionLocator {
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (l CommandLocator) ConditionsExactly(values ...ConditionLocator) DeclarationExpectation {
-	return commandConditionsExpectation{
+	expectation := commandConditionsExpectation{
 		command: l.state,
 		items:   conditionLocatorStates(values),
 	}
+	return expectation
 }
 
 // Expression returns a locator that follows the public expression relationship from the located
 // condition. The returned locator carries locator coordinates, not observed state.
 func (locator ConditionLocator) Expression() ConditionExpressionLocator {
-	return ConditionExpressionLocator{state: &conditionExpressionLocatorState{
+	state := &conditionExpressionLocatorState{
 		mode:      conditionExpressionLocatorCondition,
 		condition: locator.state,
-	}}
+	}
+	conditionExpressionLocator := ConditionExpressionLocator{
+		state: state,
+	}
+	return conditionExpressionLocator
 }
 
 // Exists returns an expectation that checks the located Condition exists in the relevant
 // public declaration observation.
 func (locator ConditionLocator) Exists() DeclarationExpectation {
-	return conditionExistenceExpectationValue{
+	value := conditionExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located Condition is absent from a
 // complete relevant public declaration domain; incomplete observation cannot manufacture
 // absence.
 func (locator ConditionLocator) DoesNotExist() DeclarationExpectation {
-	return conditionExistenceExpectationValue{
+	value := conditionExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Effect returns an expectation that checks the Condition has the requested declared effect.
 func (locator ConditionLocator) Effect(v cli.ConditionEffect) DeclarationExpectation {
-	return conditionEffectExpectationValue{
+	value := conditionEffectExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the Condition has the requested declared
 // reachability.
 func (locator ConditionLocator) Reachability(v cli.Reachability) DeclarationExpectation {
-	return conditionReachabilityExpectationValue{
+	value := conditionReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Outcome returns an expectation that checks the Condition's invocation-time
@@ -93,10 +102,11 @@ func (locator ConditionLocator) Outcome(outcome cli.EvaluationOutcome) Inspectio
 // Target returns an expectation that checks the Condition targets the exact heterogeneous
 // declaration identified by the supplied locator.
 func (locator ConditionLocator) Target(v DeclarationIdentityLocator) DeclarationExpectation {
-	return conditionTargetExpectationValue{
+	value := conditionTargetExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Sensitive returns an expectation that checks the inspected Condition is sensitive; mismatch
@@ -108,121 +118,139 @@ func (locator ConditionLocator) Sensitive() InspectionExpectation {
 // ChildAt returns a locator for the child at the supplied public ordered index of the located
 // condition expression. It does not search for or silently choose a first match.
 func (locator ConditionExpressionLocator) ChildAt(index int) ConditionExpressionLocator {
-	return ConditionExpressionLocator{state: &conditionExpressionLocatorState{
+	state := &conditionExpressionLocatorState{
 		mode:   conditionExpressionLocatorChild,
 		parent: locator.state,
 		index:  index,
-	}}
+	}
+	conditionExpressionLocator := ConditionExpressionLocator{
+		state: state,
+	}
+	return conditionExpressionLocator
 }
 
 // OperandAt returns a locator for the operand at the supplied public ordered index of the
 // located condition expression. It does not search for or silently choose a first match.
 func (locator ConditionExpressionLocator) OperandAt(index int) DeclarationValueLiteralLocator {
-	return DeclarationValueLiteralLocator{state: &declarationValueLiteralLocatorState{
+	state := &declarationValueLiteralLocatorState{
 		mode:      declarationValueLiteralLocatorConditionOperand,
 		condition: locator.state,
 		index:     index,
-	}}
+	}
+	declarationValueLiteralLocator := DeclarationValueLiteralLocator{
+		state: state,
+	}
+	return declarationValueLiteralLocator
 }
 
 // Exists returns a declaration expectation that checks the condition-expression relationship is
 // present. Presence may be satisfied by truthful partial output when the subject is available.
 func (locator ConditionExpressionLocator) Exists() DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:  locator.state,
 		property: conditionExpressionExpectationExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a declaration expectation that checks the condition-expression
 // relationship is absent. Omission in a truncated or otherwise incomplete observation is not
 // treated as expectation of absence.
 func (locator ConditionExpressionLocator) DoesNotExist() DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:  locator.state,
 		property: conditionExpressionExpectationExists,
 	}
+	return expectation
 }
 
 // Kind returns a reusable declaration expectation that checks the public kind exposed by the
 // located condition expression.
 func (locator ConditionExpressionLocator) Kind(expected cli.ConditionExpressionKind) DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:  locator.state,
 		property: conditionExpressionExpectationKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Pattern returns a reusable declaration expectation that checks the public pattern exposed by
 // the located condition expression.
 func (locator ConditionExpressionLocator) Pattern(expected string) DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:  locator.state,
 		property: conditionExpressionExpectationPattern,
 		pattern:  expected,
 	}
+	return expectation
 }
 
 // ProducerKindsExactly returns a reusable declaration expectation that checks the complete producer-kind
 // list exactly in authoritative public order.
 func (locator ConditionExpressionLocator) ProducerKindsExactly(expected ...cli.ValueProducerKind) DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:       locator.state,
 		property:      conditionExpressionExpectationProducerKinds,
 		producerKinds: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // ChildCount returns a reusable declaration expectation that checks the child count exposed by
 // the located condition expression.
 func (locator ConditionExpressionLocator) ChildCount(expected int) DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:  locator.state,
 		property: conditionExpressionExpectationChildCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // OperandCount returns a reusable declaration expectation that checks the operand count exposed
 // by the located condition expression.
 func (locator ConditionExpressionLocator) OperandCount(expected int) DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:  locator.state,
 		property: conditionExpressionExpectationOperandCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // Sensitive returns a reusable declaration expectation that checks the located condition
 // expression is marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator ConditionExpressionLocator) Sensitive() DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:   locator.state,
 		property:  conditionExpressionExpectationSensitive,
 		sensitive: true,
 	}
+	return expectation
 }
 
 // NotSensitive returns a reusable declaration expectation that checks the located condition
 // expression is not marked sensitive.
 func (locator ConditionExpressionLocator) NotSensitive() DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:  locator.state,
 		property: conditionExpressionExpectationSensitive,
 	}
+	return expectation
 }
 
 // Destination returns a declaration expectation that checks the expression's public destination
 // relationship resolves to the same value identity as the expected ValueLocator; textual
 // similarity is not substituted for identity.
 func (locator ConditionExpressionLocator) Destination(expected ValueLocator) DeclarationExpectation {
-	return conditionExpressionExpectation{
+	expectation := conditionExpressionExpectation{
 		locator:     locator.state,
 		property:    conditionExpressionExpectationDestination,
 		destination: expected.state,
 	}
+	return expectation
 }
 
 type conditionExpressionLocatorMode uint8
@@ -901,18 +929,25 @@ func conditionIndexLocator(command CommandLocator, index int) ConditionLocator {
 		index:   index,
 	}
 
-	return ConditionLocator{state: state}
+	locator := ConditionLocator{
+		state: state,
+	}
+	return locator
 }
 
 func conditionOutcomeExpectation(locator ConditionLocator, outcome cli.EvaluationOutcome) InspectionExpectation {
-	return conditionOutcomeExpectationValue{
+	value := conditionOutcomeExpectationValue{
 		locator:  locator.state,
 		expected: outcome,
 	}
+	return value
 }
 
 func conditionSensitiveExpectation(locator ConditionLocator) InspectionExpectation {
-	return conditionSensitiveExpectationValue{locator: locator.state}
+	value := conditionSensitiveExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 func (conditionExpressionExpectation) schemaExpectation() {}

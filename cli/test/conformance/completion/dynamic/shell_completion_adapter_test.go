@@ -48,7 +48,9 @@ func isProcessAdapterChild(testName string) bool {
 func TestRunFromProcessRejectsUnreleasedShellCompletionActivationValueTwo(t *testing.T) {
 	const testName = "TestRunFromProcessRejectsUnreleasedShellCompletionActivationValueTwo"
 	if isProcessAdapterChild(testName) {
-		app, err := cli.Compile(cli.Definition[struct{}]{Name: "tool"})
+		app, err := cli.Compile(cli.Definition[struct{}]{
+			Name: "tool",
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -86,7 +88,9 @@ func TestRunFromProcessRejectsInvalidShellCompletionProcessFraming(t *testing.T)
 
 	const testName = "TestRunFromProcessRejectsInvalidShellCompletionProcessFraming"
 	if isProcessAdapterChild(testName) {
-		app, err := cli.Compile(cli.Definition[struct{}]{Name: "tool"})
+		app, err := cli.Compile(cli.Definition[struct{}]{
+			Name: "tool",
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,7 +200,7 @@ func TestRunFromProcessShellAdapterUsesSameNonProcessSignalCatalogAsDirectComple
 			t.Fatal(err)
 		}
 
-		direct, err := processAdapterComplete(t, app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"re"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -210,7 +214,8 @@ func TestRunFromProcessShellAdapterUsesSameNonProcessSignalCatalogAsDirectComple
 				},
 				Ranking: cli.CompletionRankingModeRelevance,
 			},
-		})
+		}
+		direct, err := processAdapterComplete(t, app, completionRequest)
 		if err != nil {
 			t.Fatalf("direct Complete: %v", err)
 		}

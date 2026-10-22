@@ -109,8 +109,16 @@ func TestExpectedInspectionArgumentFormIDsRejectsInvalidAndForeignCoordinates(t 
 
 	inspection := cli.Inspection{
 		Commands: map[cli.CommandID]cli.CommandInspection{
-			1: {ID: 1, ArgumentForms: []cli.ArgumentFormID{21}, NamespaceCompleteness: cli.CommandNamespaceComplete},
-			2: {ID: 2, ArgumentForms: []cli.ArgumentFormID{22}, NamespaceCompleteness: cli.CommandNamespaceComplete},
+			1: {
+				ID:                    1,
+				ArgumentForms:         []cli.ArgumentFormID{21},
+				NamespaceCompleteness: cli.CommandNamespaceComplete,
+			},
+			2: {
+				ID:                    2,
+				ArgumentForms:         []cli.ArgumentFormID{22},
+				NamespaceCompleteness: cli.CommandNamespaceComplete,
+			},
 		},
 	}
 	command := inspection.Commands[1]
@@ -119,11 +127,28 @@ func TestExpectedInspectionArgumentFormIDsRejectsInvalidAndForeignCoordinates(t 
 		state  *argumentFormLocatorState
 		status locatorResolutionStatus
 	}{
-		{name: "direct id", state: ArgumentFormByID(21).state, status: locatorResolutionFound},
-		{name: "scoped index", state: CommandByID(1).ArgumentFormAt(0).state, status: locatorResolutionFound},
-		{name: "foreign scoped index", state: CommandByID(2).ArgumentFormAt(0).state, status: locatorResolutionInvalid},
-		{name: "nil", status: locatorResolutionInvalid},
-		{name: "invalid mode", state: &argumentFormLocatorState{mode: argumentFormLocatorMode(255)}, status: locatorResolutionInvalid},
+		{
+			name:   "direct id",
+			state:  ArgumentFormByID(21).state,
+			status: locatorResolutionFound,
+		},
+		{
+			name:   "scoped index",
+			state:  CommandByID(1).ArgumentFormAt(0).state,
+			status: locatorResolutionFound,
+		},
+		{
+			name:   "foreign scoped index",
+			state:  CommandByID(2).ArgumentFormAt(0).state,
+			status: locatorResolutionInvalid,
+		},
+		{
+			name:   "nil",
+			status: locatorResolutionInvalid,
+		},
+		{name: "invalid mode", state: &argumentFormLocatorState{
+			mode: argumentFormLocatorMode(255),
+		}, status: locatorResolutionInvalid},
 	}
 
 	for _, test := range cases {

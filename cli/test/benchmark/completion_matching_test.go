@@ -46,7 +46,9 @@ func BenchmarkCompleteMatchingTextLength(b *testing.B) {
 			query, text := completionTextAdversary(mode, queryBytes, fieldBytes)
 			corpus := make([]cli.CompletionCandidate, candidates)
 			for index := range corpus {
-				corpus[index] = cli.CompletionCandidate{Value: text}
+				corpus[index] = cli.CompletionCandidate{
+					Value: text,
+				}
 			}
 			app := completionCandidateApplication(b, corpus)
 			request := completionCandidateRequest(query, mode, []cli.CompletionMatchField{cli.CompletionMatchFieldValue})
@@ -116,11 +118,16 @@ func completionCandidateApplication(tb testing.TB, candidates []cli.CompletionCa
 	tb.Helper()
 	definition := cli.Definition[inputConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[inputConfig]) {
 			root.Flags.String(&root.Config.Value).
 				CompleteBy(func(context.Context, *inputConfig, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{Candidates: candidates}, nil
+					contribution := cli.CompletionContribution{
+						Candidates: candidates,
+					}
+					return contribution, nil
 				}).
 				Long("value")
 		},
@@ -133,21 +140,28 @@ func completionCandidateApplication(tb testing.TB, candidates []cli.CompletionCa
 }
 
 func completionCandidateRequest(query string, mode cli.CompletionMatchMode, fields []cli.CompletionMatchField) cli.CompletionRequest {
-	return cli.CompletionRequest{
-		Args: []string{"--value", query},
-		Cursor: cli.CompletionCursor{
-			Argument: 1,
-			Byte:     len(query),
-		},
-		Client: cli.CompletionClient{
-			Match: cli.CompletionMatchOptions{
-				Mode:   mode,
-				Case:   cli.CompletionCaseSensitive,
-				Fields: append([]cli.CompletionMatchField(nil), fields...),
-			},
-			Capabilities: cli.CompletionClientCapabilities{MatchRanges: true},
-		},
+	cursor := cli.CompletionCursor{
+		Argument: 1,
+		Byte:     len(query),
 	}
+	options := cli.CompletionMatchOptions{
+		Mode:   mode,
+		Case:   cli.CompletionCaseSensitive,
+		Fields: append([]cli.CompletionMatchField(nil), fields...),
+	}
+	capabilities := cli.CompletionClientCapabilities{
+		MatchRanges: true,
+	}
+	client := cli.CompletionClient{
+		Match:        options,
+		Capabilities: capabilities,
+	}
+	request := cli.CompletionRequest{
+		Args:   []string{"--value", query},
+		Cursor: cursor,
+		Client: client,
+	}
+	return request
 }
 
 func preflightCompletionCandidateMatch(tb testing.TB, app cli.Application, request cli.CompletionRequest, expected string) {
@@ -234,9 +248,13 @@ func completionCandidateCorpus(count int, query string, fieldBytes int) []cli.Co
 	match := query + strings.Repeat("a", fieldBytes-len(query))
 	candidates := make([]cli.CompletionCandidate, count)
 	for index := range candidates {
-		candidates[index] = cli.CompletionCandidate{Value: noMatch}
+		candidates[index] = cli.CompletionCandidate{
+			Value: noMatch,
+		}
 	}
-	candidates[len(candidates)-1] = cli.CompletionCandidate{Value: match}
+	candidates[len(candidates)-1] = cli.CompletionCandidate{
+		Value: match,
+	}
 	return candidates
 }
 
@@ -278,34 +296,55 @@ func completionFieldLayouts(query string, fieldBytes int) []completionFieldLayou
 		}
 		return terms
 	}
+	candidate := cli.CompletionCandidate{
+		Value: match,
+	}
+	completionCandidate := cli.CompletionCandidate{
+		Value:       noMatch,
+		DisplayText: noMatch,
+		SearchTerms: searchTerms(2),
+	}
+	returnedCandidate := cli.CompletionCandidate{
+		Value:       noMatch,
+		DisplayText: noMatch,
+		Description: noMatch,
+		Detail:      noMatch,
+		SearchTerms: searchTerms(1),
+	}
+	completionCandidate2 := cli.CompletionCandidate{
+		Value:       noMatch,
+		SearchTerms: searchTerms(4),
+	}
+	completionCandidate3 := cli.CompletionCandidate{
+		Value:       noMatch,
+		SearchTerms: searchTerms(16),
+	}
+	completionCandidate4 := cli.CompletionCandidate{
+		Value:       noMatch,
+		SearchTerms: searchTerms(64),
+	}
+	completionCandidate5 := cli.CompletionCandidate{
+		Value:       noMatch,
+		DisplayText: noMatch,
+	}
 	return []completionFieldLayout{
 		{
 			name:       "ValueOnly",
 			fields:     []cli.CompletionMatchField{cli.CompletionMatchFieldValue},
-			candidate:  cli.CompletionCandidate{Value: match},
+			candidate:  candidate,
 			wantItems:  256,
 			matchField: cli.CompletionMatchFieldValue,
 		},
 		{
-			name: "DefaultFields",
-			candidate: cli.CompletionCandidate{
-				Value:       noMatch,
-				DisplayText: noMatch,
-				SearchTerms: searchTerms(2),
-			},
+			name:       "DefaultFields",
+			candidate:  completionCandidate,
 			wantItems:  256,
 			matchField: cli.CompletionMatchFieldSearchTerm,
 		},
 		{
-			name:   "ExplicitFields/Count=5",
-			fields: []cli.CompletionMatchField{cli.CompletionMatchFieldValue, cli.CompletionMatchFieldDisplayText, cli.CompletionMatchFieldDescription, cli.CompletionMatchFieldDetail, cli.CompletionMatchFieldSearchTerm},
-			candidate: cli.CompletionCandidate{
-				Value:       noMatch,
-				DisplayText: noMatch,
-				Description: noMatch,
-				Detail:      noMatch,
-				SearchTerms: searchTerms(1),
-			},
+			name:       "ExplicitFields/Count=5",
+			fields:     []cli.CompletionMatchField{cli.CompletionMatchFieldValue, cli.CompletionMatchFieldDisplayText, cli.CompletionMatchFieldDescription, cli.CompletionMatchFieldDetail, cli.CompletionMatchFieldSearchTerm},
+			candidate:  returnedCandidate,
 			wantItems:  256,
 			matchField: cli.CompletionMatchFieldSearchTerm,
 		},
@@ -315,42 +354,30 @@ func completionFieldLayouts(query string, fieldBytes int) []completionFieldLayou
 			candidate: cli.CompletionCandidate{},
 		},
 		{
-			name:   "SearchTerms/N=4",
-			fields: []cli.CompletionMatchField{cli.CompletionMatchFieldSearchTerm},
-			candidate: cli.CompletionCandidate{
-				Value:       noMatch,
-				SearchTerms: searchTerms(4),
-			},
+			name:       "SearchTerms/N=4",
+			fields:     []cli.CompletionMatchField{cli.CompletionMatchFieldSearchTerm},
+			candidate:  completionCandidate2,
 			wantItems:  256,
 			matchField: cli.CompletionMatchFieldSearchTerm,
 		},
 		{
-			name:   "SearchTerms/N=16",
-			fields: []cli.CompletionMatchField{cli.CompletionMatchFieldSearchTerm},
-			candidate: cli.CompletionCandidate{
-				Value:       noMatch,
-				SearchTerms: searchTerms(16),
-			},
+			name:       "SearchTerms/N=16",
+			fields:     []cli.CompletionMatchField{cli.CompletionMatchFieldSearchTerm},
+			candidate:  completionCandidate3,
 			wantItems:  256,
 			matchField: cli.CompletionMatchFieldSearchTerm,
 		},
 		{
-			name:   "SearchTerms/N=64",
-			fields: []cli.CompletionMatchField{cli.CompletionMatchFieldSearchTerm},
-			candidate: cli.CompletionCandidate{
-				Value:       noMatch,
-				SearchTerms: searchTerms(64),
-			},
+			name:       "SearchTerms/N=64",
+			fields:     []cli.CompletionMatchField{cli.CompletionMatchFieldSearchTerm},
+			candidate:  completionCandidate4,
 			wantItems:  256,
 			matchField: cli.CompletionMatchFieldSearchTerm,
 		},
 		{
-			name:   "DuplicateValueDisplay",
-			fields: []cli.CompletionMatchField{cli.CompletionMatchFieldValue, cli.CompletionMatchFieldDisplayText},
-			candidate: cli.CompletionCandidate{
-				Value:       noMatch,
-				DisplayText: noMatch,
-			},
+			name:      "DuplicateValueDisplay",
+			fields:    []cli.CompletionMatchField{cli.CompletionMatchFieldValue, cli.CompletionMatchFieldDisplayText},
+			candidate: completionCandidate5,
 		},
 	}
 }

@@ -58,21 +58,23 @@ func (a staticAnalysis) Condition(target conditionTarget, effect ConditionEffect
 	if a.conditions == nil {
 		return ReachabilityUnknown
 	}
-	return a.conditions[conditionReachabilityKey{
+	key := conditionReachabilityKey{
 		target:   target,
 		effect:   effect,
 		position: position,
-	}]
+	}
+	return a.conditions[key]
 }
 
 func (a staticAnalysis) NoticeSuppression(command CommandID, position declarationPosition) Reachability {
 	if a.suppressions == nil {
 		return ReachabilityUnknown
 	}
-	return a.suppressions[suppressionReachabilityKey{
+	key := suppressionReachabilityKey{
 		command:  command,
 		position: position,
-	}]
+	}
+	return a.suppressions[key]
 }
 
 func lookupReachability[I comparable](values map[I]Reachability, id I) Reachability {

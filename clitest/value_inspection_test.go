@@ -133,7 +133,9 @@ func TestValueExactCollectionIsNotProvableWhenInspectionTruncated(t *testing.T) 
 	valueID := cli.ValueID(1)
 	inspection := cli.Inspection{
 		Truncated: true,
-		Values:    map[cli.ValueID]cli.ValueInspection{valueID: {ID: valueID}},
+		Values: map[cli.ValueID]cli.ValueInspection{valueID: {
+			ID: valueID,
+		}},
 	}
 	expectation := ValueByID(valueID).CandidatesExactly()
 	checkedOutcome, ok := expectation.(interface {
@@ -359,10 +361,21 @@ func TestValueObservationStateAndConditionalStateRemainDistinct(t *testing.T) {
 			},
 		},
 	}
-	for name, expectation := range map[string]InspectionExpectation{
-		"observed":     value.Observed(),
-		"absent-state": value.State(cli.ResolutionStateAbsent),
+	for _, test := range []struct {
+		name        string
+		expectation InspectionExpectation
+	}{
+		{
+			name:        "observed",
+			expectation: value.Observed(),
+		},
+		{
+			name:        "absent-state",
+			expectation: value.State(cli.ResolutionStateAbsent),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := inspectionExpectationOutcome(t, expectation, observedAbsent); got.status != evaluationProved {
 			t.Fatalf("%s = %#v, want proved", name, got)
 		}
@@ -400,12 +413,29 @@ func TestValueObservationStateAndConditionalStateRemainDistinct(t *testing.T) {
 	truncated := cli.Inspection{
 		Truncated: true,
 	}
-	for name, expectation := range map[string]InspectionExpectation{
-		"observed":          value.Observed(),
-		"not-observed":      value.NotObserved(),
-		"state":             value.State(cli.ResolutionStateAbsent),
-		"state-if-observed": value.StateIfObserved(cli.ResolutionStateAbsent),
+	for _, test := range []struct {
+		name        string
+		expectation InspectionExpectation
+	}{
+		{
+			name:        "observed",
+			expectation: value.Observed(),
+		},
+		{
+			name:        "not-observed",
+			expectation: value.NotObserved(),
+		},
+		{
+			name:        "state",
+			expectation: value.State(cli.ResolutionStateAbsent),
+		},
+		{
+			name:        "state-if-observed",
+			expectation: value.StateIfObserved(cli.ResolutionStateAbsent),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := inspectionExpectationOutcome(t, expectation, truncated); got.status != evaluationNotProvable {
 			t.Fatalf("%s truncated miss = %#v, want not provable", name, got)
 		}
@@ -633,7 +663,9 @@ func TestValueRepresentationsEntriesAndSuppressionExpectations(t *testing.T) {
 			},
 		},
 		ValueDomainEntries: map[cli.ValueDomainEntryID]cli.ValueDomainEntryInspection{
-			domainEntryID: {ID: domainEntryID},
+			domainEntryID: {
+				ID: domainEntryID,
+			},
 		},
 	}
 
@@ -641,7 +673,12 @@ func TestValueRepresentationsEntriesAndSuppressionExpectations(t *testing.T) {
 	textCandidate := keyed.CandidateAt(0)
 	tokenCandidate := keyed.CandidateAt(1)
 	entry := textCandidate.EntryAt(0)
-	(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t,
+	(InspectionResult{
+		state: &inspectionResultState{
+			observation: inspection,
+			err:         nil,
+		},
+	}).Require(t,
 		ValueByID(textValueID).Text("alpha"),
 		ValueByID(tokenValueID).Tokens("alpha", "beta"),
 		keyed.EntriesExactly(entry),
@@ -667,7 +704,9 @@ func TestValueZeroHitRuntimeRedactionIdentityAndNegativeLaws(t *testing.T) {
 	}
 
 	inspection := cli.Inspection{
-		Facts: map[cli.ValueID]cli.FactInspection{valueID: {ID: valueID}},
+		Facts: map[cli.ValueID]cli.FactInspection{valueID: {
+			ID: valueID,
+		}},
 		Values: map[cli.ValueID]cli.ValueInspection{
 			valueID: {
 				ID:        valueID,
@@ -755,45 +794,139 @@ func TestValueZeroHitRuntimeRedactionIdentityAndNegativeLaws(t *testing.T) {
 	key := entry.Key()
 	entryValue := entry.Value()
 
-	for name, expectation := range map[string]InspectionExpectation{
-		"fact value redacted":        value.Redacted(),
-		"value failed state":         value.Blocked(),
-		"producer sensitive":         producer.Sensitive(),
-		"producer dependencies":      producer.DependenciesExactly(ValueByID(blockedID)),
-		"candidate direct sensitive": candidate.Sensitive(),
-		"contributor sensitive":      contributor.Sensitive(),
-		"candidate suppression":      candidate.Suppression(cli.ValueCandidateSuppressionKeepLast),
-		"candidate conflicts":        candidate.ConflictsWithExactly(ValueCandidateByID(conflictID)),
-		"candidate entry count":      candidate.EntryCount(1),
-		"key redacted":               key.Redacted(),
-		"key sensitive":              key.Sensitive(),
-		"key domain entry":           key.DomainEntry(ValueDomainEntryByID(entryID)),
-		"entry value sensitive":      entryValue.Sensitive(),
-		"entry value tokens":         entryValue.Tokens("v"),
+	for _, test := range []struct {
+		name        string
+		expectation InspectionExpectation
+	}{
+		{
+			name:        "fact value redacted",
+			expectation: value.Redacted(),
+		},
+		{
+			name:        "value failed state",
+			expectation: value.Blocked(),
+		},
+		{
+			name:        "producer sensitive",
+			expectation: producer.Sensitive(),
+		},
+		{
+			name:        "producer dependencies",
+			expectation: producer.DependenciesExactly(ValueByID(blockedID)),
+		},
+		{
+			name:        "candidate direct sensitive",
+			expectation: candidate.Sensitive(),
+		},
+		{
+			name:        "contributor sensitive",
+			expectation: contributor.Sensitive(),
+		},
+		{
+			name:        "candidate suppression",
+			expectation: candidate.Suppression(cli.ValueCandidateSuppressionKeepLast),
+		},
+		{
+			name:        "candidate conflicts",
+			expectation: candidate.ConflictsWithExactly(ValueCandidateByID(conflictID)),
+		},
+		{
+			name:        "candidate entry count",
+			expectation: candidate.EntryCount(1),
+		},
+		{
+			name:        "key redacted",
+			expectation: key.Redacted(),
+		},
+		{
+			name:        "key sensitive",
+			expectation: key.Sensitive(),
+		},
+		{
+			name:        "key domain entry",
+			expectation: key.DomainEntry(ValueDomainEntryByID(entryID)),
+		},
+		{
+			name:        "entry value sensitive",
+			expectation: entryValue.Sensitive(),
+		},
+		{
+			name:        "entry value tokens",
+			expectation: entryValue.Tokens("v"),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := inspectionExpectationOutcome(t, expectation, inspection); got.status != evaluationProved {
 			t.Fatalf("%s = %#v, want proved", name, got)
 		}
 	}
 
-	for name, expectation := range map[string]InspectionExpectation{
-		"failed-state mismatch":             value.Failed(),
-		"sensitive value text mismatch":     value.Text("secret"),
-		"sensitive producer mismatch":       producer.Kind(cli.ValueProducerKindEnvironment),
-		"sensitive candidate mismatch":      candidate.Suppression(cli.ValueCandidateSuppressionPrecedence),
-		"sensitive component mismatch":      key.Text("secret-key"),
-		"producer missing":                  value.ProducerAt(3).Sensitive(),
-		"contributor missing":               value.ContributorAt(3).Sensitive(),
-		"entry missing":                     candidate.EntryAt(3).Key().Sensitive(),
-		"wrong producer kind":               value.ContributedBy(cli.ValueProducerKindEnvironment),
-		"wrong blocker":                     value.BlockedBy(ValueByID(999)),
-		"candidate producer cannot resolve": candidate.ProducedBy(value.ProducerAt(9)),
-		"candidate entry count mismatch":    candidate.EntryCount(2),
-		"value domain dependency mismatch": value.Domain(cli.ValueDomainUseDestination).DependenciesExactly(
-			ValueByID(999),
-		),
-		"candidate conflict identity mismatch": candidate.ConflictsWithExactly(ValueCandidateByID(999)),
+	for _, test := range []struct {
+		name        string
+		expectation InspectionExpectation
+	}{
+		{
+			name:        "failed-state mismatch",
+			expectation: value.Failed(),
+		},
+		{
+			name:        "sensitive value text mismatch",
+			expectation: value.Text("secret"),
+		},
+		{
+			name:        "sensitive producer mismatch",
+			expectation: producer.Kind(cli.ValueProducerKindEnvironment),
+		},
+		{
+			name:        "sensitive candidate mismatch",
+			expectation: candidate.Suppression(cli.ValueCandidateSuppressionPrecedence),
+		},
+		{
+			name:        "sensitive component mismatch",
+			expectation: key.Text("secret-key"),
+		},
+		{
+			name:        "producer missing",
+			expectation: value.ProducerAt(3).Sensitive(),
+		},
+		{
+			name:        "contributor missing",
+			expectation: value.ContributorAt(3).Sensitive(),
+		},
+		{
+			name:        "entry missing",
+			expectation: candidate.EntryAt(3).Key().Sensitive(),
+		},
+		{
+			name:        "wrong producer kind",
+			expectation: value.ContributedBy(cli.ValueProducerKindEnvironment),
+		},
+		{
+			name:        "wrong blocker",
+			expectation: value.BlockedBy(ValueByID(999)),
+		},
+		{
+			name:        "candidate producer cannot resolve",
+			expectation: candidate.ProducedBy(value.ProducerAt(9)),
+		},
+		{
+			name:        "candidate entry count mismatch",
+			expectation: candidate.EntryCount(2),
+		},
+		{
+			name: "value domain dependency mismatch",
+			expectation: value.Domain(cli.ValueDomainUseDestination).DependenciesExactly(
+				ValueByID(999),
+			),
+		},
+		{
+			name:        "candidate conflict identity mismatch",
+			expectation: candidate.ConflictsWithExactly(ValueCandidateByID(999)),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := inspectionExpectationOutcome(t, expectation, inspection); got.status != evaluationDisproved {
 			t.Fatalf("%s = %#v, want disproved", name, got)
 		}
@@ -870,8 +1003,12 @@ func TestFactAndValueZeroHitStaticNegativePublicSurface(t *testing.T) {
 	factID := cli.ValueID(7)
 	valueID := cli.ValueID(8)
 	schema := cli.Schema{
-		Facts:  map[cli.ValueID]cli.FactSchema{factID: {ID: factID}},
-		Values: map[cli.ValueID]cli.ValueSchema{valueID: {ID: valueID}},
+		Facts: map[cli.ValueID]cli.FactSchema{factID: {
+			ID: factID,
+		}},
+		Values: map[cli.ValueID]cli.ValueSchema{valueID: {
+			ID: valueID,
+		}},
 	}
 	reference := cli.Reference{
 		Facts: map[cli.ValueID]cli.FactReference{factID: {
@@ -889,12 +1026,29 @@ func TestFactAndValueZeroHitStaticNegativePublicSurface(t *testing.T) {
 		}},
 	}
 
-	for name, expectation := range map[string]SchemaExpectation{
-		"fact exists":       FactByID(factID).Exists(),
-		"fact missing":      FactByID(99).DoesNotExist(),
-		"value domain miss": ValueByID(valueID).Domain(cli.ValueDomainUseDestination).DoesNotExist(),
-		"domain entry miss": ValueDomainEntryByID(99).DoesNotExist(),
+	for _, test := range []struct {
+		name        string
+		expectation SchemaExpectation
+	}{
+		{
+			name:        "fact exists",
+			expectation: FactByID(factID).Exists(),
+		},
+		{
+			name:        "fact missing",
+			expectation: FactByID(99).DoesNotExist(),
+		},
+		{
+			name:        "value domain miss",
+			expectation: ValueByID(valueID).Domain(cli.ValueDomainUseDestination).DoesNotExist(),
+		},
+		{
+			name:        "domain entry miss",
+			expectation: ValueDomainEntryByID(99).DoesNotExist(),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := schemaExpectationOutcome(t, expectation, &schema); got.status != evaluationProved {
 			t.Fatalf("schema %s = %#v, want proved", name, got)
 		}
@@ -1075,7 +1229,9 @@ func TestDomainResolutionPreservesResolutionStatus(t *testing.T) {
 		t.Parallel()
 		inspection := cli.Inspection{
 			Truncated: true,
-			Values:    map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+			Values: map[cli.ValueID]cli.ValueInspection{1: {
+				ID: 1,
+			}},
 		}
 		got := resolveInspectionValueDomainLocator(ValueByID(1).Domain(cli.ValueDomainUseKind(1)).state, inspection)
 		if got.status != locatorResolutionNotProvable {
@@ -1085,7 +1241,9 @@ func TestDomainResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Run("absent value domain: semantic absence", func(t *testing.T) {
 		t.Parallel()
 		inspection := cli.Inspection{
-			Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+			Values: map[cli.ValueID]cli.ValueInspection{1: {
+				ID: 1,
+			}},
 		}
 		got := resolveInspectionValueDomainLocator(ValueByID(1).Domain(cli.ValueDomainUseKind(1)).state, inspection)
 		if got.status != locatorResolutionAbsent {
@@ -1098,7 +1256,9 @@ func TestValueTextPreservesIncompleteObservation(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+		Values: map[cli.ValueID]cli.ValueInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueByID(1).Text("x"), inspection)
 	if got.status != evaluationDisproved || !strings.Contains(renderEvaluationField(got.observed), "redacted") {
@@ -1110,7 +1270,9 @@ func TestValueTokensPreservesIncompleteObservation(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+		Values: map[cli.ValueID]cli.ValueInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueByID(1).Tokens("x"), inspection)
 	if got.status != evaluationDisproved || !strings.Contains(renderEvaluationField(got.observed), "redacted") {
@@ -1137,7 +1299,9 @@ func TestValueBlockedByRejectsInvalidCoordinates(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+		Values: map[cli.ValueID]cli.ValueInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, valueBlockedByExpectation(ValueByID(1), ValueLocator{}), inspection)
 	if got.status != evaluationDisproved || renderEvaluationField(got.observed) != "invalid blocker locator" {
@@ -1151,8 +1315,10 @@ func TestProducerPropertyPreservesPropertyTruth(t *testing.T) {
 	inspection := cli.Inspection{
 		Values: map[cli.ValueID]cli.ValueInspection{
 			1: {
-				ID:        1,
-				Producers: []cli.ValueProducerInspection{{Kind: cli.ValueProducerKind(1)}},
+				ID: 1,
+				Producers: []cli.ValueProducerInspection{{
+					Kind: cli.ValueProducerKind(1),
+				}},
 			},
 		},
 	}
@@ -1238,7 +1404,9 @@ func TestValueCandidateDeclarationRejectsSemanticMismatch(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {ID: 1}},
+		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueCandidateByID(1).Declaration(FlagLocator{}), inspection)
 	if got.status != evaluationDisproved {
@@ -1250,7 +1418,9 @@ func TestValueCandidateOriginsExactlyPreservesExactMembershipAndOrder(t *testing
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {ID: 1}},
+		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueCandidateByID(1).OriginsExactly(InputOriginLocator{}), inspection)
 	if got.status != evaluationDisproved || renderEvaluationField(got.observed) != "invalid origin locator in expected collection" {
@@ -1262,7 +1432,9 @@ func TestValueCandidateTextPreservesIncompleteObservation(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {ID: 1}},
+		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueCandidateByID(1).Text("x"), inspection)
 	if got.status != evaluationDisproved || !strings.Contains(renderEvaluationField(got.observed), "redacted") {
@@ -1274,7 +1446,9 @@ func TestValueCandidateTokensPreservesIncompleteObservation(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {ID: 1}},
+		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueCandidateByID(1).Tokens("x"), inspection)
 	if got.status != evaluationDisproved || !strings.Contains(renderEvaluationField(got.observed), "redacted") {
@@ -1414,7 +1588,9 @@ func TestValueCandidatesExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+		Values: map[cli.ValueID]cli.ValueInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueByID(1).CandidatesExactly(ValueCandidateLocator{}), inspection)
 	if got.status != evaluationDisproved || renderEvaluationField(got.observed) != "expected candidate locator cannot be resolved" {
@@ -1426,7 +1602,9 @@ func TestValueContributorsExactlyPreservesExactMembershipAndOrder(t *testing.T) 
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+		Values: map[cli.ValueID]cli.ValueInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueByID(1).ContributorsExactly(ValueCandidateLocator{}), inspection)
 	if got.status != evaluationDisproved || renderEvaluationField(got.observed) != "expected contributor locator cannot be resolved" {
@@ -1473,7 +1651,9 @@ func TestValueElementsExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+		Values: map[cli.ValueID]cli.ValueInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueByID(1).ElementsExactly(ValueElementLocator{}), inspection)
 	if got.status != evaluationDisproved || renderEvaluationField(got.observed) != "expected element locator cannot be resolved" {
@@ -1485,7 +1665,9 @@ func TestValueDomainDependenciesExactlyPreservesExactMembershipAndOrder(t *testi
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Values: map[cli.ValueID]cli.ValueInspection{1: {ID: 1}},
+		Values: map[cli.ValueID]cli.ValueInspection{1: {
+			ID: 1,
+		}},
 		ValueDomains: []cli.ValueDomainInspection{
 			{Uses: []cli.ValueDomainUse{{
 				Destination: 1,
@@ -1507,7 +1689,9 @@ func TestValueCandidateDomainEntryRejectsSemanticMismatch(t *testing.T) {
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {ID: 1}},
+		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{1: {
+			ID: 1,
+		}},
 	}
 	got := inspectionExpectationOutcome(t, ValueCandidateByID(1).DomainEntry(ValueDomainEntryLocator{}), inspection)
 	if got.status != evaluationDisproved {
@@ -1527,7 +1711,9 @@ func TestComponentDomainEntryPreservesSemanticStatus(t *testing.T) {
 			2: {
 				ID:          2,
 				Destination: 1,
-				Elements:    []cli.ValueComponentInspection{{DomainEntry: 1}},
+				Elements: []cli.ValueComponentInspection{{
+					DomainEntry: 1,
+				}},
 			},
 		},
 	}
@@ -1587,11 +1773,15 @@ func TestComponentDomainEntryPreservesSemanticStatus(t *testing.T) {
 
 func TestValueInspectionInternalStateFailsClosed(t *testing.T) {
 	t.Parallel()
-	wrongCandidate := &valueCandidateLocatorState{mode: valueCandidateLocatorMode(255)}
+	wrongCandidate := &valueCandidateLocatorState{
+		mode: valueCandidateLocatorMode(255),
+	}
 	if got := resolveCandidate(wrongCandidate, cli.Inspection{}); got.status != locatorResolutionInvalid {
 		t.Fatalf("candidate = %#v", got)
 	}
-	wrongComponent := &valueComponentLocatorState{mode: valueComponentLocatorMode(255)}
+	wrongComponent := &valueComponentLocatorState{
+		mode: valueComponentLocatorMode(255),
+	}
 	if got := resolveComponent(wrongComponent, cli.Inspection{}); got.status != locatorResolutionInvalid {
 		t.Fatalf("component = %#v", got)
 	}

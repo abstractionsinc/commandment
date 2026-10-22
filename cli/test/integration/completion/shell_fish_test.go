@@ -12,16 +12,22 @@ import (
 
 func testFish(t *testing.T, matrix []completionMatrixRow) {
 	t.Run("3.0.0", func(t *testing.T) {
+		t.Parallel()
 		runtimePath := completionRuntime(t, matrix, "fish", "3.0.0")
-		result := shelltest.Complete(t, compileShellValueApplication(t, completeFishSpecimens), fishTarget(runtimePath), shelltest.Input{BeforeCursor: `alienctl "$SHELLTEST_FISH"`})
+		result := shelltest.Complete(t, compileShellValueApplication(t, completeFishSpecimens), fishTarget(runtimePath), shelltest.Input{
+			BeforeCursor: `alienctl "$SHELLTEST_FISH"`,
+		})
 		requireRuntimeVersion(t, result, "3.0.0")
 		requireScreenContains(t, result, "lexical current token")
 		requireScreenExcludes(t, result, "expanded current token")
 	})
 
 	t.Run("4.0.0", func(t *testing.T) {
+		t.Parallel()
 		runtimePath := completionRuntime(t, matrix, "fish", "4.0.0")
-		result := shelltest.Complete(t, compileShellValueApplication(t, completeFishSpecimens), fishTarget(runtimePath), shelltest.Input{BeforeCursor: `alienctl "$SHELLTEST_FISH"`})
+		result := shelltest.Complete(t, compileShellValueApplication(t, completeFishSpecimens), fishTarget(runtimePath), shelltest.Input{
+			BeforeCursor: `alienctl "$SHELLTEST_FISH"`,
+		})
 		requireRuntimeVersion(t, result, "4.0.0")
 		requireScreenContains(t, result, "$SHELLTEST_FISH-one")
 	})
@@ -29,40 +35,56 @@ func testFish(t *testing.T, matrix []completionMatrixRow) {
 
 func completeFishSpecimens(_ context.Context, _ *specimenConfig, request cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 	if strings.Contains(request.Text, "SHELLTEST_FISH") {
-		return cli.CompletionContribution{Candidates: []cli.CompletionCandidate{
-			{Value: request.Text + "one", Description: "lexical current token"},
-			{Value: request.Text + "two", Description: "lexical current token"},
-		}}, nil
+		contribution := cli.CompletionContribution{
+			Candidates: []cli.CompletionCandidate{
+				{
+					Value:       request.Text + "one",
+					Description: "lexical current token",
+				},
+				{
+					Value:       request.Text + "two",
+					Description: "lexical current token",
+				},
+			},
+		}
+		return contribution, nil
 	}
 	if request.Text == "fish-c" {
 		// Fish 4 reports the expanded value to Commandment but still matches
 		// dynamic candidates against the lexical source token. One source-
 		// compatible sentinel makes that branch observable through the editor.
-		return cli.CompletionContribution{Candidates: []cli.CompletionCandidate{
-			{Value: "$SHELLTEST_FISH-one", Description: "expanded current token"},
-		}}, nil
+		contribution := cli.CompletionContribution{
+			Candidates: []cli.CompletionCandidate{
+				{
+					Value:       "$SHELLTEST_FISH-one",
+					Description: "expanded current token",
+				},
+			},
+		}
+		return contribution, nil
 	}
 	return cli.CompletionContribution{}, nil
 }
 
 func fishTarget(executable string) shelltest.Target[shellObservation] {
-	return shelltest.Target[shellObservation]{
-		Provider: cli.Shell.Fish,
-		Runtime: shelltest.Runtime{
-			Executable:  executable,
-			VersionArgs: []string{"--version"},
-			ParseVersion: func(output string) (string, error) {
-				_, suffix, ok := strings.Cut(output, "fish, version ")
-				if !ok {
-					return "", errors.New("fish version marker missing")
-				}
-				fields := strings.Fields(suffix)
-				if len(fields) == 0 {
-					return "", errors.New("fish version token missing")
-				}
-				return fields[0], nil
-			},
+	runtime := shelltest.Runtime{
+		Executable:  executable,
+		VersionArgs: []string{"--version"},
+		ParseVersion: func(output string) (string, error) {
+			_, suffix, ok := strings.Cut(output, "fish, version ")
+			if !ok {
+				return "", errors.New("fish version marker missing")
+			}
+			fields := strings.Fields(suffix)
+			if len(fields) == 0 {
+				return "", errors.New("fish version token missing")
+			}
+			return fields[0], nil
 		},
+	}
+	target := shelltest.Target[shellObservation]{
+		Provider: cli.Shell.Fish,
+		Runtime:  runtime,
 		Prepare: func(setup shelltest.Setup) error {
 			integration := setup.IntegrationFile("completion.fish")
 			setup.File("xdg-config/fish/config.fish", "source "+fishQuote(integration)+"\n")
@@ -74,6 +96,7 @@ func fishTarget(executable string) shelltest.Target[shellObservation] {
 		},
 		Interpret: interpretShellObservation,
 	}
+	return target
 }
 
 func fishQuote(value string) string {

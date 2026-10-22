@@ -12,12 +12,16 @@ func TestCloakLevelIsAvailableOnlyInStealthMode(t *testing.T) {
 
 	app := clitest.Compile(t, definition)
 	cloak := clitest.Command("approach").Flag("--cloak-level")
-	ordinaryRequest := cli.InspectionRequest{Args: []string{"approach", "earth"}}
+	ordinaryRequest := cli.InspectionRequest{
+		Args: []string{"approach", "earth"},
+	}
 	clitest.Inspect(t.Context(), app, ordinaryRequest).Require(t,
 		clitest.InspectionReady(),
 		cloak.Unavailable(),
 	)
-	stealthRequest := cli.InspectionRequest{Args: []string{"approach", "--stealth", "--cloak-level", "3", "earth"}}
+	stealthRequest := cli.InspectionRequest{
+		Args: []string{"approach", "--stealth", "--cloak-level", "3", "earth"},
+	}
 	clitest.Inspect(t.Context(), app, stealthRequest).Require(t,
 		clitest.InspectionReady(),
 		cloak.Available(),

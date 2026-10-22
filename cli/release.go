@@ -117,22 +117,26 @@ type releaseSchemeImpl struct {
 }
 
 func compileSemVerReleaseScheme(current string) ReleaseScheme {
-	return ReleaseScheme{
-		state: &releaseSchemeImpl{
-			kind:    releaseSchemeSemVer,
-			current: current,
-		},
+	impl := &releaseSchemeImpl{
+		kind:    releaseSchemeSemVer,
+		current: current,
 	}
+	scheme := ReleaseScheme{
+		state: impl,
+	}
+	return scheme
 }
 
 func compileOrderedReleaseScheme(current string, order []string) ReleaseScheme {
-	return ReleaseScheme{
-		state: &releaseSchemeImpl{
-			kind:    releaseSchemeOrdered,
-			current: current,
-			order:   append([]string(nil), order...),
-		},
+	impl := &releaseSchemeImpl{
+		kind:    releaseSchemeOrdered,
+		current: current,
+		order:   append([]string(nil), order...),
 	}
+	scheme := ReleaseScheme{
+		state: impl,
+	}
+	return scheme
 }
 
 func compileRelease(scheme ReleaseScheme) (ReleaseScheme, error) {
@@ -146,12 +150,14 @@ func compileRelease(scheme ReleaseScheme) (ReleaseScheme, error) {
 			return ReleaseScheme{}, errInvalidReleaseScheme
 		}
 
-		return ReleaseScheme{
-			state: &releaseSchemeImpl{
-				kind:    releaseSchemeSemVer,
-				current: scheme.state.current,
-			},
-		}, nil
+		impl := &releaseSchemeImpl{
+			kind:    releaseSchemeSemVer,
+			current: scheme.state.current,
+		}
+		releaseScheme := ReleaseScheme{
+			state: impl,
+		}
+		return releaseScheme, nil
 
 	case releaseSchemeOrdered:
 		current := scheme.state.current
@@ -174,14 +180,16 @@ func compileRelease(scheme ReleaseScheme) (ReleaseScheme, error) {
 			return ReleaseScheme{}, errInvalidReleaseScheme
 		}
 
-		return ReleaseScheme{
-			state: &releaseSchemeImpl{
-				kind:    releaseSchemeOrdered,
-				current: current,
-				order:   order,
-				index:   index,
-			},
-		}, nil
+		impl := &releaseSchemeImpl{
+			kind:    releaseSchemeOrdered,
+			current: current,
+			order:   order,
+			index:   index,
+		}
+		releaseScheme := ReleaseScheme{
+			state: impl,
+		}
+		return releaseScheme, nil
 
 	default:
 		return ReleaseScheme{}, errInvalidReleaseScheme

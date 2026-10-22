@@ -26,7 +26,9 @@ func TestBashCompletesScanThroughARealShell(t *testing.T) {
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	input := shelltest.Input{BeforeCursor: "alienctl sc"}
+	input := shelltest.Input{
+		BeforeCursor: "alienctl sc",
+	}
 	screen := shelltest.Complete(t, app, bashTarget(bash), input)
 	if !strings.Contains(screen, "scan") {
 		t.Fatalf("settled Bash screen does not contain scan: %q", screen)
@@ -70,12 +72,13 @@ func bashTarget(executable string) shelltest.Target[string] {
 		VersionArgs:  []string{"--version"},
 		ParseVersion: parseBashVersion,
 	}
-	return shelltest.Target[string]{
+	target := shelltest.Target[string]{
 		Provider:  cli.Shell.Bash,
 		Runtime:   runtimeConfig,
 		Prepare:   prepareBash,
 		Interpret: interpretBash,
 	}
+	return target
 }
 
 func shellQuote(value string) string {

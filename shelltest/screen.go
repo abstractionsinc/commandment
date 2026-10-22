@@ -112,7 +112,9 @@ func (output *terminalOutput) Write(data []byte) (int, error) {
 			continue
 		}
 		if len(reply) > terminalQueryResponseLimit {
-			output.recordReplyFailure(failureError{subject: "terminal query response exceeds limit"})
+			output.recordReplyFailure(failureError{
+				subject: "terminal query response exceeds limit",
+			})
 			return len(data), output.failure()
 		}
 		if err := output.reply(reply); err != nil {
@@ -573,7 +575,9 @@ func (output *terminalOutput) csi(raw string, final byte) [][]byte {
 		}
 	case 'n':
 		if private != 0 {
-			output.recordReplyFailureLocked(failureError{subject: "unsupported private terminal status query"})
+			output.recordReplyFailureLocked(failureError{
+				subject: "unsupported private terminal status query",
+			})
 			break
 		}
 		switch value(0, 0) {
@@ -581,21 +585,29 @@ func (output *terminalOutput) csi(raw string, final byte) [][]byte {
 			return [][]byte{[]byte("\x1b[0n")}
 		case terminalCursorReport:
 			if !output.available {
-				output.recordReplyFailureLocked(failureError{subject: "terminal cursor position is unavailable"})
+				output.recordReplyFailureLocked(failureError{
+					subject: "terminal cursor position is unavailable",
+				})
 				break
 			}
 			return [][]byte{[]byte(fmt.Sprintf("\x1b[%d;%dR", grid.row+1, grid.column+1))}
 		default:
-			output.recordReplyFailureLocked(failureError{subject: "unsupported terminal status query"})
+			output.recordReplyFailureLocked(failureError{
+				subject: "unsupported terminal status query",
+			})
 		}
 	case 't':
 		if private != 0 || value(0, 0) != terminalGeometryReport {
-			output.recordReplyFailureLocked(failureError{subject: "unsupported terminal geometry query"})
+			output.recordReplyFailureLocked(failureError{
+				subject: "unsupported terminal geometry query",
+			})
 			break
 		}
 		return [][]byte{[]byte(fmt.Sprintf("\x1b[8;%d;%dt", terminalRows, terminalColumns))}
 	case 'c':
-		output.recordReplyFailureLocked(failureError{subject: "unsupported terminal device-attributes query"})
+		output.recordReplyFailureLocked(failureError{
+			subject: "unsupported terminal device-attributes query",
+		})
 	default:
 		output.markUnavailable()
 	}

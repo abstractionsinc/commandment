@@ -14,7 +14,9 @@ func TestNestedSelectionFollowsFleetLaunch(t *testing.T) {
 	root := clitest.RootCommand()
 	fleet := root.Command("fleet")
 	launch := fleet.Command("launch")
-	request := cli.InspectionRequest{Args: []string{"fleet", "launch", "scout-7"}}
+	request := cli.InspectionRequest{
+		Args: []string{"fleet", "launch", "scout-7"},
+	}
 	clitest.Inspect(t.Context(), app, request).Require(t,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(root, fleet, launch),

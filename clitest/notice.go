@@ -35,41 +35,45 @@ func NoticeAt(index int) NoticeLocator { return noticeIndexLocator(index) }
 // Message returns an Inspection expectation that the located Notice message exactly equals expected.
 // When the Notice is sensitive, mismatch reporting redacts both expected and observed presentation text.
 func (locator NoticeLocator) Message(expected string) InspectionExpectation {
-	return noticePresentationExpectationValue{
+	value := noticePresentationExpectationValue{
 		locator:  locator.state,
 		property: noticePresentationMessage,
 		expected: expected,
 	}
+	return value
 }
 
 // Reason returns an Inspection expectation that the located Notice reason exactly equals expected.
 // When the Notice is sensitive, mismatch reporting redacts both expected and observed presentation text.
 func (locator NoticeLocator) Reason(expected string) InspectionExpectation {
-	return noticePresentationExpectationValue{
+	value := noticePresentationExpectationValue{
 		locator:  locator.state,
 		property: noticePresentationReason,
 		expected: expected,
 	}
+	return value
 }
 
 // Hint returns an Inspection expectation that the located Notice hint exactly equals expected.
 // When the Notice is sensitive, mismatch reporting redacts both expected and observed presentation text.
 func (locator NoticeLocator) Hint(expected string) InspectionExpectation {
-	return noticePresentationExpectationValue{
+	value := noticePresentationExpectationValue{
 		locator:  locator.state,
 		property: noticePresentationHint,
 		expected: expected,
 	}
+	return value
 }
 
 // SubjectRedacted returns an Inspection expectation that the located Notice is sensitive and its public Subject
 // presentation is empty.
 // It checks the redacted public observation rather than attempting to reconstruct the hidden subject.
 func (locator NoticeLocator) SubjectRedacted() InspectionExpectation {
-	return noticePresentationExpectationValue{
+	value := noticePresentationExpectationValue{
 		locator:  locator.state,
 		property: noticePresentationSubjectRedacted,
 	}
+	return value
 }
 
 // On refines a Notice coordinate by the structured public subject identity carried by the Inspection observation. It
@@ -216,17 +220,25 @@ type noticeLocatorState struct {
 }
 
 func noticeCodeLocator(code cli.NoticeCode) NoticeLocator {
-	return NoticeLocator{state: &noticeLocatorState{
+	state := &noticeLocatorState{
 		mode: noticeLocatorCode,
 		code: code,
-	}}
+	}
+	locator := NoticeLocator{
+		state: state,
+	}
+	return locator
 }
 
 func noticeIndexLocator(index int) NoticeLocator {
-	return NoticeLocator{state: &noticeLocatorState{
+	state := &noticeLocatorState{
 		mode:  noticeLocatorIndex,
 		index: index,
-	}}
+	}
+	locator := NoticeLocator{
+		state: state,
+	}
+	return locator
 }
 
 func noticeOn(notice NoticeLocator, subject NoticeSubject) NoticeLocator {
@@ -236,7 +248,10 @@ func noticeOn(notice NoticeLocator, subject NoticeSubject) NoticeLocator {
 	state := *notice.state
 	state.subjectSet = true
 	state.subject = subject
-	return NoticeLocator{state: &state}
+	locator := NoticeLocator{
+		state: &state,
+	}
+	return locator
 }
 
 func noticeAdvisory(notice NoticeLocator, code cli.AdvisoryCode) NoticeLocator {
@@ -246,7 +261,10 @@ func noticeAdvisory(notice NoticeLocator, code cli.AdvisoryCode) NoticeLocator {
 	state := *notice.state
 	state.advisorySet = true
 	state.advisory = code
-	return NoticeLocator{state: &state}
+	locator := NoticeLocator{
+		state: &state,
+	}
+	return locator
 }
 
 func resolveNoticeSubject(subject NoticeSubject, inspection cli.Inspection) (noticeSubjectResolution, locatorResolutionStatus, evaluationField) {
@@ -256,7 +274,10 @@ func resolveNoticeSubject(subject NoticeSubject, inspection cli.Inspection) (not
 		if resolved.status != locatorResolutionFound {
 			return noticeSubjectResolution{}, resolved.status, resolved.detail
 		}
-		return noticeSubjectResolution{command: resolved.value.ID}, locatorResolutionFound, evaluationText("")
+		resolution := noticeSubjectResolution{
+			command: resolved.value.ID,
+		}
+		return resolution, locatorResolutionFound, evaluationText("")
 	case CommandEntryLocator, ActionEntryLocator, FlagLocator, FlagSpellingLocator, ArgumentFormLocator, ArgumentTermLocator, EnvironmentInputLocator, ValueDomainEntryLocator:
 		identityLocator, ok := subject.(DeclarationIdentityLocator)
 		if !ok {
@@ -266,7 +287,10 @@ func resolveNoticeSubject(subject NoticeSubject, inspection cli.Inspection) (not
 		if status != locatorResolutionFound {
 			return noticeSubjectResolution{}, status, detail
 		}
-		return noticeSubjectResolution{declaration: identity}, locatorResolutionFound, evaluationText("")
+		resolution := noticeSubjectResolution{
+			declaration: identity,
+		}
+		return resolution, locatorResolutionFound, evaluationText("")
 	default:
 		return noticeSubjectResolution{}, locatorResolutionInvalid, evaluationText("invalid notice subject locator")
 	}
@@ -404,56 +428,63 @@ func resolveNotice(state *noticeLocatorState, inspection cli.Inspection) noticeR
 }
 
 func noticePresentExpectation(locator NoticeLocator) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator: locator.state,
 		kind:    noticeExpectationPresent,
 	}
+	return expectation
 }
 
 func noticeAbsentExpectation(locator NoticeLocator) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator: locator.state,
 		kind:    noticeExpectationAbsent,
 	}
+	return expectation
 }
 
 func noticeCodeExpectation(locator NoticeLocator, code cli.NoticeCode) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator: locator.state,
 		kind:    noticeExpectationCode,
 		code:    code,
 	}
+	return expectation
 }
 
 func noticeSeverityExpectation(locator NoticeLocator, severity cli.NoticeSeverity) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator:  locator.state,
 		kind:     noticeExpectationSeverity,
 		severity: severity,
 	}
+	return expectation
 }
 
 func noticeSuppressionExpectation(locator NoticeLocator, status cli.NoticeSuppressionDisposition) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator:     locator.state,
 		kind:        noticeExpectationSuppression,
 		suppression: status,
 	}
+	return expectation
 }
 
 func noticeSensitiveExpectation(locator NoticeLocator) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator: locator.state,
 		kind:    noticeExpectationSensitive,
 	}
+	return expectation
 }
 
 func noticeReplacementExpectation(locator NoticeLocator, replacement DeclarationIdentityLocator) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator:     locator.state,
 		kind:        noticeExpectationReplacement,
 		replacement: replacement,
 	}
+	return expectation
 }
 
 func noticeSuppressedByExpectation(locator NoticeLocator, expected ...NoticeSuppressionLocator) InspectionExpectation {
@@ -461,19 +492,21 @@ func noticeSuppressedByExpectation(locator NoticeLocator, expected ...NoticeSupp
 	for index, value := range expected {
 		states[index] = value.state
 	}
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator:      locator.state,
 		kind:         noticeExpectationSuppressedBy,
 		suppressions: states,
 	}
+	return expectation
 }
 
 func noticeRepairCountExpectation(locator NoticeLocator, count int) InspectionExpectation {
-	return noticeExpectation{
+	expectation := noticeExpectation{
 		locator: locator.state,
 		kind:    noticeExpectationRepairCount,
 		count:   count,
 	}
+	return expectation
 }
 
 func noticesExactlyExpectation(locators ...NoticeLocator) InspectionExpectation {
@@ -481,17 +514,22 @@ func noticesExactlyExpectation(locators ...NoticeLocator) InspectionExpectation 
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return noticesExactlyExpectationValue{states: states}
+	value := noticesExactlyExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 func noticeRepairAtLocator(parent NoticeLocator, index int) RepairLocator {
-	return RepairLocator{
-		state: &repairLocatorState{
-			mode:   repairLocatorNoticeIndex,
-			notice: parent.state,
-			index:  index,
-		},
+	state := &repairLocatorState{
+		mode:   repairLocatorNoticeIndex,
+		notice: parent.state,
+		index:  index,
 	}
+	locator := RepairLocator{
+		state: state,
+	}
+	return locator
 }
 
 func (noticeMatchField) evaluationField() {}
@@ -640,7 +678,10 @@ func (expectation noticeExpectation) evaluateInspection(inspection cli.Inspectio
 		if notice.Replacement.Target == identity {
 			return provedResult()
 		}
-		return disprovedResult(resolved.label, expectation.expected(), declarationIdentityField{value: notice.Replacement.Target})
+		field := declarationIdentityField{
+			value: notice.Replacement.Target,
+		}
+		return disprovedResult(resolved.label, expectation.expected(), field)
 	case noticeExpectationSuppressedBy:
 		expected := make([]cli.NoticeSuppressionLocator, len(expectation.suppressions))
 		for index, state := range expectation.suppressions {

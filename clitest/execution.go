@@ -35,13 +35,19 @@ type MiddlewareLocator struct {
 // ExecutionAdmission returns the root locator for Inspection execution-admission state.
 func ExecutionAdmission() ExecutionAdmissionLocator {
 	state := &executionAdmissionLocatorState{}
-	return ExecutionAdmissionLocator{state: state}
+	locator := ExecutionAdmissionLocator{
+		state: state,
+	}
+	return locator
 }
 
 // SignalIntegration returns the root locator for Inspection signal-integration state.
 func SignalIntegration() SignalIntegrationLocator {
 	state := &signalIntegrationLocatorState{}
-	return SignalIntegrationLocator{state: state}
+	locator := SignalIntegrationLocator{
+		state: state,
+	}
+	return locator
 }
 
 // MiddlewareAt returns the middleware locator at index in the effective public middleware
@@ -106,99 +112,109 @@ func (locator ExecutionAdmissionLocator) SignalEndpointsExactly(endpoints ...Sig
 
 // Status returns an expectation that checks the published signal-integration status.
 func (locator SignalIntegrationLocator) Status(status cli.SignalIntegrationStatus) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:  locator.state,
 		property: signalIntegrationExpectationStatus,
 		status:   status,
 	}
+	return expectation
 }
 
 // Required returns an expectation that checks signal integration is required for the analyzed
 // invocation.
 func (locator SignalIntegrationLocator) Required() InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:  locator.state,
 		property: signalIntegrationExpectationRequired,
 	}
+	return expectation
 }
 
 // Supplied returns an expectation that checks a signal source integration was supplied for the
 // analyzed invocation.
 func (locator SignalIntegrationLocator) Supplied() InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:  locator.state,
 		property: signalIntegrationExpectationSupplied,
 	}
+	return expectation
 }
 
 // ResolvedSignalsExactly returns an expectation that checks the exact published
 // resolved-signal sequence.
 func (locator SignalIntegrationLocator) ResolvedSignalsExactly(signals ...cli.Signal) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:  locator.state,
 		property: signalIntegrationExpectationResolvedSignals,
 		signals:  slices.Clone(signals),
 	}
+	return expectation
 }
 
 // MissingSignalsExactly returns an expectation that checks the exact published missing-signal
 // sequence.
 func (locator SignalIntegrationLocator) MissingSignalsExactly(signals ...cli.Signal) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:  locator.state,
 		property: signalIntegrationExpectationMissingSignals,
 		signals:  slices.Clone(signals),
 	}
+	return expectation
 }
 
 // RequiredSourceCapabilities returns an expectation that checks the exact source capabilities
 // required by the analyzed invocation.
 func (locator SignalIntegrationLocator) RequiredSourceCapabilities(capabilities cli.SignalSourceCapabilities) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:            locator.state,
 		property:           signalIntegrationExpectationRequiredSourceCapabilities,
 		sourceCapabilities: capabilities,
 	}
+	return expectation
 }
 
 // MissingSourceCapabilities returns an expectation that checks the exact required source
 // capabilities that the supplied integration lacks.
 func (locator SignalIntegrationLocator) MissingSourceCapabilities(capabilities cli.SignalSourceCapabilities) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:            locator.state,
 		property:           signalIntegrationExpectationMissingSourceCapabilities,
 		sourceCapabilities: capabilities,
 	}
+	return expectation
 }
 
 // RequiredHostCapabilities returns an expectation that checks the exact host capabilities
 // required by the analyzed invocation.
 func (locator SignalIntegrationLocator) RequiredHostCapabilities(capabilities cli.SignalHostCapabilities) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:          locator.state,
 		property:         signalIntegrationExpectationRequiredHostCapabilities,
 		hostCapabilities: capabilities,
 	}
+	return expectation
 }
 
 // MissingHostCapabilities returns an expectation that checks the exact required host
 // capabilities that the host integration lacks.
 func (locator SignalIntegrationLocator) MissingHostCapabilities(capabilities cli.SignalHostCapabilities) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:          locator.state,
 		property:         signalIntegrationExpectationMissingHostCapabilities,
 		hostCapabilities: capabilities,
 	}
+	return expectation
 }
 
 // AvailableHostCapabilities returns an Inspection expectation that the signal integration reports exactly the supplied
 // available host-capability set.
 func (locator SignalIntegrationLocator) AvailableHostCapabilities(expected cli.SignalHostCapabilities) InspectionExpectation {
-	return signalIntegrationExpectation{
+	expectation := signalIntegrationExpectation{
 		locator:          locator.state,
 		property:         signalIntegrationExpectationAvailableHostCapabilities,
 		hostCapabilities: expected,
 	}
+	return expectation
 }
 
 // Scope returns an expectation that checks the located effective middleware has the requested
@@ -282,12 +298,14 @@ type signalIntegrationExpectation struct {
 }
 
 func tokenIndexLocator(index int) TokenLocator {
-	return TokenLocator{
-		state: &tokenLocatorState{
-			valid: true,
-			index: index,
-		},
+	state := &tokenLocatorState{
+		valid: true,
+		index: index,
 	}
+	locator := TokenLocator{
+		state: state,
+	}
+	return locator
 }
 
 func middlewareIndexLocator(admission *executionAdmissionLocatorState, index int) MiddlewareLocator {
@@ -298,7 +316,10 @@ func middlewareIndexLocator(admission *executionAdmissionLocatorState, index int
 		valid: true,
 		index: index,
 	}
-	return MiddlewareLocator{state: state}
+	locator := MiddlewareLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveTokenAt(state *tokenLocatorState, inspection cli.Inspection) (cli.TokenInspection, locatorResolutionStatus, evaluationField, evaluationField) {
@@ -316,88 +337,99 @@ func resolveTokenAt(state *tokenLocatorState, inspection cli.Inspection) (cli.To
 }
 
 func tokenRoleExpectation(locator TokenLocator, role cli.TokenRole) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator: locator.state,
 		kind:    tokenExpectationRole,
 		role:    role,
 	}
+	return expectation
 }
 
 func tokenRejectionExpectation(locator TokenLocator, code cli.DiagnosticCode) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator:   locator.state,
 		kind:      tokenExpectationRejection,
 		rejection: code,
 	}
+	return expectation
 }
 
 func tokenSpellingExpectation(locator TokenLocator, spelling string) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator:  locator.state,
 		kind:     tokenExpectationSpelling,
 		spelling: spelling,
 	}
+	return expectation
 }
 
 func tokenMatchExpectation(locator TokenLocator, match cli.NameMatchKind) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator: locator.state,
 		kind:    tokenExpectationMatch,
 		match:   match,
 	}
+	return expectation
 }
 
 func tokenRedactedExpectation(locator TokenLocator) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator: locator.state,
 		kind:    tokenExpectationRedacted,
 	}
+	return expectation
 }
 
 func tokenOccurrenceIndexExpectation(locator TokenLocator, index int) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator: locator.state,
 		kind:    tokenExpectationOccurrenceIndex,
 		index:   index,
 	}
+	return expectation
 }
 
 func tokenElementIndexExpectation(locator TokenLocator, index int) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator: locator.state,
 		kind:    tokenExpectationElementIndex,
 		index:   index,
 	}
+	return expectation
 }
 
 func tokenDelegatedIndexExpectation(locator TokenLocator, index int) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator: locator.state,
 		kind:    tokenExpectationDelegatedIndex,
 		index:   index,
 	}
+	return expectation
 }
 
 func tokenTextExpectation(locator TokenLocator, text string) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator: locator.state,
 		kind:    tokenExpectationText,
 		text:    text,
 	}
+	return expectation
 }
 
 func executionAdmissionStatusExpectation(locator *executionAdmissionLocatorState, status cli.ExecutionAdmissionStatus) InspectionExpectation {
-	return executionAdmissionStatusExpectationValue{
+	value := executionAdmissionStatusExpectationValue{
 		locator: locator,
 		status:  status,
 	}
+	return value
 }
 
 func executionAdmissionHandlerExpectation(locator *executionAdmissionLocatorState, command CommandLocator) InspectionExpectation {
-	return executionAdmissionHandlerExpectationValue{
+	value := executionAdmissionHandlerExpectationValue{
 		locator: locator,
 		command: command.state,
 	}
+	return value
 }
 
 func resolveMiddleware(state *middlewareLocatorState, inspection cli.Inspection) (cli.MiddlewareInspection, locatorResolutionStatus, evaluationField, evaluationField) {
@@ -415,17 +447,19 @@ func resolveMiddleware(state *middlewareLocatorState, inspection cli.Inspection)
 }
 
 func middlewareScopeExpectation(locator MiddlewareLocator, scope cli.MiddlewareScope) InspectionExpectation {
-	return middlewareScopeExpectationValue{
+	value := middlewareScopeExpectationValue{
 		locator: locator.state,
 		scope:   scope,
 	}
+	return value
 }
 
 func middlewareCommandExpectation(locator MiddlewareLocator, command CommandLocator) InspectionExpectation {
-	return middlewareCommandExpectationValue{
+	value := middlewareCommandExpectationValue{
 		middleware: locator.state,
 		command:    command.state,
 	}
+	return value
 }
 
 func executionAdmissionMiddlewareExactlyExpectation(admission *executionAdmissionLocatorState, locators []MiddlewareLocator) InspectionExpectation {
@@ -433,10 +467,11 @@ func executionAdmissionMiddlewareExactlyExpectation(admission *executionAdmissio
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return executionAdmissionMiddlewareExactlyExpectationValue{
+	value := executionAdmissionMiddlewareExactlyExpectationValue{
 		admission: admission,
 		locators:  states,
 	}
+	return value
 }
 
 func executionAdmissionSignalPoliciesExactlyExpectation(admission *executionAdmissionLocatorState, locators []SignalPolicyLocator) InspectionExpectation {
@@ -444,10 +479,11 @@ func executionAdmissionSignalPoliciesExactlyExpectation(admission *executionAdmi
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return executionAdmissionSignalPoliciesExactlyExpectationValue{
+	value := executionAdmissionSignalPoliciesExactlyExpectationValue{
 		admission: admission,
 		locators:  states,
 	}
+	return value
 }
 
 func (executionAdmissionStatusExpectationValue) inspectionExpectation() {}

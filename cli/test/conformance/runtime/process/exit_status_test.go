@@ -74,7 +74,7 @@ func TestExitCodeRespectsCommandmentIntegrationBarriers(t *testing.T) {
 
 	cause := errors.New("nested application failure")
 	application := cli.WithExitCode(cause, 41)
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "integration-barrier",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			root.Advisory.Always(cli.Advisory{
@@ -84,7 +84,8 @@ func TestExitCodeRespectsCommandmentIntegrationBarriers(t *testing.T) {
 			})
 		},
 		Run: func(context.Context, *struct{}) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	notice := app.Run(t.Context(), cli.RunRequest{
 		Notify: func(context.Context, cli.Notice) error {
 			return application
@@ -144,10 +145,13 @@ func TestAbortErrorErrorPreservesExitStatusSemantics(t *testing.T) {
 	t.Parallel()
 	source, control := clitest.SignalSource(clitest.SignalSourceOptions[string]{
 		Signals: []cli.SignalDescriptor[string]{
-			{Signal: exitStatusSignalNativeInterrupt, Fidelity: cli.SignalSourceDeliveryFidelityExact},
+			{
+				Signal:   exitStatusSignalNativeInterrupt,
+				Fidelity: cli.SignalSourceDeliveryFidelityExact,
+			},
 		},
 	})
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "abort-error",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			signal := root.Signals.Source(source).Signal(exitStatusSignalNativeInterrupt)
@@ -157,19 +161,24 @@ func TestAbortErrorErrorPreservesExitStatusSemantics(t *testing.T) {
 			)
 		},
 		Run: func(ctx context.Context, _ *struct{}) error { <-ctx.Done(); return ctx.Err() },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	done := make(chan error, 1)
 	go func() {
-		done <- app.Run(t.Context(), cli.RunRequest{Signals: cli.SignalHost{
-			Abort: func(int) error { return nil },
-		}})
+		done <- app.Run(t.Context(), cli.RunRequest{
+			Signals: cli.SignalHost{
+				Abort: func(int) error { return nil },
+			},
+		})
 	}()
 	select {
 	case <-control.Opened():
 	case <-time.After(2 * time.Second):
 		t.Fatal("signal source did not open")
 	}
-	_ = control.Notify(cli.SignalNotification[string]{Signal: exitStatusSignalNativeInterrupt})
+	_ = control.Notify(cli.SignalNotification[string]{
+		Signal: exitStatusSignalNativeInterrupt,
+	})
 	select {
 	case err := <-done:
 		if err == nil || err.Error() != "execution aborted with exit code 7" {
@@ -184,10 +193,13 @@ func TestAbortErrorExitCodePreservesExitStatusSemantics(t *testing.T) {
 	t.Parallel()
 	source, control := clitest.SignalSource(clitest.SignalSourceOptions[string]{
 		Signals: []cli.SignalDescriptor[string]{
-			{Signal: exitStatusSignalNativeInterrupt, Fidelity: cli.SignalSourceDeliveryFidelityExact},
+			{
+				Signal:   exitStatusSignalNativeInterrupt,
+				Fidelity: cli.SignalSourceDeliveryFidelityExact,
+			},
 		},
 	})
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "abort-code",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			signal := root.Signals.Source(source).Signal(exitStatusSignalNativeInterrupt)
@@ -197,19 +209,24 @@ func TestAbortErrorExitCodePreservesExitStatusSemantics(t *testing.T) {
 			)
 		},
 		Run: func(ctx context.Context, _ *struct{}) error { <-ctx.Done(); return ctx.Err() },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	done := make(chan error, 1)
 	go func() {
-		done <- app.Run(t.Context(), cli.RunRequest{Signals: cli.SignalHost{
-			Abort: func(int) error { return nil },
-		}})
+		done <- app.Run(t.Context(), cli.RunRequest{
+			Signals: cli.SignalHost{
+				Abort: func(int) error { return nil },
+			},
+		})
 	}()
 	select {
 	case <-control.Opened():
 	case <-time.After(2 * time.Second):
 		t.Fatal("signal source did not open")
 	}
-	_ = control.Notify(cli.SignalNotification[string]{Signal: exitStatusSignalNativeInterrupt})
+	_ = control.Notify(cli.SignalNotification[string]{
+		Signal: exitStatusSignalNativeInterrupt,
+	})
 	var err error
 	select {
 	case err = <-done:

@@ -62,14 +62,20 @@ func TestReferenceRemainsStaticAcrossProviderAndDomainOperations(t *testing.T) {
 	type config struct{ Mode string }
 	providerCalls := 0
 	domainCalls := 0
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
 				providerCalls++
-				batch.Command(cli.Command[config]{Name: "remote"})
+				batch.Command(cli.Command[config]{
+					Name: "remote",
+				})
 				return nil
 			})
 			domain := root.Values.Domain(
@@ -82,7 +88,8 @@ func TestReferenceRemainsStaticAcrossProviderAndDomainOperations(t *testing.T) {
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	clitest.Reference(app, cli.ReferenceOptions{}).Require(t,
 		clitest.CommandsExactly(clitest.RootCommand()),
@@ -92,7 +99,9 @@ func TestReferenceRemainsStaticAcrossProviderAndDomainOperations(t *testing.T) {
 		t.Fatalf("Reference() executed dynamic callbacks: providers=%d domains=%d", providerCalls, domainCalls)
 	}
 
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: []string{"remote"}}).Require(t,
+	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: []string{"remote"},
+	}).Require(t,
 		clitest.InspectionReady(),
 		clitest.Command("remote").Exists(),
 	)
@@ -100,7 +109,9 @@ func TestReferenceRemainsStaticAcrossProviderAndDomainOperations(t *testing.T) {
 		t.Fatalf("provider Inspect calls: providers=%d domains=%d", providerCalls, domainCalls)
 	}
 
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: []string{"--mode", "prod"}}).Require(t,
+	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: []string{"--mode", "prod"},
+	}).Require(t,
 		clitest.InspectionReady(),
 	)
 	if providerCalls != 2 || domainCalls != 1 {
@@ -120,7 +131,7 @@ func TestRunLoadsTransactionalResponseReferenceThroughCanonicalGrammar(t *testin
 	t.Parallel()
 	type config = referenceConfig
 	called, loads := 0, 0
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ResponseFiles(true)
@@ -129,13 +140,16 @@ func TestRunLoadsTransactionalResponseReferenceThroughCanonicalGrammar(t *testin
 			called++
 			return nil
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	semanticFiles := clitest.ResponseFiles{
 		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{
-			{Path: "args"}: {
+			{
+				Path: "args",
+			}: {
 				Key:      "args",
 				Revision: cli.Revision("r1"),
 			},
@@ -154,11 +168,12 @@ func TestRunLoadsTransactionalResponseReferenceThroughCanonicalGrammar(t *testin
 				if request.Path != "args" {
 					t.Fatalf("load path = %q", request.Path)
 				}
-				return cli.ResponseFile{
+				file := cli.ResponseFile{
 					Key:      "args",
 					Revision: cli.Revision("r1"),
 					Content:  nil,
-				}, nil
+				}
+				return file, nil
 			},
 		},
 	})
@@ -217,12 +232,13 @@ func TestCompiledApplicationPublishesLocalizedReleaseFilteredReference(t *testin
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	publicProof := clitest.Reference(app, cli.ReferenceOptions{
+	referenceOptions := cli.ReferenceOptions{
 		Locale:     "fr",
 		Visibility: cli.ReferenceVisibilityPublic,
 		Order:      cli.ReferenceOrderName,
 		Release:    "1",
-	})
+	}
+	publicProof := clitest.Reference(app, referenceOptions)
 	publicProof.Require(t,
 		clitest.EffectiveLocale("fr"),
 		clitest.EvaluatedRelease("1"),
@@ -243,12 +259,13 @@ func TestCompiledApplicationPublishesLocalizedReleaseFilteredReference(t *testin
 		}),
 	)
 
-	allProof := clitest.Reference(app, cli.ReferenceOptions{
+	referenceOptionsUnderTest := cli.ReferenceOptions{
 		Locale:     "fr",
 		Visibility: cli.ReferenceVisibilityAll,
 		Order:      cli.ReferenceOrderDeclaration,
 		Release:    "2",
-	})
+	}
+	allProof := clitest.Reference(app, referenceOptionsUnderTest)
 	allProof.Require(t,
 		clitest.EffectiveLocale("fr"),
 		clitest.EvaluatedRelease("2"),
@@ -272,12 +289,13 @@ func TestCompiledApplicationPublishesLocalizedReleaseFilteredReference(t *testin
 	all, _ := allProof.Reference()
 	all.CommandOrder[0] = 0
 
-	clitest.Reference(app, cli.ReferenceOptions{
+	referenceOptionsUnderTest2 := cli.ReferenceOptions{
 		Locale:     "fr",
 		Visibility: cli.ReferenceVisibilityAll,
 		Order:      cli.ReferenceOrderDeclaration,
 		Release:    "2",
-	}).Require(t,
+	}
+	clitest.Reference(app, referenceOptionsUnderTest2).Require(t,
 		clitest.EffectiveLocale("fr"),
 		clitest.EvaluatedRelease("2"),
 		clitest.CommandsExactly(
@@ -431,11 +449,12 @@ func TestPositionalFormSelectionClassifiesFixedAllocationsWithoutDeclarationOrde
 func TestProjectOperationReferencePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -451,11 +470,12 @@ func TestProjectOperationReferencePreservesReferenceProjectionSemantics(t *testi
 func TestProjectReferencePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -471,11 +491,12 @@ func TestProjectReferencePreservesReferenceProjectionSemantics(t *testing.T) {
 func TestReferenceCommandIsAvailablePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -491,11 +512,12 @@ func TestReferenceCommandIsAvailablePreservesReferenceProjectionSemantics(t *tes
 func TestReferenceVisibleCommandPreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -511,11 +533,12 @@ func TestReferenceVisibleCommandPreservesReferenceProjectionSemantics(t *testing
 func TestProjectReferenceCommandsPreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -531,11 +554,12 @@ func TestProjectReferenceCommandsPreservesReferenceProjectionSemantics(t *testin
 func TestProjectReferenceDeclarationsPreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -551,11 +575,12 @@ func TestProjectReferenceDeclarationsPreservesReferenceProjectionSemantics(t *te
 func TestProjectReferenceValuesAndSignalsPreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -571,11 +596,12 @@ func TestProjectReferenceValuesAndSignalsPreservesReferenceProjectionSemantics(t
 func TestReferenceLifecycleStatePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -591,11 +617,12 @@ func TestReferenceLifecycleStatePreservesReferenceProjectionSemantics(t *testing
 func TestReferenceHelpForCommandPreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -611,11 +638,12 @@ func TestReferenceHelpForCommandPreservesReferenceProjectionSemantics(t *testing
 func TestReferenceCommandOrderPreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -631,11 +659,12 @@ func TestReferenceCommandOrderPreservesReferenceProjectionSemantics(t *testing.T
 func TestReferenceCommandEntryVisiblePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -651,11 +680,12 @@ func TestReferenceCommandEntryVisiblePreservesReferenceProjectionSemantics(t *te
 func TestReferenceActionEntryVisiblePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -671,11 +701,12 @@ func TestReferenceActionEntryVisiblePreservesReferenceProjectionSemantics(t *tes
 func TestReferenceFlagVisiblePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -691,11 +722,12 @@ func TestReferenceFlagVisiblePreservesReferenceProjectionSemantics(t *testing.T)
 func TestReferenceFlagSpellingVisiblePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -711,11 +743,12 @@ func TestReferenceFlagSpellingVisiblePreservesReferenceProjectionSemantics(t *te
 func TestReferenceFormVisiblePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -731,11 +764,12 @@ func TestReferenceFormVisiblePreservesReferenceProjectionSemantics(t *testing.T)
 func TestReferenceArgumentTermVisiblePreservesReferenceProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = referenceNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareReferenceProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -834,7 +868,7 @@ const (
 )
 
 func referenceFormSelectionCodec(name string, outcome referencePositionalFormOutcome, failure error, calls *atomic.Int32) cli.ValueCodec[string] {
-	return cli.ValueCodec[string]{
+	codec := cli.ValueCodec[string]{
 		Name: name,
 		Parse: func(text string) (string, error) {
 			calls.Add(1)
@@ -856,6 +890,7 @@ func referenceFormSelectionCodec(name string, outcome referencePositionalFormOut
 		Format:   func(value string) string { return value },
 		Snapshot: cli.Value.Assign[string](),
 	}
+	return codec
 }
 
 type referenceFormSelectionFixture struct {
@@ -917,7 +952,7 @@ func referenceNewFormSelectionFixture(t *testing.T, a, b referencePositionalForm
 	if _, ok := schema.Values[valueBID]; !ok {
 		t.Fatalf("argument b destination %v missing from schema values", valueBID)
 	}
-	return referenceFormSelectionFixture{
+	fixture := referenceFormSelectionFixture{
 		app:      app,
 		valueAID: valueAID,
 		valueBID: valueBID,
@@ -925,4 +960,5 @@ func referenceNewFormSelectionFixture(t *testing.T, a, b referencePositionalForm
 		callsB:   callsB,
 		failure:  failure,
 	}
+	return fixture
 }

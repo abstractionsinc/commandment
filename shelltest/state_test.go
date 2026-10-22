@@ -1,20 +1,27 @@
 package shelltest
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
-	"time"
+	"testing/synctest"
 )
 
 func TestSetupDefersMaterializationAndSnapshotsDeclarations(t *testing.T) {
 	t.Parallel()
 	workspace := t.TempDir()
-	generated := generatedCompletion{integration: []byte("generated")}
-	verified := verifiedRuntime{executable: "/runtime", version: "1.2.3"}
+	generated := generatedCompletion{
+		integration: []byte("generated"),
+	}
+	verified := verifiedRuntime{
+		executable: "/runtime",
+		version:    "1.2.3",
+	}
 	var integration, fixture string
 	args := []string{"--interactive"}
 	plan, err := runSetup(func(setup Setup) error {
@@ -31,7 +38,7 @@ func TestSetupDefersMaterializationAndSnapshotsDeclarations(t *testing.T) {
 		setup.Args(args...)
 		args[0] = "changed"
 		for _, path := range []string{integration, fixture} {
-			if _, err := os.Stat(path); !os.IsNotExist(err) {
+			if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
 				t.Fatalf("setup file materialized during callback: %q, err=%v", path, err)
 			}
 		}
@@ -51,7 +58,7 @@ func TestSetupDefersMaterializationAndSnapshotsDeclarations(t *testing.T) {
 	if got, err := os.ReadFile(fixture); err != nil || string(got) != "fixture" {
 		t.Fatalf("fixture materialization = %q, %v", got, err)
 	}
-	if got := plan.args; !reflect.DeepEqual(got, []string{"--interactive"}) {
+	if got := plan.args; !slices.Equal(got, []string{"--interactive"}) {
 		t.Fatalf("Args snapshot = %#v", got)
 	}
 }
@@ -63,10 +70,26 @@ func TestSetupRejectsCollisionsAndConflictingEnvironment(t *testing.T) {
 		run  func(Setup)
 		want string
 	}{
-		{"duplicate-file", func(s Setup) { s.File("a", "1"); s.File("a", "2") }, "collision"},
-		{"parent-file", func(s Setup) { s.File("a", "1"); s.File(filepath.Join("a", "b"), "2") }, "collision"},
-		{"escape", func(s Setup) { s.File(filepath.Join("..", "a"), "1") }, "invalid setup file"},
-		{"environment", func(s Setup) { s.Env("A", "one"); s.Env("A", "two") }, "conflicting environment"},
+		{
+			name: "duplicate-file",
+			run:  func(s Setup) { s.File("a", "1"); s.File("a", "2") },
+			want: "collision",
+		},
+		{
+			name: "parent-file",
+			run:  func(s Setup) { s.File("a", "1"); s.File(filepath.Join("a", "b"), "2") },
+			want: "collision",
+		},
+		{
+			name: "escape",
+			run:  func(s Setup) { s.File(filepath.Join("..", "a"), "1") },
+			want: "invalid setup file",
+		},
+		{
+			name: "environment",
+			run:  func(s Setup) { s.Env("A", "one"); s.Env("A", "two") },
+			want: "conflicting environment",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -82,7 +105,9 @@ func TestSetupRejectsCollisionsAndConflictingEnvironment(t *testing.T) {
 func TestSetupReservedPathsRejectEqualityAndContainment(t *testing.T) {
 	t.Parallel()
 	workspace := t.TempDir()
-	generated := generatedCompletion{reserved: []string{filepath.Join("bin", "alienctl"), filepath.Join("bin", "alienctl") + bridgeBootstrapSuffix}}
+	generated := generatedCompletion{
+		reserved: []string{filepath.Join("bin", "alienctl"), filepath.Join("bin", "alienctl") + bridgeBootstrapSuffix},
+	}
 	for _, name := range []string{filepath.Join("bin", "alienctl"), "bin", filepath.Join("bin", "alienctl", "child")} {
 		_, err := runSetup(func(setup Setup) error { setup.File(name, "x"); return nil }, workspace, verifiedRuntime{}, generated)
 		if err == nil || !strings.Contains(err.Error(), "framework path") {
@@ -95,16 +120,34 @@ func TestSetupAndObservationZeroAndExpiredValuesPanic(t *testing.T) {
 	t.Parallel()
 	requirePanic(t, func() { Setup{}.Executable() })
 	requirePanic(t, func() { Observation{}.Version() })
-	session := &setupSession{state: setupSessionClosed}
-	requirePanic(t, func() { (Setup{session: session}).Version() })
-	state := &observationState{active: false}
-	requirePanic(t, func() { (Observation{state: state}).ScreenLines() })
+	session := &setupSession{
+		state: setupSessionClosed,
+	}
+	requirePanic(t, func() {
+		(Setup{
+			session: session,
+		}).Version()
+	})
+	state := &observationState{
+		active: false,
+	}
+	requirePanic(t, func() {
+		(Observation{
+			state: state,
+		}).ScreenLines()
+	})
 }
 
 func TestObservationDefensiveScreenSnapshotAndEditorInputUnavailable(t *testing.T) {
 	t.Parallel()
-	state := &observationState{active: true, version: "1", screenLines: []string{}}
-	observation := Observation{state: state}
+	state := &observationState{
+		active:      true,
+		version:     "1",
+		screenLines: []string{},
+	}
+	observation := Observation{
+		state: state,
+	}
 	if lines := observation.ScreenLines(); lines == nil || len(lines) != 0 {
 		t.Fatalf("nonnil-empty screen = %#v", lines)
 	}
@@ -159,39 +202,36 @@ func requirePanic(t *testing.T, fn func()) {
 
 func TestSetupConcurrentAndCrossBoundaryUseIsRejected(t *testing.T) {
 	t.Parallel()
-	session := &setupSession{state: setupSessionActive}
-	setup := Setup{session: session}
-	held := setup.acquire()
-	requirePanic(t, func() { setup.Version() })
+	synctest.Test(t, func(t *testing.T) {
+		session := &setupSession{
+			state: setupSessionActive,
+		}
+		setup := Setup{
+			session: session,
+		}
+		held := setup.acquire()
+		requirePanic(t, func() { setup.Version() })
 
-	closed := make(chan struct{})
-	go func() {
-		session.close()
-		close(closed)
-	}()
-	deadline := time.Now().Add(time.Second)
-	for {
+		closed := make(chan struct{})
+		go func() {
+			session.close()
+			close(closed)
+		}()
+		synctest.Wait()
 		session.mu.Lock()
 		state := session.state
 		session.mu.Unlock()
-		if state == setupSessionClosed {
-			break
+		if state != setupSessionClosed {
+			t.Fatalf("Setup session state = %v, want closed", state)
 		}
-		if time.Now().After(deadline) {
-			t.Fatal("Setup session did not enter closed state")
+		requirePanic(t, func() { setup.Executable() })
+
+		setup.release(held)
+		<-closed
+		if session.failure == nil || !strings.Contains(session.failure.Error(), "crossed Prepare callback boundary") {
+			t.Fatalf("cross-boundary Setup failure = %v", session.failure)
 		}
-		time.Sleep(time.Millisecond)
-	}
-	requirePanic(t, func() { setup.Executable() })
-	setup.release(held)
-	select {
-	case <-closed:
-	case <-time.After(time.Second):
-		t.Fatal("Setup close did not finish after active use released")
-	}
-	if session.failure == nil || !strings.Contains(session.failure.Error(), "crossed Prepare callback boundary") {
-		t.Fatalf("cross-boundary Setup failure = %v", session.failure)
-	}
+	})
 }
 
 func TestWorkspaceMaterializationRejectsPreexistingAndSymlinkTargets(t *testing.T) {
@@ -217,7 +257,7 @@ func TestWorkspaceMaterializationRejectsPreexistingAndSymlinkTargets(t *testing.
 	if err := createWorkspaceFile(workspace, filepath.Join("alias", "escape"), []byte("x"), privateFileMode); err == nil {
 		t.Fatal("symlink parent was followed")
 	}
-	if _, err := os.Stat(filepath.Join(outside, "escape")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(outside, "escape")); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("workspace write escaped through symlink: %v", err)
 	}
 
@@ -228,7 +268,7 @@ func TestWorkspaceMaterializationRejectsPreexistingAndSymlinkTargets(t *testing.
 	if err := createWorkspaceFile(workspace, "final-link", []byte("x"), privateFileMode); err == nil {
 		t.Fatal("symlink final target was overwritten")
 	}
-	if _, err := os.Stat(target); !os.IsNotExist(err) {
+	if _, err := os.Stat(target); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("final symlink target was created: %v", err)
 	}
 }

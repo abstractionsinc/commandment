@@ -11,7 +11,9 @@ import (
 var definition = cli.Definition[struct{}]{
 	Name: "alienctl",
 	Declare: func(cb *cli.CommandBuilder[struct{}]) {
-		scanCmd := cli.Command[struct{}]{Name: "scan"}
+		scanCmd := cli.Command[struct{}]{
+			Name: "scan",
+		}
 		cb.Subcommands.Command(scanCmd)
 	},
 }

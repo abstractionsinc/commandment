@@ -12,7 +12,9 @@ func TestApplicationErrorKeepsIdentityAndExitCode(t *testing.T) {
 	t.Parallel()
 
 	app := clitest.Compile(t, definition)
-	request := cli.RunRequest{Args: []string{"land", "earth"}}
+	request := cli.RunRequest{
+		Args: []string{"land", "earth"},
+	}
 	err := app.Run(t.Context(), request)
 	if !errors.Is(err, errLandingDenied) {
 		t.Fatalf("Run() error = %v, want identity %v", err, errLandingDenied)

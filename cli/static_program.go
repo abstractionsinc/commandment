@@ -485,7 +485,10 @@ type declarationIdentities struct {
 }
 
 func allocateDeclarationIdentities() declarationIdentities {
-	return declarationIdentities{state: &declarationIdentityState{}}
+	identities := declarationIdentities{
+		state: &declarationIdentityState{},
+	}
+	return identities
 }
 
 func restoreDeclarationIdentities(baseline staticIdentityBaseline) declarationIdentities {
@@ -494,7 +497,10 @@ func restoreDeclarationIdentities(baseline staticIdentityBaseline) declarationId
 	}
 	state := baseline.state
 	state.sealed = false
-	return declarationIdentities{state: &state}
+	identities := declarationIdentities{
+		state: &state,
+	}
+	return identities
 }
 
 func (ids declarationIdentities) mustState() *declarationIdentityState {
@@ -592,7 +598,10 @@ type staticIdentityScope struct {
 }
 
 func allocateStaticIdentityScope() staticIdentityScope {
-	return staticIdentityScope{declarationIdentities: allocateDeclarationIdentities()}
+	scope := staticIdentityScope{
+		declarationIdentities: allocateDeclarationIdentities(),
+	}
+	return scope
 }
 
 type staticIdentityBaseline struct {
@@ -603,10 +612,11 @@ type staticIdentityBaseline struct {
 func (ids staticIdentityScope) Seal() staticIdentityBaseline {
 	state := ids.mustState()
 	state.sealed = true
-	return staticIdentityBaseline{
+	baseline := staticIdentityBaseline{
 		valid: true,
 		state: *state,
 	}
+	return baseline
 }
 
 // declarationPosition is the source-program position of one committed
@@ -624,10 +634,11 @@ func acceptRecordMeta[I interface{ present() bool }](id I, position declarationP
 	if !id.present() {
 		panic("semantic: invalid record identity")
 	}
-	return recordMeta[I]{
+	meta := recordMeta[I]{
 		id:       id,
 		position: position,
 	}
+	return meta
 }
 
 // declarationRecordInput is an acceptance-boundary carrier for exact typed record

@@ -47,42 +47,46 @@ type DeclarationIdentityLocator interface{ declarationIdentityLocator() }
 // Type returns a reusable declaration expectation that checks the public type exposed by the
 // located declaration literal.
 func (locator DeclarationValueLiteralLocator) Type(expected cli.ValueType) DeclarationExpectation {
-	return declarationValueLiteralExpectation{
+	expectation := declarationValueLiteralExpectation{
 		locator:   locator.state,
 		property:  declarationValueLiteralExpectationType,
 		valueType: expected,
 	}
+	return expectation
 }
 
 // Sensitive returns a reusable declaration expectation that checks the located declaration
 // literal is marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator DeclarationValueLiteralLocator) Sensitive() DeclarationExpectation {
-	return declarationValueLiteralExpectation{
+	expectation := declarationValueLiteralExpectation{
 		locator:   locator.state,
 		property:  declarationValueLiteralExpectationSensitive,
 		sensitive: true,
 	}
+	return expectation
 }
 
 // Redacted returns a reusable declaration expectation that checks the located declaration
 // literal is marked redacted without exposing the protected representation.
 func (locator DeclarationValueLiteralLocator) Redacted() DeclarationExpectation {
-	return declarationValueLiteralExpectation{
+	expectation := declarationValueLiteralExpectation{
 		locator:  locator.state,
 		property: declarationValueLiteralExpectationRedacted,
 		redacted: true,
 	}
+	return expectation
 }
 
 // Text returns a declaration expectation that checks the public literal text when that text is
 // safely observable. Failure reporting does not use the method to bypass Commandment
 // sensitivity or redaction semantics.
 func (locator DeclarationValueLiteralLocator) Text(expected string) DeclarationExpectation {
-	return declarationValueLiteralExpectation{
+	expectation := declarationValueLiteralExpectation{
 		locator:  locator.state,
 		property: declarationValueLiteralExpectationText,
 		text:     expected,
 	}
+	return expectation
 }
 
 const (
@@ -627,7 +631,9 @@ func resolveSchemaDeclarationValueLiteralLocator(state *declarationValueLiteralL
 		return resolveRuleOperandLiteral(state, resolved.status, resolved.detail, resolved.value.Operands)
 	case declarationValueLiteralLocatorShortcutDefaultValue:
 		locator := CommandShortcutDefaultLocator{
-			entry: CommandEntryLocator{state: state.entry},
+			entry: CommandEntryLocator{
+				state: state.entry,
+			},
 			index: state.defaultIndex,
 		}
 		value, status, detail := resolveShortcutDefaultSchema(locator, schema)
@@ -674,7 +680,9 @@ func resolveReferenceDeclarationValueLiteralLocator(state *declarationValueLiter
 		return resolveRuleOperandLiteral(state, resolved.status, resolved.detail, resolved.value.Operands)
 	case declarationValueLiteralLocatorShortcutDefaultValue:
 		locator := CommandShortcutDefaultLocator{
-			entry: CommandEntryLocator{state: state.entry},
+			entry: CommandEntryLocator{
+				state: state.entry,
+			},
 			index: state.defaultIndex,
 		}
 		value, status, detail := resolveShortcutDefaultReference(locator, reference)
@@ -721,7 +729,9 @@ func resolveInspectionDeclarationValueLiteralLocator(state *declarationValueLite
 		return resolveRuleOperandLiteral(state, resolved.status, resolved.detail, resolved.value.Operands)
 	case declarationValueLiteralLocatorShortcutDefaultValue:
 		locator := CommandShortcutDefaultLocator{
-			entry: CommandEntryLocator{state: state.entry},
+			entry: CommandEntryLocator{
+				state: state.entry,
+			},
 			index: state.defaultIndex,
 		}
 		value, status, detail := resolveShortcutDefaultInspection(locator, inspection)
@@ -1010,7 +1020,13 @@ func (expectation declarationValueLiteralExpectation) evaluateResolved(resolutio
 	subject := evaluationText("declaration literal")
 	switch expectation.property {
 	case declarationValueLiteralExpectationType:
-		return equalFieldResult(subject, evaluationText("type"), valueTypeField{value: expectation.valueType}, valueTypeField{value: resolution.value.Type}, resolution.value.Type == expectation.valueType)
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		observedField := valueTypeField{
+			value: resolution.value.Type,
+		}
+		return equalFieldResult(subject, evaluationText("type"), field, observedField, resolution.value.Type == expectation.valueType)
 	case declarationValueLiteralExpectationSensitive:
 		return equalFieldResult(subject, semanticRequirementSensitive, evaluationBool(expectation.sensitive), evaluationBool(resolution.value.Sensitive), resolution.value.Sensitive == expectation.sensitive)
 	case declarationValueLiteralExpectationRedacted:

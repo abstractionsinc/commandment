@@ -22,24 +22,26 @@ func diagnosticReportFromError(err error) DiagnosticReport {
 }
 
 func projectDiagnosticFailure(code DiagnosticCode, message string, cause error) error {
-	return retainDiagnosticFailure(payload{
+	failurePayload := payload{
 		Diagnostics: []diagnostic{{
 			Code:             string(code),
 			Message:          message,
 			FrameworkMessage: true,
 		}},
-	}, cause)
+	}
+	return retainDiagnosticFailure(failurePayload, cause)
 }
 
 func operationDiagnosticFailure(operation *invocation, code DiagnosticCode, message string, cause error) error {
-	return retainDiagnosticFailure(payload{
+	failurePayload := payload{
 		Diagnostics: []diagnostic{{
 			Code:             string(code),
 			Message:          message,
 			FrameworkMessage: true,
 		}},
 		Presentation: operation.FrameworkPresentation(),
-	}, cause)
+	}
+	return retainDiagnosticFailure(failurePayload, cause)
 }
 
 func operationDiagnosticPayload(operation *invocation, truncated bool) payload {
@@ -278,10 +280,11 @@ func diagnosticValueType(input analysisDiagnosticValueType) ValueType {
 	case diagnosticValueKindTokenCustom:
 		kind = ValueKindCustom
 	}
-	return ValueType{
+	valueType := ValueType{
 		Kind: kind,
 		Name: input.Name,
 	}
+	return valueType
 }
 
 func projectDiagnosticSignalActionFailure(input diagnosticSignalActionFailure) SignalActionFailure {
@@ -595,15 +598,17 @@ func diagnosticDeclarationIdentity(identity analysisDiagnosticDeclarationIdentit
 }
 
 func inputSourceID(id sourceID) InputSourceID {
-	return InputSourceID{
+	inputSourceID := InputSourceID{
 		value: uint32(id),
 	}
+	return inputSourceID
 }
 
 func inputOriginID(id originID) InputOriginID {
-	return InputOriginID{
+	inputOriginID := InputOriginID{
 		value: uint32(id),
 	}
+	return inputOriginID
 }
 
 func inputOriginIDs(ids []originID) []InputOriginID {
@@ -740,8 +745,12 @@ func grammarIssueInputContext(operation *invocation, tokenIndex int) ([]InputOri
 	span := &InputSpan{
 		Source: record.span.Source,
 		Entry:  record.span.Entry,
-		Start:  InputPosition{Offset: record.span.Start},
-		End:    InputPosition{Offset: record.span.End},
+		Start: InputPosition{
+			Offset: record.span.Start,
+		},
+		End: InputPosition{
+			Offset: record.span.End,
+		},
 	}
 	return origins, span
 }
@@ -809,23 +818,26 @@ func grammarIssueDeclaration(issue grammarIssue) DeclarationIdentity {
 	switch issue.Kind {
 	case grammarIssueNotIntroducedFlag, grammarIssueRemovedFlag:
 		if len(issue.Flags) == 1 && len(issue.Actions) == 0 {
-			return DeclarationIdentity{
+			identity := DeclarationIdentity{
 				Kind:         DeclarationKindFlagSpelling,
 				FlagSpelling: issue.Flags[0],
 			}
+			return identity
 		}
 		if len(issue.Actions) == 1 && len(issue.Flags) == 0 {
-			return DeclarationIdentity{
+			identity := DeclarationIdentity{
 				Kind:        DeclarationKindActionEntry,
 				ActionEntry: issue.Actions[0],
 			}
+			return identity
 		}
 	case grammarIssueRejectedArgumentForm:
 		if issue.ArgumentTerm.present() {
-			return DeclarationIdentity{
+			identity := DeclarationIdentity{
 				Kind:         DeclarationKindArgumentTerm,
 				ArgumentTerm: issue.ArgumentTerm,
 			}
+			return identity
 		}
 	default:
 		return DeclarationIdentity{}
@@ -837,23 +849,26 @@ func privateGrammarIssueDeclaration(issue grammarIssue) analysisDiagnosticDeclar
 	switch issue.Kind {
 	case grammarIssueNotIntroducedFlag, grammarIssueRemovedFlag:
 		if len(issue.Flags) == 1 && len(issue.Actions) == 0 {
-			return analysisDiagnosticDeclarationIdentity{
+			identity := analysisDiagnosticDeclarationIdentity{
 				Kind:         diagnosticDeclarationFlagSpelling,
 				FlagSpelling: issue.Flags[0],
 			}
+			return identity
 		}
 		if len(issue.Actions) == 1 && len(issue.Flags) == 0 {
-			return analysisDiagnosticDeclarationIdentity{
+			identity := analysisDiagnosticDeclarationIdentity{
 				Kind:        diagnosticDeclarationActionEntry,
 				ActionEntry: issue.Actions[0],
 			}
+			return identity
 		}
 	case grammarIssueRejectedArgumentForm:
 		if issue.ArgumentTerm.present() {
-			return analysisDiagnosticDeclarationIdentity{
+			identity := analysisDiagnosticDeclarationIdentity{
 				Kind:         diagnosticDeclarationArgumentTerm,
 				ArgumentTerm: issue.ArgumentTerm,
 			}
+			return identity
 		}
 	default:
 		return analysisDiagnosticDeclarationIdentity{}
@@ -992,10 +1007,11 @@ func policyRuleFailureDiagnostic(model *effectiveModel, id RuleID, code Diagnost
 	if err != nil {
 		return Diagnostic{}, err
 	}
-	return Diagnostic{
+	diagnostic := Diagnostic{
 		Code: code,
 		Rule: &rule,
-	}, nil
+	}
+	return diagnostic, nil
 }
 
 func policyViolationKind(kind ruleViolationKind) ViolationKind {
@@ -1087,10 +1103,11 @@ func diagnosticProjectValueType(value ValueType) analysisDiagnosticValueType {
 		kind = policyValueKindTokenCustom
 	case ValueKindUnknown:
 	}
-	return analysisDiagnosticValueType{
+	valueType := analysisDiagnosticValueType{
 		Kind: kind,
 		Name: value.Name,
 	}
+	return valueType
 }
 
 func privatePolicyCommandID(model *effectiveModel, id CommandID) CommandID {

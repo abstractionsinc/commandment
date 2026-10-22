@@ -37,10 +37,11 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 		Cols: terminalColumns,
 	})
 	if err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "start PTY shell process",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	process := &terminalProcess{
 		command: command,
@@ -57,10 +58,11 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 func (process *terminalProcess) Read(data []byte) (int, error) {
 	count, err := process.pty.Read(data)
 	if err != nil {
-		return count, failureError{
+		failure := failureError{
 			subject: "read PTY shell output",
 			cause:   err,
 		}
+		return count, failure
 	}
 	return count, nil
 }
@@ -68,10 +70,11 @@ func (process *terminalProcess) Read(data []byte) (int, error) {
 func (process *terminalProcess) Write(data []byte) (int, error) {
 	count, err := process.pty.Write(data)
 	if err != nil {
-		return count, failureError{
+		failure := failureError{
 			subject: "write PTY shell input",
 			cause:   err,
 		}
+		return count, failure
 	}
 	return count, nil
 }

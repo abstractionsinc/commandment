@@ -32,26 +32,29 @@ var Source sourceConstructors
 
 // Key attaches a stable source key annotation to the producer.
 func (sourceConstructors) Key(key string) SourceOption {
-	return sourceOption{
+	option := sourceOption{
 		kind:  sourceOptionKey,
 		value: key,
 	}
+	return option
 }
 
 // Location attaches source-location text to the producer.
 func (sourceConstructors) Location(location string) SourceOption {
-	return sourceOption{
+	option := sourceOption{
 		kind:  sourceOptionLocation,
 		value: location,
 	}
+	return option
 }
 
 // Text attaches descriptive source text to the producer.
 func (sourceConstructors) Text(text string) SourceOption {
-	return sourceOption{
+	option := sourceOption{
 		kind:  sourceOptionText,
 		value: text,
 	}
+	return option
 }
 
 // Sensitive marks produced semantic values and provenance as sensitive so public projections

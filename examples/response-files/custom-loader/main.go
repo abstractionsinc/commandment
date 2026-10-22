@@ -54,8 +54,10 @@ func main() {
 		os.Exit(1)
 	}
 	request := cli.RunRequest{
-		Args:          os.Args[1:],
-		ResponseFiles: cli.ResponseFileAccess{Load: loadCrew},
+		Args: os.Args[1:],
+		ResponseFiles: cli.ResponseFileAccess{
+			Load: loadCrew,
+		},
 	}
 	if err := app.Run(context.Background(), request); err != nil {
 		fmt.Fprintln(os.Stderr, err)

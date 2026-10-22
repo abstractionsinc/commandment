@@ -86,10 +86,11 @@ func withExitCode(err error, code int) error {
 	if err == nil {
 		return nil
 	}
-	return &exitCodeError{
+	failure := &exitCodeError{
 		err:  err,
 		code: code,
 	}
+	return failure
 }
 
 func exitCode(err error) int {

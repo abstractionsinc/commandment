@@ -395,9 +395,10 @@ func normalizeValueCompletionCandidate(candidate CompletionCandidate, client Com
 	if !client.Capabilities.CommitCharacters {
 		candidate.CommitCharacters = nil
 	}
-	return CompletionItem{
+	item := CompletionItem{
 		CompletionCandidate: candidate,
-	}, true
+	}
+	return item, true
 }
 
 func validCompletionCandidateKind(kind CompletionCandidateKind) bool {

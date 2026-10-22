@@ -15,9 +15,13 @@ func BenchmarkCompile(b *testing.B) {
 			names[index] = fmt.Sprintf("command-%03d", index)
 		}
 		definition := cli.Definition[stringConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[stringConfig]) {
 				for _, name := range names {
 					root.Subcommands.Command(cli.Command[stringConfig]{
@@ -48,9 +52,13 @@ func BenchmarkCompile(b *testing.B) {
 			names[index] = fmt.Sprintf("level-%03d", index)
 		}
 		definition := cli.Definition[stringConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[stringConfig]) {
 				declareCompileDepth(root, names, 0)
 			},
@@ -74,9 +82,13 @@ func BenchmarkCompile(b *testing.B) {
 			names[index] = fmt.Sprintf("mixed-%03d", index)
 		}
 		definition := cli.Definition[stringConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[stringConfig]) {
 				for _, name := range names {
 					root.Subcommands.Command(cli.Command[stringConfig]{
@@ -125,9 +137,13 @@ func BenchmarkCompile(b *testing.B) {
 			flagNames[index] = fmt.Sprintf("flag-%02d", index)
 		}
 		definition := cli.Definition[stringConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[stringConfig]) {
 				for _, commandName := range commandNames {
 					root.Subcommands.Command(cli.Command[stringConfig]{
@@ -162,9 +178,13 @@ func BenchmarkCompile(b *testing.B) {
 
 	for _, values := range [...]int{16, 64, 256} {
 		definition := cli.Definition[stringConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[stringConfig]) {
 				for index := range values {
 					root.Values.String(&root.Config.Values[index])

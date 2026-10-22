@@ -238,9 +238,10 @@ func (operation *invocation) evaluateProviderNamespaceAt(ctx context.Context, an
 		grammar.SelectedProfiles,
 	)
 	if len(providers) == 0 {
-		return providerNamespaceOutcome{
+		outcome := providerNamespaceOutcome{
 			complete: true,
-		}, nil
+		}
+		return outcome, nil
 	}
 
 	results := make([]providerOutcome, len(providers))
@@ -482,10 +483,11 @@ func (operation *invocation) prepareProviderProgramsAt(ctx context.Context, anal
 		decision := acceptAcceptanceDecision(acceptanceBoundaryProviderBatch, nil)
 		preview, err := acceptance.Preview(decision)
 		if err != nil {
-			return false, nil, &publicationOperationError{
+			failure := &publicationOperationError{
 				operation: "preview provider publication",
 				cause:     err,
 			}
+			return false, nil, failure
 		}
 
 		// Target settlement is provider-batch local even though targets may name
@@ -635,14 +637,18 @@ func (operation *invocation) prepareProviderProgramsAt(ctx context.Context, anal
 			acceptances = append(acceptances, providerAcceptances...)
 		}
 		if err := ctx.Err(); err != nil {
-			return false, nil, &providerContextError{cause: err}
+			failure := &providerContextError{
+				cause: err,
+			}
+			return false, nil, failure
 		}
 		accepted, err := acceptance.Accept(decision)
 		if err != nil {
-			return false, nil, &publicationOperationError{
+			failure := &publicationOperationError{
 				operation: "accept provider publication",
 				cause:     err,
 			}
+			return false, nil, failure
 		}
 		providerPublication := freezeProviderPublication(
 			accepted.Declarations(),

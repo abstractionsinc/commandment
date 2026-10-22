@@ -63,9 +63,10 @@ type LocalizationPolicy struct {
 // public static localization snapshot. It snapshots expected so later caller
 // mutation cannot change expectation evaluation.
 func LocalizationExactly(expected cli.Localization) SchemaExpectation {
-	return localizationSchemaExpectation{
+	expectation := localizationSchemaExpectation{
 		expected: cloneLocalization(expected),
 	}
+	return expectation
 }
 
 // RequireHelpPresentation checks already-observed public HelpPage presentation.
@@ -92,17 +93,19 @@ func RequireHelpPresentation(t testing.TB, page cli.HelpPage, expectations ...He
 // HelpDescription returns a HelpPresentationExpectation that checks the public
 // HelpPage description.
 func HelpDescription(expected cli.Description) HelpPresentationExpectation {
-	return helpDescriptionExpectation{
+	expectation := helpDescriptionExpectation{
 		expected: expected,
 	}
+	return expectation
 }
 
 // HelpExamplesExactly returns a HelpPresentationExpectation that checks the
 // complete ordered public HelpPage examples.
 func HelpExamplesExactly(expected ...cli.Example) HelpPresentationExpectation {
-	return helpExamplesExpectation{
+	expectation := helpExamplesExpectation{
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // RequireLocalization audits app against policy using Commandment's public
@@ -281,7 +284,9 @@ func auditLocalization(app cli.Application, policy LocalizationPolicy) []evaluat
 		if len(missing) != 0 {
 			issue := qualifySubject(
 				subjectNamed(evaluationText("locale"), canonical),
-				withDetail("is incomplete; missing translations for ", stringCollectionField{values: missing}),
+				withDetail("is incomplete; missing translations for ", stringCollectionField{
+					values: missing,
+				}),
 			)
 			issues = append(issues, issue)
 		}
@@ -302,7 +307,9 @@ func auditLocalization(app cli.Application, policy LocalizationPolicy) []evaluat
 		if len(missing) != 0 {
 			issue := qualifySubject(
 				subjectNamed(evaluationText("locale"), canonical),
-				withDetail("is not exact; missing direct translations for ", stringCollectionField{values: missing}),
+				withDetail("is not exact; missing direct translations for ", stringCollectionField{
+					values: missing,
+				}),
 			)
 			issues = append(issues, issue)
 		}
@@ -460,10 +467,11 @@ func canonicalAuditLocale(app cli.Application, locale cli.Locale) (string, error
 	}
 	reference, err := app.Reference(options)
 	if err != nil {
-		return "", localizationReferenceError{
+		failure := localizationReferenceError{
 			locale: locale,
 			cause:  err,
 		}
+		return "", failure
 	}
 	return string(reference.Locale), nil
 }

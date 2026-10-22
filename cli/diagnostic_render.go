@@ -127,7 +127,9 @@ func (sink *diagnosticDetailSink) finish() []string {
 }
 
 func diagnosticPresentationDetails(report report, diagnostic diagnostic) []string {
-	sink := diagnosticDetailSink{report: report}
+	sink := diagnosticDetailSink{
+		report: report,
+	}
 
 	if diagnostic.Command.present() {
 		sink.add("command id", identityText(diagnostic.Command.uint32()))

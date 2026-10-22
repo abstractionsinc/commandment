@@ -32,13 +32,14 @@ func TestNormalizeAnalysisLimitsPreservesAnalysisLimitsInvariant(t *testing.T) {
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Limits: limits,
 	}).Require(t)
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
 		},
 		Limits: limits,
-	}).Require(t)
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t)
 }
 
 func TestNormalizeAnalysisLimitsRejectsEveryNegativeField(t *testing.T) {
@@ -47,7 +48,9 @@ func TestNormalizeAnalysisLimitsRejectsEveryNegativeField(t *testing.T) {
 		Name: "tool",
 	})
 	cases := []cli.AnalysisLimits{
-		{Diagnostics: -1},
+		{
+			Diagnostics: -1,
+		},
 		{ResponseFiles: cli.ResponseFileLimits{
 			Depth: -1,
 		}},
@@ -73,13 +76,14 @@ func TestNormalizeAnalysisLimitsRejectsEveryNegativeField(t *testing.T) {
 		}); err == nil {
 			t.Fatalf("case %d accepted negative analysis limit: %#v", index, limits)
 		}
-		if _, err := app.Complete(t.Context(), cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{""},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
 			},
 			Limits: limits,
-		}); err == nil {
+		}
+		if _, err := app.Complete(t.Context(), completionRequest); err == nil {
 			t.Fatalf("completion case %d accepted negative analysis limit: %#v", index, limits)
 		}
 	}
@@ -278,19 +282,28 @@ func TestEnvironmentAuthoringRejectsIncompatibleGranularityAndOverlappingSelecto
 		name    string
 		declare func(*cli.CommandBuilder[config])
 	}{
-		{"scalar adapter", func(root *cli.CommandBuilder[config]) {
-			d := root.Values.String(&root.Config.Scalar)
-			root.Values.Environment(d, "VALUE").Elements(",")
-		}},
-		{"sequence missing adapter", func(root *cli.CommandBuilder[config]) {
-			d := root.Values.Sequence(&root.Config.Seq, cli.Value.String())
-			root.Values.Environment(d, "VALUES")
-		}},
-		{"overlapping prefix and exact", func(root *cli.CommandBuilder[config]) {
-			d := root.Values.Keyed(&root.Config.Map, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
-			root.Values.EnvironmentPrefix(d, "APP_").Sensitive()
-			root.Values.Environment(d, "APP_LABEL").KeyedEntries(",")
-		}},
+		{
+			name: "scalar adapter",
+			declare: func(root *cli.CommandBuilder[config]) {
+				d := root.Values.String(&root.Config.Scalar)
+				root.Values.Environment(d, "VALUE").Elements(",")
+			},
+		},
+		{
+			name: "sequence missing adapter",
+			declare: func(root *cli.CommandBuilder[config]) {
+				d := root.Values.Sequence(&root.Config.Seq, cli.Value.String())
+				root.Values.Environment(d, "VALUES")
+			},
+		},
+		{
+			name: "overlapping prefix and exact",
+			declare: func(root *cli.CommandBuilder[config]) {
+				d := root.Values.Keyed(&root.Config.Map, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
+				root.Values.EnvironmentPrefix(d, "APP_").Sensitive()
+				root.Values.Environment(d, "APP_LABEL").KeyedEntries(",")
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -361,12 +374,13 @@ func TestCompletionInputDetachesOperationOwnedContainers(t *testing.T) {
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Value).CompleteBy(func(_ context.Context, _ *config, _ cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 				calls++
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Candidates: []cli.CompletionCandidate{{
 						Value:       "alpha",
 						Description: "candidate",
 					}},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("value")
 		},
@@ -385,7 +399,7 @@ func TestCompletionInputDetachesOperationOwnedContainers(t *testing.T) {
 	}
 	facts := []cli.FactProvider{cli.FactsFor(func(context.Context, *cli.FactSupply[config]) error { return nil })}
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: args,
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -399,7 +413,8 @@ func TestCompletionInputDetachesOperationOwnedContainers(t *testing.T) {
 					Fields: fields,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("alpha").Present())
 		return proof.Completion()
 	}()
@@ -428,20 +443,29 @@ func TestCompletionInputRejectsInvalidOperationInputBeforeUse(t *testing.T) {
 		name string
 		in   cli.CompletionRequest
 	}{
-		{"provider", cli.CompletionRequest{
-			Defaults: []cli.DefaultProvider{cli.DefaultsFor[struct{}](nil)},
-		}},
-		{"environment", cli.CompletionRequest{
-			Env: cli.Env{{
-				Name:  "",
-				Value: "x",
-			}},
-		}},
-		{"limits", cli.CompletionRequest{
-			Limits: cli.AnalysisLimits{
-				Diagnostics: -1,
+		{
+			name: "provider",
+			in: cli.CompletionRequest{
+				Defaults: []cli.DefaultProvider{cli.DefaultsFor[struct{}](nil)},
 			},
-		}},
+		},
+		{
+			name: "environment",
+			in: cli.CompletionRequest{
+				Env: cli.Env{{
+					Name:  "",
+					Value: "x",
+				}},
+			},
+		},
+		{
+			name: "limits",
+			in: cli.CompletionRequest{
+				Limits: cli.AnalysisLimits{
+					Diagnostics: -1,
+				},
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -489,7 +513,7 @@ func TestRunInputDetachesContainersAndBorrowsHostIntegrations(t *testing.T) {
 		return nil
 	})}
 	var got config
-	app := inputMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -505,8 +529,9 @@ func TestRunInputDetachesContainersAndBorrowsHostIntegrations(t *testing.T) {
 			root.Access.Locale(&root.Config.Locale)
 		},
 		Run: func(_ context.Context, cfg *config) error { got = *cfg; return nil },
-	})
-	if err := app.Run(t.Context(), cli.RunRequest{
+	}
+	app := inputMustCompilePublic(t, definition)
+	runRequest := cli.RunRequest{
 		Args:     args,
 		Env:      env,
 		Defaults: defaults,
@@ -515,7 +540,8 @@ func TestRunInputDetachesContainersAndBorrowsHostIntegrations(t *testing.T) {
 		Stdout:   stdout,
 		Stderr:   stderr,
 		Locale:   "en-US",
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if got.Name != "cli" || got.Defaulted != "from-default-provider" || got.Required != "fact" {
@@ -550,8 +576,12 @@ func TestInspectionInputRejectsInvalidProviderPreflightBeforeSemanticUse(t *test
 			Defaults: []cli.DefaultProvider{cli.DefaultsFor[config](nil)},
 			Facts:    []cli.FactProvider{validFact},
 		},
-		{Facts: []cli.FactProvider{validFact, nil}},
-		{Facts: []cli.FactProvider{cli.FactsFor[config](nil)}},
+		{
+			Facts: []cli.FactProvider{validFact, nil},
+		},
+		{
+			Facts: []cli.FactProvider{cli.FactsFor[config](nil)},
+		},
 	}
 	for i, request := range cases {
 		t.Run(fmt.Sprintf("case-%d", i), func(t *testing.T) {
@@ -608,17 +638,14 @@ func TestInvalidEnvironmentEntryErrorErrorPreservesInvocationSemantics(t *testin
 
 type inputTokenLanguageRejectionValueConfig struct{ Value string }
 
-func inputTokenLanguageInspection(
-	ctx context.Context,
-	t *testing.T,
-	parse func(context.Context, []string) (string, error),
-	args ...string,
-) (cli.Inspection, error) {
+func inputTokenLanguageInspection(ctx context.Context, t *testing.T, parse func(context.Context, []string) (string, error), args ...string) (cli.Inspection, error) {
 	t.Helper()
 	type config = inputTokenLanguageRejectionValueConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "rejection",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			value := root.Values.String(&root.Config.Value)
 			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
@@ -630,13 +657,15 @@ func inputTokenLanguageInspection(
 				})
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
-	return app.Inspect(ctx, cli.InspectionRequest{
+	request := cli.InspectionRequest{
 		Args: append([]string(nil), args...),
-	})
+	}
+	return app.Inspect(ctx, request)
 }
 
 func inputInspectionHasDiagnosticCode(inspection cli.Inspection, code cli.DiagnosticCode) bool {
@@ -651,15 +680,18 @@ func inputInspectionHasDiagnosticCode(inspection cli.Inspection, code cli.Diagno
 func TestMatchEnvironmentProducersPreservesProducerThenDuplicateEntryOrder(t *testing.T) {
 	t.Parallel()
 	type config struct{ Modes []string }
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			modes := root.Values.Sequence(&root.Config.Modes, cli.Value.String())
 			root.Values.Environment(modes, "MODE").Elements(",")
 			root.Values.Environment(modes, "OLD_MODE").Sensitive().Elements(",")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	mode := clitest.RootCommand().Environment("MODE")
 	old := clitest.RootCommand().Environment("OLD_MODE")
 	value := mode.Value()
@@ -667,12 +699,26 @@ func TestMatchEnvironmentProducersPreservesProducerThenDuplicateEntryOrder(t *te
 	c1 := value.CandidateAt(1)
 	c2 := value.CandidateAt(2)
 	c3 := value.CandidateAt(3)
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{Env: cli.Env{
-		{Name: "OLD_MODE", Value: "reference-first"},
-		{Name: "MODE", Value: "one"},
-		{Name: "MODE", Value: ""},
-		{Name: "OLD_MODE", Value: "reference-last"},
-	}}).Require(t,
+	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Env: cli.Env{
+			{
+				Name:  "OLD_MODE",
+				Value: "reference-first",
+			},
+			{
+				Name:  "MODE",
+				Value: "one",
+			},
+			{
+				Name:  "MODE",
+				Value: "",
+			},
+			{
+				Name:  "OLD_MODE",
+				Value: "reference-last",
+			},
+		},
+	}).Require(t,
 		clitest.InspectionReady(),
 		value.CandidatesExactly(c0, c1, c2, c3),
 		c0.Declaration(mode),

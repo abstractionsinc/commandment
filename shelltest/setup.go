@@ -9,6 +9,17 @@ import (
 	"unicode/utf8"
 )
 
+// PrepareFunc declares provider-owned shell setup before the real shell starts.
+type PrepareFunc func(Setup) error
+
+// Setup is a callback-scoped declarative capability supplied to PrepareFunc. Its zero value is
+// invalid. Setup values are noncomparable, must not be retained after PrepareFunc returns, and
+// must not be used concurrently.
+type Setup struct {
+	_       [0]func()
+	session *setupSession
+}
+
 type setupSessionState uint8
 
 const (
@@ -70,13 +81,16 @@ func runSetup(prepare PrepareFunc, workspace string, verified verifiedRuntime, g
 		defer func() {
 			session.close()
 		}()
-		callbackErr = prepare(Setup{session: session})
+		callbackErr = prepare(Setup{
+			session: session,
+		})
 	}()
 	if callbackErr != nil {
-		return setupPlan{}, &failureError{
+		failure := &failureError{
 			subject: "prepare target",
 			cause:   callbackErr,
 		}
+		return setupPlan{}, failure
 	}
 	if session.failure != nil {
 		return setupPlan{}, session.failure
@@ -102,7 +116,9 @@ func (session *setupSession) close() {
 
 	session.uses.Wait()
 	if crossedBoundary && session.failure == nil {
-		session.failure = &failureError{subject: "Setup operation crossed Prepare callback boundary"}
+		session.failure = &failureError{
+			subject: "Setup operation crossed Prepare callback boundary",
+		}
 	}
 	session.integration = nil
 	session.reserved = nil
@@ -134,7 +150,9 @@ func (setup Setup) File(name, contents string) string {
 	session := setup.acquire()
 	defer setup.release(session)
 	if !utf8.ValidString(contents) {
-		session.recordFailure(&failureError{subject: "test file contents are not valid UTF-8"})
+		session.recordFailure(&failureError{
+			subject: "test file contents are not valid UTF-8",
+		})
 		return ""
 	}
 	return session.declareFile(name, []byte(contents))
@@ -176,7 +194,9 @@ func (setup Setup) Args(args ...string) {
 	defer setup.release(session)
 	for _, arg := range args {
 		if strings.IndexByte(arg, 0) >= 0 {
-			session.recordFailure(&failureError{subject: "shell startup argument contains NUL"})
+			session.recordFailure(&failureError{
+				subject: "shell startup argument contains NUL",
+			})
 			return
 		}
 	}
@@ -252,17 +272,19 @@ func (session *setupSession) recordFailure(err error) {
 
 func validateSetupFileName(name string) (string, error) {
 	if name == "" || strings.IndexByte(name, 0) >= 0 || filepath.IsAbs(name) || filepath.VolumeName(name) != "" {
-		return "", &failureError{
+		failure := &failureError{
 			subject: "invalid setup file name",
 			detail:  strconv.Quote(name),
 		}
+		return "", failure
 	}
 	clean := filepath.Clean(name)
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-		return "", &failureError{
+		failure := &failureError{
 			subject: "invalid setup file name",
 			detail:  strconv.Quote(name),
 		}
+		return "", failure
 	}
 	return clean, nil
 }
@@ -280,11 +302,12 @@ func setupFileNamesCollide(left, right string) bool {
 func materializeSetup(workspace string, plan setupPlan) error {
 	for _, file := range plan.files {
 		if err := createWorkspaceFile(workspace, file.name, file.content, privateFileMode); err != nil {
-			return &failureError{
+			failure := &failureError{
 				subject: "materialize setup file",
 				detail:  strconv.Quote(file.name),
 				cause:   err,
 			}
+			return failure
 		}
 	}
 	return nil

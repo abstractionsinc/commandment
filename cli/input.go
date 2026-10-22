@@ -28,9 +28,10 @@ type InputRevision struct{ value string }
 
 // Revision constructs an opaque InputRevision from token.
 func Revision(token string) InputRevision {
-	return InputRevision{
+	revision := InputRevision{
 		value: token,
 	}
+	return revision
 }
 
 // InputOriginID identifies one provenance origin within the owning artifact. The

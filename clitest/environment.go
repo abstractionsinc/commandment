@@ -33,135 +33,154 @@ func (locator EnvironmentInputLocator) Value() ValueLocator { return environment
 // Exists returns an expectation that checks the located environment input exists. Positive
 // existence may be satisfied by truthful partial output when the subject is present.
 func (locator EnvironmentInputLocator) Exists() DeclarationExpectation {
-	return environmentInputExistenceExpectation{
+	expectation := environmentInputExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located environment input does not exist; an
 // incomplete observation cannot establish absence.
 func (locator EnvironmentInputLocator) DoesNotExist() DeclarationExpectation {
-	return environmentInputExistenceExpectation{
+	expectation := environmentInputExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Sensitive returns an expectation that checks the located environment input is marked sensitive.
 // Expectation failure preserves Commandment redaction and does not expose secret material.
 func (locator EnvironmentInputLocator) Sensitive() DeclarationExpectation {
-	return environmentInputSensitiveExpectationValue{locator: locator.state}
+	value := environmentInputSensitiveExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Lifecycle returns an expectation that checks the located environment input has the expected
 // effective lifecycle state; this is distinct from release-lifecycle metadata.
 func (locator EnvironmentInputLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return environmentInputLifecycleExpectationValue{
+	value := environmentInputLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the located environment input replacement points
 // to the exact declaration identified by v, using public declaration identity rather than
 // presentation text.
 func (locator EnvironmentInputLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return environmentInputReplacementExpectationValue{
+	value := environmentInputReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located environment input is available in the
 // applicable public observation.
 func (locator EnvironmentInputLocator) Available() EffectiveDeclarationExpectation {
-	return environmentInputAvailabilityExpectation{
+	expectation := environmentInputAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located environment input is unavailable in
 // the applicable public observation.
 func (locator EnvironmentInputLocator) Unavailable() EffectiveDeclarationExpectation {
-	return environmentInputAvailabilityExpectation{
+	expectation := environmentInputAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Prefix returns a reusable declaration expectation that checks the public prefix mode exposed
 // by the located environment-input declaration.
 func (locator EnvironmentInputLocator) Prefix() DeclarationExpectation {
-	return environmentInputCorePropertyExpectation{
+	expectation := environmentInputCorePropertyExpectation{
 		locator: locator.state,
 		kind:    environmentInputCorePropertyPrefix,
 		prefix:  true,
 	}
+	return expectation
 }
 
 // NotPrefix returns a reusable declaration expectation that checks the located
 // environment-input declaration does not use prefix mode.
 func (locator EnvironmentInputLocator) NotPrefix() DeclarationExpectation {
-	return environmentInputCorePropertyExpectation{
+	expectation := environmentInputCorePropertyExpectation{
 		locator: locator.state,
 		kind:    environmentInputCorePropertyPrefix,
 		prefix:  false,
 	}
+	return expectation
 }
 
 // Delimiter returns a reusable declaration expectation that checks the public delimiter exposed
 // by the located environment-input declaration.
 func (locator EnvironmentInputLocator) Delimiter(expected string) DeclarationExpectation {
-	return environmentInputCorePropertyExpectation{
+	expectation := environmentInputCorePropertyExpectation{
 		locator:   locator.state,
 		kind:      environmentInputCorePropertyDelimiter,
 		delimiter: expected,
 	}
+	return expectation
 }
 
 // Origin returns an expectation that checks the located environment input has the
 // framework-established DeclarationOrigin expected.
 func (locator EnvironmentInputLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return environmentInputOriginExpectation{
+	expectation := environmentInputOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located environment input has the exact
 // public release-lifecycle metadata expected.
 func (locator EnvironmentInputLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return environmentInputReleaseLifecycleExpectation{
+	expectation := environmentInputReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located environment input has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator EnvironmentInputLocator) NotReplaced() DeclarationExpectation {
-	return environmentInputReplacementAbsenceExpectation{locator: locator.state}
+	expectation := environmentInputReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located environment input
 // replacement carries the expected public presentation text.
 func (locator EnvironmentInputLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return environmentInputReplacementPresentationExpectation{
+	expectation := environmentInputReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located
 // environment input replacement carries the expected migration-deprecation marker.
 func (locator EnvironmentInputLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return environmentInputReplacementTargetDeprecatedExpectation{
+	expectation := environmentInputReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // Environment returns a locator for the uniquely resolved environment input named name under the
@@ -183,10 +202,11 @@ func (locator CommandLocator) EnvironmentInputsExactly(inputs ...EnvironmentInpu
 	for index, input := range inputs {
 		expected[index] = input.state
 	}
-	return commandEnvironmentInputsExactlyExpectation{
+	expectation := commandEnvironmentInputsExactlyExpectation{
 		command: locator.state,
 		inputs:  expected,
 	}
+	return expectation
 }
 
 type environmentInputLocatorMode uint8
@@ -510,10 +530,11 @@ func selectSchemaEnvironmentInput(state *environmentInputLocatorState, ids []cli
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  "matches environment-name IDs",
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("environment-input lookup domain is incomplete")
@@ -555,10 +576,11 @@ func selectReferenceEnvironmentInput(state *environmentInputLocatorState, ids []
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  "matches environment-name IDs",
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("environment-input lookup domain is incomplete")
@@ -689,10 +711,14 @@ func evaluateEnvironmentInputReplacementPresentationInspection(expectation envir
 }
 
 func environmentInputIDLocator(id cli.EnvironmentInputID) EnvironmentInputLocator {
-	return EnvironmentInputLocator{state: &environmentInputLocatorState{
+	state := &environmentInputLocatorState{
 		mode: environmentInputLocatorID,
 		id:   id,
-	}}
+	}
+	locator := EnvironmentInputLocator{
+		state: state,
+	}
+	return locator
 }
 
 func (environmentInputAvailabilityExpectation) referenceExpectation() {}
@@ -800,19 +826,37 @@ func (environmentInputReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation environmentInputReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaEnvironmentInputLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation environmentInputReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceEnvironmentInputLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation environmentInputReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionEnvironmentInputLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (environmentInputReplacementAbsenceExpectation) schemaExpectation() {}

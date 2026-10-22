@@ -20,10 +20,11 @@ func acceptShellCompletionProvider(name string, generator ShellCompletionGenerat
 	if name == "" || generator == nil {
 		panic("application: invalid shell completion provider")
 	}
-	return shellCompletionProvider{
+	provider := shellCompletionProvider{
 		name:      name,
 		generator: generator,
 	}
+	return provider
 }
 
 // Name returns the provider catalog name.
@@ -62,10 +63,11 @@ type shellCompletionCatalog struct {
 
 // freezeDisabledShellCompletionCatalog freezes a valid disabled catalog.
 func freezeDisabledShellCompletionCatalog() shellCompletionCatalog {
-	return shellCompletionCatalog{
+	catalog := shellCompletionCatalog{
 		valid:    true,
 		disabled: true,
 	}
+	return catalog
 }
 
 // freezeShellCompletionCatalog snapshots a non-empty provider catalog.
@@ -79,11 +81,12 @@ func freezeShellCompletionCatalog(providers []shellCompletionProvider) shellComp
 			panic("application: invalid shell completion provider")
 		}
 	}
-	return shellCompletionCatalog{
+	catalog := shellCompletionCatalog{
 		valid:     true,
 		providers: copyProviders,
 		identity:  &shellCompletionIdentity{},
 	}
+	return catalog
 }
 
 // Valid reports whether the catalog was constructed successfully.
@@ -186,11 +189,15 @@ func stageShellCompletion(draft *declarationDraft, root commandRef, catalog shel
 
 	commandPosition := draft.nextPosition()
 	command := commandDraft{
-		position:    commandPosition,
-		parent:      stagedCommandParent{command: root},
-		name:        "completion",
-		description: Description{Short: "Generate shell completion source"},
-		intrinsic:   true,
+		position: commandPosition,
+		parent: stagedCommandParent{
+			command: root,
+		},
+		name: "completion",
+		description: Description{
+			Short: "Generate shell completion source",
+		},
+		intrinsic: true,
 	}
 	commandRef := draft.commands.append(draft, command)
 
@@ -422,10 +429,11 @@ func (shellNamespace) Custom(name string, generator ShellCompletionGenerator) Sh
 		return func() shellCompletionDescriptor { return shellCompletionDescriptor{} }
 	}
 	return func() shellCompletionDescriptor {
-		return shellCompletionDescriptor{
+		descriptor := shellCompletionDescriptor{
 			name:      name,
 			generator: generator,
 		}
+		return descriptor
 	}
 }
 

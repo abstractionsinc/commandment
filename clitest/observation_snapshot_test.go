@@ -17,16 +17,20 @@ func TestRawAccessorsDetachNestedMutableObservationState(t *testing.T) {
 	grammarProfileID := cli.GrammarProfileID(2)
 	diagnosticCode := cli.DiagnosticCode("snapshot")
 
-	inspectionResult := InspectionResult{state: &inspectionResultState{observation: cli.Inspection{
-		Status: cli.InspectionStatusReady,
-		Commands: map[cli.CommandID]cli.CommandInspection{
-			commandID: {
-				ID:   commandID,
-				Name: "root",
-				Path: []string{"root"},
+	inspectionResult := InspectionResult{
+		state: &inspectionResultState{
+			observation: cli.Inspection{
+				Status: cli.InspectionStatusReady,
+				Commands: map[cli.CommandID]cli.CommandInspection{
+					commandID: {
+						ID:   commandID,
+						Name: "root",
+						Path: []string{"root"},
+					},
+				},
 			},
 		},
-	}}}
+	}
 	inspection, err := inspectionResult.Inspection()
 	if err != nil {
 		t.Fatalf("Inspection() error = %v", err)
@@ -41,17 +45,24 @@ func TestRawAccessorsDetachNestedMutableObservationState(t *testing.T) {
 	}
 	inspectionResult.Require(t, CommandByID(commandID).Exists())
 
-	completionResult := CompletionResult{state: &completionResultState{observation: cli.Completion{
-		Items: []cli.CompletionItem{{
-			Value:         "alpha",
-			Replacement:   []string{"alpha"},
-			SearchTerms:   []string{"alpha", "a"},
-			TargetIndexes: []int{0},
-			Match: cli.CompletionMatch{
-				Ranges: []cli.CompletionRange{{Start: 0, End: 1}},
+	completionResult := CompletionResult{
+		state: &completionResultState{
+			observation: cli.Completion{
+				Items: []cli.CompletionItem{{
+					Value:         "alpha",
+					Replacement:   []string{"alpha"},
+					SearchTerms:   []string{"alpha", "a"},
+					TargetIndexes: []int{0},
+					Match: cli.CompletionMatch{
+						Ranges: []cli.CompletionRange{{
+							Start: 0,
+							End:   1,
+						}},
+					},
+				}},
 			},
-		}},
-	}}}
+		},
+	}
 	completion, err := completionResult.Completion()
 	if err != nil {
 		t.Fatalf("Completion() error = %v", err)
@@ -66,18 +77,22 @@ func TestRawAccessorsDetachNestedMutableObservationState(t *testing.T) {
 	}
 	completionResult.Require(t, CompletionItem("alpha").Present())
 
-	schemaResult := SchemaResult{state: &schemaResultState{observation: cli.Schema{
-		Commands: map[cli.CommandID]cli.CommandSchema{
-			commandID: {
-				ID:   commandID,
-				Name: "root",
-				Path: []string{"root"},
-				Dialect: &cli.CommandDialect{
-					EndOfOptions: []string{"--"},
+	schemaResult := SchemaResult{
+		state: &schemaResultState{
+			observation: cli.Schema{
+				Commands: map[cli.CommandID]cli.CommandSchema{
+					commandID: {
+						ID:   commandID,
+						Name: "root",
+						Path: []string{"root"},
+						Dialect: &cli.CommandDialect{
+							EndOfOptions: []string{"--"},
+						},
+					},
 				},
 			},
 		},
-	}}}
+	}
 	schema := schemaResult.Schema()
 	schemaCommand := schema.Commands[commandID]
 	schemaCommand.Path[0] = "mutated"
@@ -90,18 +105,22 @@ func TestRawAccessorsDetachNestedMutableObservationState(t *testing.T) {
 	}
 	schemaResult.Require(t, CommandByID(commandID).Exists())
 
-	referenceResult := ReferenceResult{state: &referenceResultState{observation: cli.Reference{
-		Commands: map[cli.CommandID]cli.CommandReference{
-			commandID: {
-				ID:   commandID,
-				Name: "root",
-				Path: []string{"root"},
-				ProfileUsage: map[cli.GrammarProfileID][]string{
-					grammarProfileID: {"root --flag"},
+	referenceResult := ReferenceResult{
+		state: &referenceResultState{
+			observation: cli.Reference{
+				Commands: map[cli.CommandID]cli.CommandReference{
+					commandID: {
+						ID:   commandID,
+						Name: "root",
+						Path: []string{"root"},
+						ProfileUsage: map[cli.GrammarProfileID][]string{
+							grammarProfileID: {"root --flag"},
+						},
+					},
 				},
 			},
 		},
-	}}}
+	}
 	reference, err := referenceResult.Reference()
 	if err != nil {
 		t.Fatalf("Reference() error = %v", err)
@@ -117,17 +136,25 @@ func TestRawAccessorsDetachNestedMutableObservationState(t *testing.T) {
 	}
 	referenceResult.Require(t, CommandByID(commandID).Exists())
 
-	diagnosticsResult := DiagnosticsResult{state: &diagnosticsResultState{observation: cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{
-			Code:        diagnosticCode,
-			CommandPath: []string{"root"},
-			Span: &cli.InputSpan{
-				Start: cli.InputPosition{Offset: 1},
-				End:   cli.InputPosition{Offset: 2},
+	diagnosticsResult := DiagnosticsResult{
+		state: &diagnosticsResultState{
+			observation: cli.DiagnosticReport{
+				Diagnostics: []cli.Diagnostic{{
+					Code:        diagnosticCode,
+					CommandPath: []string{"root"},
+					Span: &cli.InputSpan{
+						Start: cli.InputPosition{
+							Offset: 1,
+						},
+						End: cli.InputPosition{
+							Offset: 2,
+						},
+					},
+					Origins: []cli.InputOriginID{{}},
+				}},
 			},
-			Origins: []cli.InputOriginID{{}},
-		}},
-	}}}
+		},
+	}
 	report := diagnosticsResult.Report()
 	report.Diagnostics[0].CommandPath[0] = "mutated"
 	report.Diagnostics[0].Span.Start.Offset = 99
@@ -143,9 +170,21 @@ func TestRawAccessorsPreserveExactOpaqueErrorIdentity(t *testing.T) {
 	t.Parallel()
 
 	sentinel := &accessorSentinelError{}
-	inspection := InspectionResult{state: &inspectionResultState{err: sentinel}}
-	completion := CompletionResult{state: &completionResultState{err: sentinel}}
-	reference := ReferenceResult{state: &referenceResultState{err: sentinel}}
+	inspection := InspectionResult{
+		state: &inspectionResultState{
+			err: sentinel,
+		},
+	}
+	completion := CompletionResult{
+		state: &completionResultState{
+			err: sentinel,
+		},
+	}
+	reference := ReferenceResult{
+		state: &referenceResultState{
+			err: sentinel,
+		},
+	}
 
 	if _, err := inspection.Inspection(); err != sentinel { //nolint:errorlint,err113 // Raw accessors must preserve exact opaque error identity.
 		t.Fatalf("Inspection() error = %p, want %p", err, sentinel)

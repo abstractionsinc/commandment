@@ -74,9 +74,10 @@ func settleCompletionShortcutPrefix(ctx context.Context, snapshot *completionOpe
 		delta := settledStop - stop
 		snapshot.input.analysisCursorArgument += delta
 		if err != nil {
-			return completionShortcutState{
+			state := completionShortcutState{
 				trailingAppend: trailingAppend,
-			}, err
+			}
+			return state, err
 		}
 		processed = settledStop
 
@@ -85,9 +86,10 @@ func settleCompletionShortcutPrefix(ctx context.Context, snapshot *completionOpe
 				ctx, snapshot, invocation, expanded, trailingAppend, processed,
 			)
 			if err != nil {
-				return completionShortcutState{
+				state := completionShortcutState{
 					trailingAppend: trailingAppend,
-				}, err
+				}
+				return state, err
 			}
 			trailingAppend = settlement.trailingAppend
 			if !settlement.changed {
@@ -352,7 +354,8 @@ func settleNextCompletionShortcut(ctx context.Context, snapshot *completionOpera
 		}
 		return result, nil
 	}
-	return completionShortcutSettlement{
+	settlement := completionShortcutSettlement{
 		trailingAppend: trailingAppend,
-	}, nil
+	}
+	return settlement, nil
 }

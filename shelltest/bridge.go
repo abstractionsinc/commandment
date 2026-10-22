@@ -61,10 +61,11 @@ type applicationBridge struct {
 func startApplicationBridge(parent context.Context, app cli.Application, generation cli.ShellCompletionGeneration) (*applicationBridge, error) {
 	listener, err := (&net.ListenConfig{}).Listen(parent, "tcp4", "127.0.0.1:0")
 	if err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "listen for application bridge",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	ctx, cancel := context.WithCancel(parent)
 	bridge := &applicationBridge{
@@ -82,10 +83,11 @@ func startApplicationBridge(parent context.Context, app cli.Application, generat
 	if _, err := rand.Read(bridge.capability[:]); err != nil {
 		cancel()
 		_ = listener.Close()
-		return nil, failureError{
+		failure := failureError{
 			subject: "create application bridge capability",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	go bridge.accept(ctx)
 	return bridge, nil
@@ -109,7 +111,9 @@ func (bridge *applicationBridge) accept(ctx context.Context) {
 		if bridge.nextAccepted == ^uint64(0) {
 			bridge.mu.Unlock()
 			_ = connection.Close()
-			bridge.recordFailure(failureError{subject: "application bridge acceptance counter exhausted"})
+			bridge.recordFailure(failureError{
+				subject: "application bridge acceptance counter exhausted",
+			})
 			return
 		}
 		bridge.nextAccepted++
@@ -151,7 +155,9 @@ func (bridge *applicationBridge) handle(ctx context.Context, connection net.Conn
 
 	bridge.mu.Lock()
 	if bridge.authenticatedCount == ^uint64(0) {
-		bridge.failure = firstFailure(bridge.failure, failureError{subject: "application bridge authentication counter exhausted"})
+		bridge.failure = firstFailure(bridge.failure, failureError{
+			subject: "application bridge authentication counter exhausted",
+		})
 		bridge.mu.Unlock()
 		bridge.notify()
 		return
@@ -160,7 +166,9 @@ func (bridge *applicationBridge) handle(ctx context.Context, connection net.Conn
 	phase := bridge.phase
 	causal := accepted > bridge.armedAfterAccepted && (phase == applicationBridgeAwaitingCompletion || phase == applicationBridgeWitnessed)
 	if phase >= applicationBridgeSealing {
-		bridge.failure = firstFailure(bridge.failure, failureError{subject: "authenticated helper exchange raced bridge sealing"})
+		bridge.failure = firstFailure(bridge.failure, failureError{
+			subject: "authenticated helper exchange raced bridge sealing",
+		})
 	}
 	bridge.mu.Unlock()
 	bridge.notify()
@@ -189,7 +197,9 @@ func (bridge *applicationBridge) handle(ctx context.Context, connection net.Conn
 		return
 	}
 	if len(processRequest.args) != 1 {
-		bridge.recordFailure(failureError{subject: "completion helper received transport arguments"})
+		bridge.recordFailure(failureError{
+			subject: "completion helper received transport arguments",
+		})
 		return
 	}
 	adapterRequest, err := decodeShellAdapterRequest(processRequest.stdin)
@@ -221,7 +231,9 @@ func (bridge *applicationBridge) handle(ctx context.Context, connection net.Conn
 	}
 
 	response := projectShellAdapterResponse(completion, completionErr != nil, adapterRequest.capabilities)
-	writer := boundedWriter{limit: bridgeCompletionResponseLimit}
+	writer := boundedWriter{
+		limit: bridgeCompletionResponseLimit,
+	}
 	if err := encodeShellAdapterResponse(&writer, adapterRequest.responseCodec, response); err != nil {
 		bridge.recordFailure(failureError{
 			subject: "encode shell completion response",
@@ -264,7 +276,9 @@ func (bridge *applicationBridge) handle(ctx context.Context, connection net.Conn
 		return
 	}
 	if !bytes.Equal(ack, []byte{1}) {
-		bridge.recordFailure(failureError{subject: "invalid application bridge acknowledgement"})
+		bridge.recordFailure(failureError{
+			subject: "invalid application bridge acknowledgement",
+		})
 		return
 	}
 	if err := connection.SetReadDeadline(time.Now().Add(bridgeAckTimeout)); err != nil {
@@ -300,10 +314,16 @@ func (bridge *applicationBridge) arm() error {
 		return bridge.failure
 	}
 	if bridge.panicSet {
-		return failureError{subject: applicationCompletionPanicSubject}
+		failure := failureError{
+			subject: applicationCompletionPanicSubject,
+		}
+		return failure
 	}
 	if bridge.phase != applicationBridgeBeforeCompletion {
-		return failureError{subject: "application bridge causal frontier already armed"}
+		failure := failureError{
+			subject: "application bridge causal frontier already armed",
+		}
+		return failure
 	}
 	bridge.armedAfterAccepted = bridge.nextAccepted
 	bridge.phase = applicationBridgeAwaitingCompletion
@@ -317,7 +337,10 @@ func (bridge *applicationBridge) waitWitness(ctx context.Context) error {
 			return false, bridge.failure
 		}
 		if bridge.panicSet {
-			return false, failureError{subject: applicationCompletionPanicSubject}
+			failure := failureError{
+				subject: applicationCompletionPanicSubject,
+			}
+			return false, failure
 		}
 		return bridge.phase == applicationBridgeWitnessed, nil
 	})
@@ -329,7 +352,10 @@ func (bridge *applicationBridge) waitConnectionsEmpty(ctx context.Context) error
 			return false, bridge.failure
 		}
 		if bridge.panicSet {
-			return false, failureError{subject: applicationCompletionPanicSubject}
+			failure := failureError{
+				subject: applicationCompletionPanicSubject,
+			}
+			return false, failure
 		}
 		return len(bridge.connections) == 0, nil
 	})
@@ -348,10 +374,16 @@ func (bridge *applicationBridge) beginSealing() error {
 		return bridge.failure
 	}
 	if bridge.panicSet {
-		return failureError{subject: applicationCompletionPanicSubject}
+		failure := failureError{
+			subject: applicationCompletionPanicSubject,
+		}
+		return failure
 	}
 	if bridge.phase != applicationBridgeWitnessed {
-		return failureError{subject: "application bridge completion not witnessed"}
+		failure := failureError{
+			subject: "application bridge completion not witnessed",
+		}
+		return failure
 	}
 	bridge.phase = applicationBridgeSealing
 	if err := bridge.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
@@ -370,10 +402,11 @@ func (bridge *applicationBridge) waitAcceptDrained(ctx context.Context) error {
 	case <-bridge.acceptDone:
 		return nil
 	case <-ctx.Done():
-		return failureError{
+		failure := failureError{
 			subject: "wait for application bridge accept loop",
 			cause:   ctx.Err(),
 		}
+		return failure
 	}
 }
 
@@ -384,16 +417,28 @@ func (bridge *applicationBridge) settle(frontier uint64) error {
 		return bridge.failure
 	}
 	if bridge.panicSet {
-		return failureError{subject: applicationCompletionPanicSubject}
+		failure := failureError{
+			subject: applicationCompletionPanicSubject,
+		}
+		return failure
 	}
 	if bridge.phase != applicationBridgeSealing {
-		return failureError{subject: "application bridge is not sealing"}
+		failure := failureError{
+			subject: "application bridge is not sealing",
+		}
+		return failure
 	}
 	if len(bridge.connections) != 0 {
-		return failureError{subject: "application bridge handlers remain active"}
+		failure := failureError{
+			subject: "application bridge handlers remain active",
+		}
+		return failure
 	}
 	if bridge.authenticatedCount != frontier {
-		return failureError{subject: "authenticated helper exchange raced bridge settlement"}
+		failure := failureError{
+			subject: "authenticated helper exchange raced bridge settlement",
+		}
+		return failure
 	}
 	bridge.phase = applicationBridgeSettled
 	bridge.notifyLocked()
@@ -464,10 +509,11 @@ func (bridge *applicationBridge) wait(ctx context.Context, predicate func() (boo
 		select {
 		case <-bridge.changed:
 		case <-ctx.Done():
-			return failureError{
+			failure := failureError{
 				subject: "wait for application bridge",
 				cause:   ctx.Err(),
 			}
+			return failure
 		}
 	}
 }

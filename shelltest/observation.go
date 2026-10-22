@@ -5,6 +5,17 @@ import (
 	"sync"
 )
 
+// InterpretFunc maps one settled shell observation into provider-owned semantics.
+type InterpretFunc[R any] func(Observation) (R, error)
+
+// Observation is a callback-scoped immutable settled view supplied to InterpretFunc. Its zero value
+// is invalid. Observation values are noncomparable and must not be retained after InterpretFunc
+// returns. Slice-returning methods return defensive copies.
+type Observation struct {
+	_     [0]func()
+	state *observationState
+}
+
 type observationState struct {
 	mu sync.Mutex
 

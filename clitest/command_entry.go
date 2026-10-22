@@ -58,167 +58,190 @@ func (CommandEntryLocator) tokenOwner() {}
 // Exists returns an expectation that checks the located command entry exists. Positive existence
 // may be satisfied by truthful partial output when the subject is present.
 func (locator CommandEntryLocator) Exists() DeclarationExpectation {
-	return commandEntryExistenceExpectation{
+	expectation := commandEntryExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located command entry does not exist; an
 // incomplete observation cannot establish absence.
 func (locator CommandEntryLocator) DoesNotExist() DeclarationExpectation {
-	return commandEntryExistenceExpectation{
+	expectation := commandEntryExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Kind returns an expectation that checks the located command entry has the expected public kind.
 func (locator CommandEntryLocator) Kind(v cli.CommandEntryKind) DeclarationExpectation {
-	return commandEntryKindExpectationValue{
+	value := commandEntryKindExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Hidden returns an expectation that checks the located command entry is marked hidden by the
 // public Commandment observation.
 func (locator CommandEntryLocator) Hidden() DeclarationExpectation {
-	return commandEntryHiddenExpectationValue{locator: locator.state}
+	value := commandEntryHiddenExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Lifecycle returns an expectation that checks the located command entry has the expected
 // effective lifecycle state; this is distinct from release-lifecycle metadata.
 func (locator CommandEntryLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return commandEntryLifecycleExpectationValue{
+	value := commandEntryLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the located command entry replacement points to
 // the exact declaration identified by v, using public declaration identity rather than
 // presentation text.
 func (locator CommandEntryLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return commandEntryReplacementExpectationValue{
+	value := commandEntryReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Targets returns an expectation that checks the located command entry targets the exact command
 // identified by v.
 func (locator CommandEntryLocator) Targets(v CommandLocator) DeclarationExpectation {
-	return commandEntryTargetExpectationValue{
+	value := commandEntryTargetExpectationValue{
 		locator: locator.state,
 		target:  v.state,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located command entry is available in the
 // applicable public observation.
 func (locator CommandEntryLocator) Available() EffectiveDeclarationExpectation {
-	return commandEntryAvailabilityExpectation{
+	expectation := commandEntryAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located command entry is unavailable in the
 // applicable public observation.
 func (locator CommandEntryLocator) Unavailable() EffectiveDeclarationExpectation {
-	return commandEntryAvailabilityExpectation{
+	expectation := commandEntryAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Visible returns an expectation that checks the located command entry is visible in the
 // applicable public observation.
 func (locator CommandEntryLocator) Visible() EffectiveDeclarationExpectation {
-	return commandEntryVisibilityExpectation{
+	expectation := commandEntryVisibilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // NotVisible returns an expectation that checks the located command entry is not visible in the
 // applicable public observation.
 func (locator CommandEntryLocator) NotVisible() EffectiveDeclarationExpectation {
-	return commandEntryVisibilityExpectation{
+	expectation := commandEntryVisibilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // ShortcutDefaultCount returns a reusable declaration expectation that checks the shortcut
 // default count exposed by the located command entry.
 func (locator CommandEntryLocator) ShortcutDefaultCount(expected int) DeclarationExpectation {
-	return commandEntryShortcutDefaultCountExpectation{
+	expectation := commandEntryShortcutDefaultCountExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ShortcutDefaultAt returns a locator for the shortcut default at the supplied public ordered
 // index of the located command entry. It does not search for or silently choose a first match.
 func (locator CommandEntryLocator) ShortcutDefaultAt(index int) CommandShortcutDefaultLocator {
-	return CommandShortcutDefaultLocator{
+	commandShortcutDefaultLocator := CommandShortcutDefaultLocator{
 		entry: locator,
 		index: index,
 	}
+	return commandShortcutDefaultLocator
 }
 
 // SourceDescription returns a reusable Schema expectation that checks the public source
 // description exposed by the located command entry.
 func (locator CommandEntryLocator) SourceDescription(expected cli.Description) SchemaExpectation {
-	return commandEntrySourceDescriptionExpectation{
+	expectation := commandEntrySourceDescriptionExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // Origin returns an expectation that checks the located command entry has the
 // framework-established DeclarationOrigin expected.
 func (locator CommandEntryLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return commandEntryOriginExpectation{
+	expectation := commandEntryOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located command entry has the exact
 // public release-lifecycle metadata expected.
 func (locator CommandEntryLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return commandEntryReleaseLifecycleExpectation{
+	expectation := commandEntryReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located command entry has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator CommandEntryLocator) NotReplaced() DeclarationExpectation {
-	return commandEntryReplacementAbsenceExpectation{locator: locator.state}
+	expectation := commandEntryReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located command entry replacement
 // carries the expected public presentation text.
 func (locator CommandEntryLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return commandEntryReplacementPresentationExpectation{
+	expectation := commandEntryReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located
 // command entry replacement carries the expected migration-deprecation marker.
 func (locator CommandEntryLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return commandEntryReplacementTargetDeprecatedExpectation{
+	expectation := commandEntryReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 func (ActionEntryLocator) declarationIdentityLocator() {}
@@ -232,155 +255,179 @@ func (ActionEntryLocator) tokenOwner() {}
 // Exists returns an expectation that checks the located action entry exists. Positive existence
 // may be satisfied by truthful partial output when the subject is present.
 func (locator ActionEntryLocator) Exists() DeclarationExpectation {
-	return actionEntryExistenceExpectation{
+	expectation := actionEntryExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located action entry does not exist; an
 // incomplete observation cannot establish absence.
 func (locator ActionEntryLocator) DoesNotExist() DeclarationExpectation {
-	return actionEntryExistenceExpectation{
+	expectation := actionEntryExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Kind returns an expectation that checks the located action entry has the expected public kind.
 func (locator ActionEntryLocator) Kind(v cli.ActionEntryKind) DeclarationExpectation {
-	return actionEntryKindExpectationValue{
+	value := actionEntryKindExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Hidden returns an expectation that checks the located action entry is marked hidden by the
 // public Commandment observation.
 func (locator ActionEntryLocator) Hidden() DeclarationExpectation {
-	return actionEntryHiddenExpectationValue{locator: locator.state}
+	value := actionEntryHiddenExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Lifecycle returns an expectation that checks the located action entry has the expected effective
 // lifecycle state; this is distinct from release-lifecycle metadata.
 func (locator ActionEntryLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return actionEntryLifecycleExpectationValue{
+	value := actionEntryLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the located action entry replacement points to the
 // exact declaration identified by v, using public declaration identity rather than presentation
 // text.
 func (locator ActionEntryLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return actionEntryReplacementExpectationValue{
+	value := actionEntryReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located action entry is available in the
 // applicable public observation.
 func (locator ActionEntryLocator) Available() EffectiveDeclarationExpectation {
-	return actionEntryAvailabilityExpectation{
+	expectation := actionEntryAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located action entry is unavailable in the
 // applicable public observation.
 func (locator ActionEntryLocator) Unavailable() EffectiveDeclarationExpectation {
-	return actionEntryAvailabilityExpectation{
+	expectation := actionEntryAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Visible returns an expectation that checks the located action entry is visible in the applicable
 // public observation.
 func (locator ActionEntryLocator) Visible() EffectiveDeclarationExpectation {
-	return actionEntryVisibilityExpectation{
+	expectation := actionEntryVisibilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // NotVisible returns an expectation that checks the located action entry is not visible in the
 // applicable public observation.
 func (locator ActionEntryLocator) NotVisible() EffectiveDeclarationExpectation {
-	return actionEntryVisibilityExpectation{
+	expectation := actionEntryVisibilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Placement returns a reusable declaration expectation that checks the public placement exposed
 // by the located action entry.
 func (locator ActionEntryLocator) Placement(expected cli.FlagPlacement) DeclarationExpectation {
-	return actionEntryPlacementExpectation{
+	expectation := actionEntryPlacementExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // HasSourceShortDescription returns a Schema expectation that checks the action entry's source
 // short description is present in the static Schema observation.
 func (locator ActionEntryLocator) HasSourceShortDescription() SchemaExpectation {
-	return actionEntrySourceShortDescriptionExpectation{locator: locator.state}
+	expectation := actionEntrySourceShortDescriptionExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // SourceDescription returns a Schema expectation that checks the action entry's exact source
 // Description in the static Schema observation.
 func (locator ActionEntryLocator) SourceDescription(expected cli.Description) SchemaExpectation {
-	return actionEntrySourceDescriptionExpectation{
+	expectation := actionEntrySourceDescriptionExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // Origin returns an expectation that checks the located action entry has the framework-established
 // DeclarationOrigin expected.
 func (locator ActionEntryLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return actionEntryOriginExpectation{
+	expectation := actionEntryOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located action entry has the exact
 // public release-lifecycle metadata expected.
 func (locator ActionEntryLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return actionEntryReleaseLifecycleExpectation{
+	expectation := actionEntryReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located action entry has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator ActionEntryLocator) NotReplaced() DeclarationExpectation {
-	return actionEntryReplacementAbsenceExpectation{locator: locator.state}
+	expectation := actionEntryReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located action entry replacement
 // carries the expected public presentation text.
 func (locator ActionEntryLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return actionEntryReplacementPresentationExpectation{
+	expectation := actionEntryReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located action
 // entry replacement carries the expected migration-deprecation marker.
 func (locator ActionEntryLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return actionEntryReplacementTargetDeprecatedExpectation{
+	expectation := actionEntryReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // CanonicalEntry returns a locator for the located command's canonical command entry.
@@ -416,71 +463,81 @@ func (l CommandLocator) ActionEntryAt(index int) ActionEntryLocator {
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (l CommandLocator) EntriesExactly(values ...CommandEntryLocator) DeclarationExpectation {
-	return commandEntriesExpectation{
+	expectation := commandEntriesExpectation{
 		command: l.state,
 		items:   commandEntryLocatorStates(values),
 	}
+	return expectation
 }
 
 // ActionEntriesExactly returns an expectation that checks the located command's action entries are
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (l CommandLocator) ActionEntriesExactly(values ...ActionEntryLocator) DeclarationExpectation {
-	return commandActionEntriesExpectation{
+	expectation := commandActionEntriesExpectation{
 		command: l.state,
 		items:   actionEntryLocatorStates(values),
 	}
+	return expectation
 }
 
 // Destination returns a declaration expectation that checks the shortcut default's destination
 // relationship resolves to the same public value identity as the expected locator.
 func (locator CommandShortcutDefaultLocator) Destination(expected ValueLocator) DeclarationExpectation {
-	return shortcutDefaultExpectation{
+	expectation := shortcutDefaultExpectation{
 		locator:     locator,
 		property:    shortcutDefaultExpectationDestination,
 		destination: expected.state,
 	}
+	return expectation
 }
 
 // Spelling returns a reusable declaration expectation that checks the public spelling exposed
 // by the located public subject.
 func (locator CommandShortcutDefaultLocator) Spelling(expected string) DeclarationExpectation {
-	return shortcutDefaultExpectation{
+	expectation := shortcutDefaultExpectation{
 		locator:  locator,
 		property: shortcutDefaultExpectationSpelling,
 		spelling: expected,
 	}
+	return expectation
 }
 
 // Sensitive returns a reusable declaration expectation that checks the located public subject
 // is marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator CommandShortcutDefaultLocator) Sensitive() DeclarationExpectation {
-	return shortcutDefaultExpectation{
+	expectation := shortcutDefaultExpectation{
 		locator:   locator,
 		property:  shortcutDefaultExpectationSensitive,
 		sensitive: true,
 	}
+	return expectation
 }
 
 // ValueCount returns a reusable declaration expectation that checks the value count exposed by
 // the located public subject.
 func (locator CommandShortcutDefaultLocator) ValueCount(expected int) DeclarationExpectation {
-	return shortcutDefaultExpectation{
+	expectation := shortcutDefaultExpectation{
 		locator:  locator,
 		property: shortcutDefaultExpectationValueCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // ValueAt returns a locator for the value at the supplied public ordered index of the located
 // public subject. It does not search for or silently choose a first match.
 func (locator CommandShortcutDefaultLocator) ValueAt(index int) DeclarationValueLiteralLocator {
-	return DeclarationValueLiteralLocator{state: &declarationValueLiteralLocatorState{
+	state := &declarationValueLiteralLocatorState{
 		mode:         declarationValueLiteralLocatorShortcutDefaultValue,
 		entry:        locator.entry.state,
 		defaultIndex: locator.index,
 		index:        index,
-	}}
+	}
+	declarationValueLiteralLocator := DeclarationValueLiteralLocator{
+		state: state,
+	}
+	return declarationValueLiteralLocator
 }
 
 // Long returns an ActionEntryLocator for the entry whose public long-form coordinate matches
@@ -516,10 +573,11 @@ func (locator ActionEntriesLocator) Exactly(entries ...ActionEntryLocator) Decla
 	for index, entry := range entries {
 		expected[index] = entry.state
 	}
-	return actionEntriesExactlyExpectation{
+	expectation := actionEntriesExactlyExpectation{
 		scope:   locator,
 		entries: expected,
 	}
+	return expectation
 }
 
 type commandActionEntriesExpectation struct {
@@ -746,19 +804,27 @@ func actionEntryLocatorStates(values []ActionEntryLocator) []*actionEntryLocator
 }
 
 func commandEntryAtLocator(parent CommandLocator, index int) CommandEntryLocator {
-	return CommandEntryLocator{state: &commandEntryLocatorState{
+	state := &commandEntryLocatorState{
 		mode:    commandEntryLocatorIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := CommandEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandActionEntryAtLocator(parent CommandLocator, index int) ActionEntryLocator {
-	return ActionEntryLocator{state: &actionEntryLocatorState{
+	state := &actionEntryLocatorState{
 		mode:    actionEntryLocatorCommandIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := ActionEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandEntryLocatorLabel(state *commandEntryLocatorState) evaluationField {
@@ -1027,10 +1093,11 @@ func selectSchemaCommandEntry(state *commandEntryLocatorState, canonical cli.Com
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  commandEntryAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("command-entry lookup domain is incomplete")
@@ -1085,10 +1152,11 @@ func selectReferenceCommandEntry(state *commandEntryLocatorState, canonical cli.
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  commandEntryAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("command-entry lookup domain is incomplete")
@@ -1143,10 +1211,11 @@ func selectInspectionCommandEntry(state *commandEntryLocatorState, canonical cli
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  commandEntryAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("command-entry lookup domain is incomplete")
@@ -1430,10 +1499,11 @@ func selectSchemaActionEntry(state *actionEntryLocatorState, ids []cli.ActionEnt
 		return matches[0], locatorResolutionFound, evaluationText("")
 	}
 	if len(matches) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  actionEntryAmbiguityDetail,
 			count: len(matches),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if missingDetail || !complete {
 		return 0, locatorResolutionNotProvable, evaluationText("action-entry lookup domain is incomplete")
@@ -1471,10 +1541,11 @@ func selectReferenceActionEntry(state *actionEntryLocatorState, ids []cli.Action
 		return matches[0], locatorResolutionFound, evaluationText("")
 	}
 	if len(matches) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  actionEntryAmbiguityDetail,
 			count: len(matches),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if missingDetail || !complete {
 		return 0, locatorResolutionNotProvable, evaluationText("action-entry lookup domain is incomplete")
@@ -1512,10 +1583,11 @@ func selectInspectionActionEntry(state *actionEntryLocatorState, ids []cli.Actio
 		return matches[0], locatorResolutionFound, evaluationText("")
 	}
 	if len(matches) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  actionEntryAmbiguityDetail,
 			count: len(matches),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if missingDetail || !complete {
 		return 0, locatorResolutionNotProvable, evaluationText("action-entry lookup domain is incomplete")
@@ -1572,15 +1644,17 @@ func resolveShortcutDefaultInspection(locator CommandShortcutDefaultLocator, ins
 }
 
 func actionEntriesScopedLocator(scope ActionEntriesLocator, mode actionEntryLocatorMode, text string, short rune) ActionEntryLocator {
-	return ActionEntryLocator{
-		state: &actionEntryLocatorState{
-			mode:    mode,
-			command: scope.command,
-			action:  scope.action,
-			text:    text,
-			short:   short,
-		},
+	state := &actionEntryLocatorState{
+		mode:    mode,
+		command: scope.command,
+		action:  scope.action,
+		text:    text,
+		short:   short,
 	}
+	locator := ActionEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func scopedActionEntryIDsSchema(scope ActionEntriesLocator, schema *cli.Schema) ([]cli.ActionEntryID, locatorResolutionStatus, evaluationField) {
@@ -1789,17 +1863,25 @@ func resolveShortcutDefaultLiteral(state *declarationValueLiteralLocatorState, l
 }
 
 func commandEntryIDLocator(id cli.CommandEntryID) CommandEntryLocator {
-	return CommandEntryLocator{state: &commandEntryLocatorState{
+	state := &commandEntryLocatorState{
 		mode: commandEntryLocatorID,
 		id:   id,
-	}}
+	}
+	locator := CommandEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func actionEntryIDLocator(id cli.ActionEntryID) ActionEntryLocator {
-	return ActionEntryLocator{state: &actionEntryLocatorState{
+	state := &actionEntryLocatorState{
 		mode: actionEntryLocatorID,
 		id:   id,
-	}}
+	}
+	locator := ActionEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func (commandActionEntriesExpectation) schemaExpectation() {}
@@ -1960,7 +2042,13 @@ func (expectation commandEntrySourceDescriptionExpectation) evaluateSchema(schem
 	if resolved.value.Description == expectation.expected {
 		return provedResult()
 	}
-	return disprovedResult(resolved.subject, descriptionField{value: expectation.expected}, descriptionField{value: resolved.value.Description})
+	field := descriptionField{
+		value: expectation.expected,
+	}
+	observedField := descriptionField{
+		value: resolved.value.Description,
+	}
+	return disprovedResult(resolved.subject, field, observedField)
 }
 
 func (actionEntriesExactlyExpectation) schemaExpectation() {}
@@ -2094,7 +2182,13 @@ func (expectation actionEntrySourceDescriptionExpectation) evaluateSchema(schema
 	if resolved.value.Description == expectation.expected {
 		return provedResult()
 	}
-	return disprovedResult(resolved.subject, descriptionField{value: expectation.expected}, descriptionField{value: resolved.value.Description})
+	field := descriptionField{
+		value: expectation.expected,
+	}
+	observedField := descriptionField{
+		value: resolved.value.Description,
+	}
+	return disprovedResult(resolved.subject, field, observedField)
 }
 
 func (commandEntryOriginExpectation) schemaExpectation() {}
@@ -2130,19 +2224,37 @@ func (commandEntryReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation commandEntryReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaCommandEntryLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation commandEntryReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceCommandEntryLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation commandEntryReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionCommandEntryLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (commandEntryReplacementAbsenceExpectation) schemaExpectation() {}
@@ -2241,19 +2353,37 @@ func (actionEntryReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation actionEntryReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaActionEntryLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation actionEntryReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceActionEntryLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation actionEntryReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionActionEntryLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (actionEntryReplacementAbsenceExpectation) schemaExpectation() {}

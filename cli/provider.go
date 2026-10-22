@@ -254,8 +254,9 @@ type providerRecord struct {
 
 func acceptProviderRecord(id CommandProviderID, parent CommandID, position declarationPosition) providerRecord {
 	mustCommand(parent)
-	return providerRecord{
+	record := providerRecord{
 		meta:   acceptRecordMeta(id, position),
 		parent: parent,
 	}
+	return record
 }

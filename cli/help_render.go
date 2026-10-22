@@ -58,7 +58,10 @@ func renderHelpUsageTerm(term HelpArgumentTerm) string {
 
 func renderDefaultHelp(ctx context.Context, page HelpPage, sections helpSectionSet) (string, error) {
 	if err := ctx.Err(); err != nil {
-		return "", &helpRenderingError{cause: err}
+		failure := &helpRenderingError{
+			cause: err,
+		}
+		return "", failure
 	}
 	page.Labels = helpLabelsWithFrameworkFallbacks(page.Labels)
 	document := buildHelpPresentationDocument(page, sections)
@@ -77,8 +80,10 @@ func buildHelpPresentationDocument(page HelpPage, sections helpSectionSet) docum
 		}
 		if description != "" {
 			document.Blocks = append(document.Blocks, block{
-				Kind:  blockParagraph,
-				Spans: []presentationSpan{{Text: description}},
+				Kind: blockParagraph,
+				Spans: []presentationSpan{{
+					Text: description,
+				}},
 			})
 		}
 		if lifecycle := helpLifecycleAnnotation(page.Labels, page.Release, page.LifecycleState); lifecycle != "" {
@@ -120,8 +125,10 @@ func buildHelpPresentationDocument(page HelpPage, sections helpSectionSet) docum
 		for _, example := range page.Examples {
 			if example.Description != "" {
 				document.Blocks = append(document.Blocks, block{
-					Kind:  blockParagraph,
-					Spans: []presentationSpan{{Text: example.Description}},
+					Kind: blockParagraph,
+					Spans: []presentationSpan{{
+						Text: example.Description,
+					}},
 				})
 			}
 			document.Blocks = append(document.Blocks, block{

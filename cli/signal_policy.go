@@ -62,12 +62,12 @@ func (matches signalMatches[C]) Asynchronous() signalSelector[C] {
 
 // When restricts this selector to events whose declared Condition is satisfied.
 func (selector signalSelector[C]) When(condition Condition) signalSelector[C] {
-	return signalSelectorCondition(selector, condition, false)
+	return signalSelectorWhen(selector, condition)
 }
 
 // Unless restricts this selector to events whose declared Condition is not satisfied.
 func (selector signalSelector[C]) Unless(condition Condition) signalSelector[C] {
-	return signalSelectorCondition(selector, condition, true)
+	return signalSelectorUnless(selector, condition)
 }
 
 // Except excludes the supplied exact signals from this selector.
@@ -77,12 +77,12 @@ func (selector signalSelector[C]) Except(excluded ...Signal) signalSelector[C] {
 
 // Origin restricts matching to the supplied source-origin classes.
 func (selector signalSelector[C]) Origin(allowed ...SignalOrigin) signalSelector[C] {
-	return signalSelectorOrigins(selector, allowed, false)
+	return signalSelectorOrigins(selector, allowed)
 }
 
 // ExceptOrigin excludes the supplied source-origin classes.
 func (selector signalSelector[C]) ExceptOrigin(excluded ...SignalOrigin) signalSelector[C] {
-	return signalSelectorOrigins(selector, excluded, true)
+	return signalSelectorExcludedOrigins(selector, excluded)
 }
 
 // ExceptSender excludes events whose sender is target; phase legality still depends on whether
@@ -136,25 +136,25 @@ func (selector signalSelector[C]) Latest() signalAggregationMatch[C] {
 // Deferred marks this policy for dynamic action-dispatch deferral; source acceptance, counting, and
 // nondeferred policies continue normally.
 func (selector signalSelector[C]) Deferred() signalPolicyMatch[C] {
-	return signalPolicyMatchModifier[C](selector, true, false, nil)
+	return signalPolicyDeferred[C](selector)
 }
 
 // ContinueMatching allows later matching policies for the same event only after this policy's
 // immediate action sequence succeeds.
 func (selector signalSelector[C]) ContinueMatching() signalPolicyMatch[C] {
-	return signalPolicyMatchModifier[C](selector, false, true, nil)
+	return signalPolicyContinueMatching[C](selector)
 }
 
 // ContinueMatching allows later matching policies only after this policy's immediate sequence
 // succeeds.
 func (match signalPolicyMatch[C]) ContinueMatching() signalPolicyMatch[C] {
-	return signalPolicyMatchModifier[C](match, false, true, nil)
+	return signalPolicyContinueMatching[C](match)
 }
 
 // Hint attaches ordinary localizable source text to the signal policy without changing matching or
 // action semantics.
 func (selector signalSelector[C]) Hint(hint string) signalPolicyMatch[C] {
-	return signalPolicyMatchModifier[C](selector, false, false, &hint)
+	return signalPolicyHint[C](selector, hint)
 }
 
 // Each selects per-event aggregation for the already occurrence-qualified match.
@@ -174,28 +174,28 @@ func (match signalPolicyMatch[C]) Latest() signalAggregationMatch[C] {
 
 // Deferred marks the occurrence-qualified policy for dynamic action-dispatch deferral.
 func (match signalPolicyMatch[C]) Deferred() signalPolicyMatch[C] {
-	return signalPolicyMatchModifier[C](match, true, false, nil)
+	return signalPolicyDeferred[C](match)
 }
 
 // Hint attaches ordinary localizable source text without altering the qualified match.
 func (match signalPolicyMatch[C]) Hint(hint string) signalPolicyMatch[C] {
-	return signalPolicyMatchModifier[C](match, false, false, &hint)
+	return signalPolicyHint[C](match, hint)
 }
 
 // Deferred marks this aggregated policy for dynamic action-dispatch deferral.
 func (match signalAggregationMatch[C]) Deferred() signalAggregationMatch[C] {
-	return signalAggregationMatchModifier[C](match, true, false, nil)
+	return signalAggregationDeferred[C](match)
 }
 
 // ContinueMatching allows later matching policies only after this policy's immediate sequence
 // succeeds.
 func (match signalAggregationMatch[C]) ContinueMatching() signalAggregationMatch[C] {
-	return signalAggregationMatchModifier[C](match, false, true, nil)
+	return signalAggregationContinueMatching[C](match)
 }
 
 // Hint attaches ordinary localizable source text without changing aggregation or selection.
 func (match signalAggregationMatch[C]) Hint(hint string) signalAggregationMatch[C] {
-	return signalAggregationMatchModifier[C](match, false, false, &hint)
+	return signalAggregationHint[C](match, hint)
 }
 
 type signalConditionClause struct {
@@ -279,9 +279,10 @@ func stageSignalSelector[C any](matches signalMatches[C], kind signalSelectorKin
 	if kind == signalSelectorKindListed && len(state.signals) == 0 {
 		state.valid = false
 	}
-	return signalSelector[C]{
+	selector := signalSelector[C]{
 		state: state,
 	}
+	return selector
 }
 
 func cloneSignalMatch(input *authoringSignalMatch) *authoringSignalMatch {
@@ -316,22 +317,36 @@ func signalMatchImpl[C any](match SignalMatch[C]) *authoringSignalMatch {
 	return nil
 }
 
-func signalSelectorCondition[C any](selector signalSelector[C], condition Condition, negated bool) signalSelector[C] {
+func signalSelectorWhen[C any](selector signalSelector[C], condition Condition) signalSelector[C] {
+	clause := signalConditionClause{
+		condition: condition,
+	}
+	return signalSelectorWithCondition(selector, clause)
+}
+
+func signalSelectorUnless[C any](selector signalSelector[C], condition Condition) signalSelector[C] {
+	clause := signalConditionClause{
+		condition: condition,
+		negated:   true,
+	}
+	return signalSelectorWithCondition(selector, clause)
+}
+
+func signalSelectorWithCondition[C any](selector signalSelector[C], clause signalConditionClause) signalSelector[C] {
 	impl := cloneSignalMatch(signalMatchImpl[C](selector))
 	if impl == nil {
 		return signalSelector[C]{}
 	}
+	condition := clause.condition
 	if condition.state == nil || !condition.state.valid || condition.state.owner != impl.owner {
 		impl.valid = false
 	} else {
-		impl.conditions = append(impl.conditions, signalConditionClause{
-			condition: condition,
-			negated:   negated,
-		})
+		impl.conditions = append(impl.conditions, clause)
 	}
-	return signalSelector[C]{
+	result := signalSelector[C]{
 		state: impl,
 	}
+	return result
 }
 
 func signalSelectorExcept[C any](selector signalSelector[C], excluded []Signal) signalSelector[C] {
@@ -344,27 +359,42 @@ func signalSelectorExcept[C any](selector signalSelector[C], excluded []Signal) 
 	} else {
 		impl.excludedSignals = append(impl.excludedSignals, excluded...)
 	}
-	return signalSelector[C]{
+	result := signalSelector[C]{
 		state: impl,
 	}
+	return result
 }
 
-func signalSelectorOrigins[C any](selector signalSelector[C], origins []SignalOrigin, excluded bool) signalSelector[C] {
+func signalSelectorOrigins[C any](selector signalSelector[C], origins []SignalOrigin) signalSelector[C] {
 	impl := cloneSignalMatch(signalMatchImpl[C](selector))
 	if impl == nil {
 		return signalSelector[C]{}
 	}
-	switch {
-	case !validSignalOrigins(origins):
+	if !validSignalOrigins(origins) {
 		impl.valid = false
-	case excluded:
-		impl.excludedOrigins = append(impl.excludedOrigins, origins...)
-	default:
+	} else {
 		impl.origins = append(impl.origins, origins...)
 	}
-	return signalSelector[C]{
+	result := signalSelector[C]{
 		state: impl,
 	}
+	return result
+}
+
+func signalSelectorExcludedOrigins[C any](selector signalSelector[C], origins []SignalOrigin) signalSelector[C] {
+	impl := cloneSignalMatch(signalMatchImpl[C](selector))
+	if impl == nil {
+		return signalSelector[C]{}
+	}
+	if !validSignalOrigins(origins) {
+		impl.valid = false
+	} else {
+		impl.excludedOrigins = append(impl.excludedOrigins, origins...)
+	}
+	result := signalSelector[C]{
+		state: impl,
+	}
+	return result
 }
 
 func signalSelectorSender[C any](selector signalSelector[C], target SignalTarget[C]) signalSelector[C] {
@@ -379,9 +409,10 @@ func signalSelectorSender[C any](selector signalSelector[C], target SignalTarget
 		impl.excludedSender = erased
 		impl.hasSender = true
 	}
-	return signalSelector[C]{
+	result := signalSelector[C]{
 		state: impl,
 	}
+	return result
 }
 
 func signalSelectorPhases[C any](selector signalSelector[C], phases []SignalPhase) signalSelector[C] {
@@ -395,9 +426,10 @@ func signalSelectorPhases[C any](selector signalSelector[C], phases []SignalPhas
 		impl.phases = normalizedSignalPhases(phases)
 		impl.phasesSet = true
 	}
-	return signalSelector[C]{
+	result := signalSelector[C]{
 		state: impl,
 	}
+	return result
 }
 
 func signalOccurrence[C any](selector signalSelector[C], minimum, maximum int) signalPolicyMatch[C] {
@@ -411,9 +443,10 @@ func signalOccurrence[C any](selector signalSelector[C], minimum, maximum int) s
 		impl.minimum = minimum
 		impl.maximum = maximum
 	}
-	return signalPolicyMatch[C]{
+	match := signalPolicyMatch[C]{
 		state: impl,
 	}
+	return match
 }
 
 func signalAggregation[C any](match SignalMatch[C], aggregation SignalAggregation) signalAggregationMatch[C] {
@@ -422,53 +455,94 @@ func signalAggregation[C any](match SignalMatch[C], aggregation SignalAggregatio
 		return signalAggregationMatch[C]{}
 	}
 	impl.aggregation = aggregation
-	return signalAggregationMatch[C]{
+	result := signalAggregationMatch[C]{
 		state: impl,
 	}
+	return result
 }
 
-func signalMatchModifier[C any](match SignalMatch[C], deferred, continueMatching bool, hint *string) *authoringSignalMatch {
+func signalDeferredMatch[C any](match SignalMatch[C]) *authoringSignalMatch {
 	impl := cloneSignalMatch(signalMatchImpl(match))
 	if impl == nil {
 		return nil
 	}
-	if deferred {
-		if impl.deferredSet {
-			impl.valid = false
-		} else {
-			impl.deferred = true
-			impl.deferredSet = true
-		}
-	}
-	if continueMatching {
-		if impl.continueSet {
-			impl.valid = false
-		} else {
-			impl.continueMatch = true
-			impl.continueSet = true
-		}
-	}
-	if hint != nil {
-		if impl.hintSet || containsForbiddenDeclarationText(*hint) {
-			impl.valid = false
-		} else {
-			impl.hint = *hint
-			impl.hintSet = true
-		}
+	if impl.deferredSet {
+		impl.valid = false
+	} else {
+		impl.deferred = true
+		impl.deferredSet = true
 	}
 	return impl
 }
 
-func signalPolicyMatchModifier[C any](match SignalMatch[C], deferred, continueMatching bool, hint *string) signalPolicyMatch[C] {
-	return signalPolicyMatch[C]{
-		state: signalMatchModifier(match, deferred, continueMatching, hint),
+func signalContinueMatchingMatch[C any](match SignalMatch[C]) *authoringSignalMatch {
+	impl := cloneSignalMatch(signalMatchImpl(match))
+	if impl == nil {
+		return nil
 	}
+	if impl.continueSet {
+		impl.valid = false
+	} else {
+		impl.continueMatch = true
+		impl.continueSet = true
+	}
+	return impl
 }
 
-func signalAggregationMatchModifier[C any](match SignalMatch[C], deferred, continueMatching bool, hint *string) signalAggregationMatch[C] {
-	return signalAggregationMatch[C]{
-		state: signalMatchModifier(match, deferred, continueMatching, hint),
+func signalHintMatch[C any](match SignalMatch[C], hint string) *authoringSignalMatch {
+	impl := cloneSignalMatch(signalMatchImpl(match))
+	if impl == nil {
+		return nil
 	}
+	if impl.hintSet || containsForbiddenDeclarationText(hint) {
+		impl.valid = false
+	} else {
+		impl.hint = hint
+		impl.hintSet = true
+	}
+	return impl
+}
+
+func signalPolicyDeferred[C any](match SignalMatch[C]) signalPolicyMatch[C] {
+	result := signalPolicyMatch[C]{
+		state: signalDeferredMatch(match),
+	}
+	return result
+}
+
+func signalPolicyContinueMatching[C any](match SignalMatch[C]) signalPolicyMatch[C] {
+	result := signalPolicyMatch[C]{
+		state: signalContinueMatchingMatch(match),
+	}
+	return result
+}
+
+func signalPolicyHint[C any](match SignalMatch[C], hint string) signalPolicyMatch[C] {
+	result := signalPolicyMatch[C]{
+		state: signalHintMatch(match, hint),
+	}
+	return result
+}
+
+func signalAggregationDeferred[C any](match SignalMatch[C]) signalAggregationMatch[C] {
+	result := signalAggregationMatch[C]{
+		state: signalDeferredMatch(match),
+	}
+	return result
+}
+
+func signalAggregationContinueMatching[C any](match SignalMatch[C]) signalAggregationMatch[C] {
+	result := signalAggregationMatch[C]{
+		state: signalContinueMatchingMatch(match),
+	}
+	return result
+}
+
+func signalAggregationHint[C any](match SignalMatch[C], hint string) signalAggregationMatch[C] {
+	result := signalAggregationMatch[C]{
+		state: signalHintMatch(match, hint),
+	}
+	return result
 }
 
 func stageSignalClear[C any](signals *Signals[C]) {
@@ -605,10 +679,11 @@ type signalPolicyRecord struct {
 
 func acceptSignalPolicyRecord(id SignalPolicyID, command CommandID, position declarationPosition) signalPolicyRecord {
 	mustCommand(command)
-	return signalPolicyRecord{
+	record := signalPolicyRecord{
 		meta:    acceptRecordMeta(id, position),
 		command: command,
 	}
+	return record
 }
 
 func (record signalPolicyRecord) Definition() (signalPolicyDefinition, bool) {
@@ -628,10 +703,11 @@ func acceptSignalCounterRecord(id SignalCounterID, policy SignalPolicyID, positi
 	if !policy.present() {
 		panic("semantic: invalid signal-policy identity")
 	}
-	return signalCounterRecord{
+	record := signalCounterRecord{
 		meta:   acceptRecordMeta(id, position),
 		policy: policy,
 	}
+	return record
 }
 
 type signalSelectorKind uint8
@@ -781,10 +857,11 @@ func acceptSignalOccurrenceRange(minimum, maximum int) signalOccurrenceRange {
 	if minimum < 1 || maximum < 0 || maximum != 0 && maximum < minimum {
 		panic("semantic: invalid signal occurrence range")
 	}
-	return signalOccurrenceRange{
+	occurrence := signalOccurrenceRange{
 		minimum: minimum,
 		maximum: maximum,
 	}
+	return occurrence
 }
 
 func (r signalOccurrenceRange) Valid() bool {

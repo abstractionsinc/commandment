@@ -37,99 +37,113 @@ func (l CommandLocator) RuleAt(index int) RuleLocator { return ruleIndexLocator(
 // supplied locators in authoritative public order. Exactness is not inferred from an incomplete
 // observation.
 func (l CommandLocator) RulesExactly(values ...RuleLocator) DeclarationExpectation {
-	return commandRulesExpectation{
+	expectation := commandRulesExpectation{
 		command: l.state,
 		items:   ruleLocatorStates(values),
 	}
+	return expectation
 }
 
 // Activation returns a locator that follows the public activation relationship from the located
 // Rule. The returned locator carries locator coordinates, not observed state.
 func (locator RuleLocator) Activation() ConditionExpressionLocator {
-	return ConditionExpressionLocator{state: &conditionExpressionLocatorState{
+	state := &conditionExpressionLocatorState{
 		mode: conditionExpressionLocatorRuleActivation,
 		rule: locator.state,
-	}}
+	}
+	conditionExpressionLocator := ConditionExpressionLocator{
+		state: state,
+	}
+	return conditionExpressionLocator
 }
 
 // Pattern returns a reusable declaration expectation that checks the public pattern exposed by
 // the located Rule.
 func (locator RuleLocator) Pattern(expected string) DeclarationExpectation {
-	return rulePatternExpectationValue{
+	value := rulePatternExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Count returns a reusable declaration expectation that checks the count exposed by the located
 // Rule.
 func (locator RuleLocator) Count(expected cli.CountRange) DeclarationExpectation {
-	return ruleCountExpectationValue{
+	value := ruleCountExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // OperandCount returns a reusable declaration expectation that checks the operand count exposed
 // by the located Rule.
 func (locator RuleLocator) OperandCount(expected int) DeclarationExpectation {
-	return ruleOperandCountExpectationValue{
+	value := ruleOperandCountExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // OperandAt returns a locator for the operand at the supplied public ordered index of the
 // located Rule. It does not search for or silently choose a first match.
 func (locator RuleLocator) OperandAt(index int) RuleOperandLocator {
-	return RuleOperandLocator{
+	ruleOperandLocator := RuleOperandLocator{
 		rule:  locator,
 		index: index,
 	}
+	return ruleOperandLocator
 }
 
 // Exists returns an expectation that checks the located Rule exists in the relevant public
 // declaration observation.
 func (locator RuleLocator) Exists() DeclarationExpectation {
-	return ruleExistenceExpectationValue{
+	value := ruleExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located Rule is absent from a complete
 // relevant public declaration domain; incomplete observation cannot manufacture absence.
 func (locator RuleLocator) DoesNotExist() DeclarationExpectation {
-	return ruleExistenceExpectationValue{
+	value := ruleExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Kind returns an expectation that checks the Rule has the requested declared RuleKind.
 func (locator RuleLocator) Kind(v cli.RuleKind) DeclarationExpectation {
-	return ruleKindExpectationValue{
+	value := ruleKindExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Code returns an expectation that checks the Rule carries the requested RuleCode; the code is
 // metadata, not Rule identity.
 func (locator RuleLocator) Code(v cli.RuleCode) DeclarationExpectation {
-	return ruleCodeExpectationValue{
+	value := ruleCodeExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the Rule has the requested declared
 // reachability.
 func (locator RuleLocator) Reachability(v cli.Reachability) DeclarationExpectation {
-	return ruleReachabilityExpectationValue{
+	value := ruleReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Outcome returns an expectation that checks the Rule's invocation-time EvaluationOutcome.
@@ -150,10 +164,11 @@ func (locator RuleLocator) SubjectsExactly(values ...ValueLocator) DeclarationEx
 	for i, value := range values {
 		states[i] = value.state
 	}
-	return ruleValuesExpectationValue{
+	expectation := ruleValuesExpectationValue{
 		locator:  locator.state,
 		expected: states,
 	}
+	return expectation
 }
 
 // DependenciesExactly returns an expectation that checks the Rule declares exactly the
@@ -163,26 +178,31 @@ func (locator RuleLocator) DependenciesExactly(values ...ValueLocator) Declarati
 	for i, value := range values {
 		states[i] = value.state
 	}
-	return ruleValuesExpectationValue{
+	expectation := ruleValuesExpectationValue{
 		locator:      locator.state,
 		expected:     states,
 		dependencies: true,
 	}
+	return expectation
 }
 
 // Sensitive returns an expectation that checks the Rule is declared sensitive; expectation failures
 // do not expose sensitive Rule data.
 func (locator RuleLocator) Sensitive() DeclarationExpectation {
-	return ruleSensitiveExpectationValue{locator: locator.state}
+	value := ruleSensitiveExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Sensitive returns a reusable declaration expectation that checks the located Rule operand is
 // marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator RuleOperandLocator) Sensitive() DeclarationExpectation {
-	return ruleOperandSensitiveExpectation{
+	expectation := ruleOperandSensitiveExpectation{
 		rule:  locator.rule.state,
 		index: locator.index,
 	}
+	return expectation
 }
 
 // Literal returns a locator that follows the public literal relationship from the located Rule
@@ -194,7 +214,10 @@ func (locator RuleOperandLocator) Literal() DeclarationValueLiteralLocator {
 // NoLiteral returns a reusable declaration expectation that checks the located Rule operand
 // explicitly has no literal.
 func (locator RuleOperandLocator) NoLiteral() DeclarationExpectation {
-	return ruleOperandNoLiteralExpectation{locator: ruleOperandLiteral(locator).state}
+	expectation := ruleOperandNoLiteralExpectation{
+		locator: ruleOperandLiteral(locator).state,
+	}
+	return expectation
 }
 
 type ruleOperandSensitiveExpectation struct {
@@ -281,11 +304,15 @@ type ruleActivationOutcomeExpectationValue struct {
 }
 
 func ruleOperandLiteral(locator RuleOperandLocator) DeclarationValueLiteralLocator {
-	return DeclarationValueLiteralLocator{state: &declarationValueLiteralLocatorState{
+	state := &declarationValueLiteralLocatorState{
 		mode:  declarationValueLiteralLocatorRuleOperand,
 		rule:  locator.rule.state,
 		index: locator.index,
-	}}
+	}
+	declarationValueLiteralLocator := DeclarationValueLiteralLocator{
+		state: state,
+	}
+	return declarationValueLiteralLocator
 }
 
 func resolveRuleOperandLiteral(state *declarationValueLiteralLocatorState, status locatorResolutionStatus, detail evaluationField, operands []cli.RuleOperand) locatorResolution[cli.ValueLiteral] {
@@ -568,10 +595,11 @@ func compareRuleStatesSchema(command cli.CommandSchema, states []*ruleLocatorSta
 				}
 			}
 			if matches != 1 || matched != index {
-				return disprovedResult(label, evaluationText("ordered unambiguous rule locators"), collectionCardinalityField{
+				field := collectionCardinalityField{
 					name:  semanticNameMatchesRuleCodeRecords,
 					count: matches,
-				})
+				}
+				return disprovedResult(label, evaluationText("ordered unambiguous rule locators"), field)
 			}
 		default:
 			return disprovedResult(label, evaluationText("rule index/code locators"), evaluationText(fmt.Sprintf("invalid rule locator at position %d", index)))
@@ -604,10 +632,11 @@ func compareRuleStatesReference(command cli.CommandReference, states []*ruleLoca
 				}
 			}
 			if matches != 1 || matched != index {
-				return disprovedResult(label, evaluationText("ordered unambiguous rule locators"), collectionCardinalityField{
+				field := collectionCardinalityField{
 					name:  semanticNameMatchesRuleCodeRecords,
 					count: matches,
-				})
+				}
+				return disprovedResult(label, evaluationText("ordered unambiguous rule locators"), field)
 			}
 		default:
 			return disprovedResult(label, evaluationText("rule index/code locators"), evaluationText(fmt.Sprintf("invalid rule locator at position %d", index)))
@@ -642,10 +671,11 @@ func compareRuleStatesInspection(command cli.CommandInspection, states []*ruleLo
 				}
 			}
 			if matches != 1 || matched != index {
-				return disprovedResult(label, evaluationText("ordered unambiguous rule locators"), collectionCardinalityField{
+				field := collectionCardinalityField{
 					name:  semanticNameMatchesRuleCodeRecords,
 					count: matches,
-				})
+				}
+				return disprovedResult(label, evaluationText("ordered unambiguous rule locators"), field)
 			}
 		default:
 			return disprovedResult(label, evaluationText("rule index/code locators"), evaluationText(fmt.Sprintf("invalid rule locator at position %d", index)))
@@ -661,7 +691,10 @@ func ruleCodeLocator(command CommandLocator, code cli.RuleCode) RuleLocator {
 		code:    code,
 	}
 
-	return RuleLocator{state: state}
+	locator := RuleLocator{
+		state: state,
+	}
+	return locator
 }
 
 func ruleIndexLocator(command CommandLocator, index int) RuleLocator {
@@ -671,21 +704,26 @@ func ruleIndexLocator(command CommandLocator, index int) RuleLocator {
 		index:   index,
 	}
 
-	return RuleLocator{state: state}
+	locator := RuleLocator{
+		state: state,
+	}
+	return locator
 }
 
 func ruleOutcomeExpectation(locator RuleLocator, outcome cli.EvaluationOutcome) InspectionExpectation {
-	return ruleOutcomeExpectationValue{
+	value := ruleOutcomeExpectationValue{
 		locator:  locator.state,
 		expected: outcome,
 	}
+	return value
 }
 
 func ruleActivationOutcomeExpectation(locator RuleLocator, outcome cli.EvaluationOutcome) InspectionExpectation {
-	return ruleActivationOutcomeExpectationValue{
+	value := ruleActivationOutcomeExpectationValue{
 		locator:  locator.state,
 		expected: outcome,
 	}
+	return value
 }
 
 func (ruleOperandSensitiveExpectation) schemaExpectation() {}
@@ -997,17 +1035,35 @@ func (ruleCountExpectationValue) inspectionExpectation() {}
 
 func (expectation ruleCountExpectationValue) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaRuleLocator(expectation.locator, schema)
-	return policyPropertyResult(resolution.status, resolution.subject, resolution.detail, evaluationText("count"), countRangeField{value: expectation.expected}, countRangeField{value: resolution.value.Count}, resolution.value.Count == expectation.expected)
+	field := countRangeField{
+		value: expectation.expected,
+	}
+	observedField := countRangeField{
+		value: resolution.value.Count,
+	}
+	return policyPropertyResult(resolution.status, resolution.subject, resolution.detail, evaluationText("count"), field, observedField, resolution.value.Count == expectation.expected)
 }
 
 func (expectation ruleCountExpectationValue) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceRuleLocator(expectation.locator, reference)
-	return policyPropertyResult(resolution.status, resolution.subject, resolution.detail, evaluationText("count"), countRangeField{value: expectation.expected}, countRangeField{value: resolution.value.Count}, resolution.value.Count == expectation.expected)
+	field := countRangeField{
+		value: expectation.expected,
+	}
+	observedField := countRangeField{
+		value: resolution.value.Count,
+	}
+	return policyPropertyResult(resolution.status, resolution.subject, resolution.detail, evaluationText("count"), field, observedField, resolution.value.Count == expectation.expected)
 }
 
 func (expectation ruleCountExpectationValue) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionRuleLocator(expectation.locator, inspection)
-	return policyPropertyResult(resolution.status, resolution.subject, resolution.detail, evaluationText("count"), countRangeField{value: expectation.expected}, countRangeField{value: resolution.value.Count}, resolution.value.Count == expectation.expected)
+	field := countRangeField{
+		value: expectation.expected,
+	}
+	observedField := countRangeField{
+		value: resolution.value.Count,
+	}
+	return policyPropertyResult(resolution.status, resolution.subject, resolution.detail, evaluationText("count"), field, observedField, resolution.value.Count == expectation.expected)
 }
 
 func (ruleOperandCountExpectationValue) schemaExpectation() {}

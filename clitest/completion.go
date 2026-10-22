@@ -109,7 +109,10 @@ func CompletionObservedTargetsExactly(locators ...CompletionTargetLocator) Compl
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionObservedTargetsExpectationValue{states: states}
+	value := completionObservedTargetsExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 // CompletionObservedItemsExactly returns an expectation that the items present in the returned Completion snapshot are
@@ -121,7 +124,10 @@ func CompletionObservedItemsExactly(locators ...CompletionItemLocator) Completio
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionObservedItemsExpectationValue{states: states}
+	value := completionObservedItemsExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 // CompletionObservedGroupsExactly returns an expectation that the groups present in the returned Completion snapshot
@@ -133,7 +139,10 @@ func CompletionObservedGroupsExactly(locators ...CompletionGroupLocator) Complet
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionObservedGroupsExpectationValue{states: states}
+	value := completionObservedGroupsExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 // CompletionObservedNativeRequestsExactly returns an expectation that the native requests present in the returned
@@ -145,7 +154,10 @@ func CompletionObservedNativeRequestsExactly(locators ...CompletionNativeRequest
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionObservedNativeRequestsExpectationValue{states: states}
+	value := completionObservedNativeRequestsExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 // CompletionObservedMessagesExactly returns an expectation that the messages present in the returned Completion
@@ -158,30 +170,33 @@ func CompletionObservedMessagesExactly(messages ...cli.CompletionMessage) Comple
 
 // CompletionNotPartial returns an expectation that the returned Completion does not carry the Partial marker.
 func CompletionNotPartial() CompletionExpectation {
-	return completionBooleanExpectation{
+	expectation := completionBooleanExpectation{
 		field:   completionBooleanPartial,
 		want:    false,
 		subject: "completion Partial",
 	}
+	return expectation
 }
 
 // CompletionNotTruncated returns an expectation that the returned Completion does not carry the Truncated marker.
 func CompletionNotTruncated() CompletionExpectation {
-	return completionBooleanExpectation{
+	expectation := completionBooleanExpectation{
 		field:   completionBooleanTruncated,
 		want:    false,
 		subject: "completion Truncated",
 	}
+	return expectation
 }
 
 // CompletionNoRefreshOnInput returns an expectation that the returned Completion does not request refresh on further
 // input.
 func CompletionNoRefreshOnInput() CompletionExpectation {
-	return completionBooleanExpectation{
+	expectation := completionBooleanExpectation{
 		field:   completionBooleanRefreshOnInput,
 		want:    false,
 		subject: "completion RefreshOnInput",
 	}
+	return expectation
 }
 
 // CompletionObservedInputSourcesExactly returns a Completion expectation that the sources of kind present in the
@@ -189,45 +204,50 @@ func CompletionNoRefreshOnInput() CompletionExpectation {
 // This is observed-snapshot membership, not an assertion that a partial or truncated Completion contains every source
 // that could exist. The map has no semantic iteration order.
 func CompletionObservedInputSourcesExactly(kind cli.InputKind, sources ...InputSourceLocator) CompletionExpectation {
-	return completionObservedInputSourcesExpectation{
+	expectation := completionObservedInputSourcesExpectation{
 		kind:    kind,
 		sources: slices.Clone(sources),
 	}
+	return expectation
 }
 
 // CompletionPartial checks that the Completion is partial.
 func CompletionPartial() CompletionExpectation {
-	return completionBooleanExpectation{
+	expectation := completionBooleanExpectation{
 		field:   completionBooleanPartial,
 		want:    true,
 		subject: "completion partiality",
 	}
+	return expectation
 }
 
 // CompletionTruncated checks that the Completion is truncated.
 func CompletionTruncated() CompletionExpectation {
-	return completionBooleanExpectation{
+	expectation := completionBooleanExpectation{
 		field:   completionBooleanTruncated,
 		want:    true,
 		subject: "completion truncation",
 	}
+	return expectation
 }
 
 // CompletionRefreshOnInput checks that the Completion requests refresh when
 // input changes.
 func CompletionRefreshOnInput() CompletionExpectation {
-	return completionBooleanExpectation{
+	expectation := completionBooleanExpectation{
 		field:   completionBooleanRefreshOnInput,
 		want:    true,
 		subject: "completion refresh-on-input",
 	}
+	return expectation
 }
 
 // CompletionReplace checks the exact replacement span reported by Completion.
 func CompletionReplace(span cli.CompletionSpan) CompletionExpectation {
-	return completionReplaceExpectation{
+	expectation := completionReplaceExpectation{
 		span: span,
 	}
+	return expectation
 }
 
 // CompletionItemsExactly checks the complete Completion item collection in
@@ -258,16 +278,18 @@ func CompletionNativeRequestsExactly(locators ...CompletionNativeRequestLocator)
 // CompletionRankingAlgorithm checks the ranking algorithm reported by
 // Completion.
 func CompletionRankingAlgorithm(algorithm cli.CompletionRankingAlgorithm) CompletionExpectation {
-	return completionRankingExpectation{
+	expectation := completionRankingExpectation{
 		algorithm: algorithm,
 	}
+	return expectation
 }
 
 // CompletionSpacing checks the spacing policy reported by Completion.
 func CompletionSpacing(spacing cli.CompletionSpacing) CompletionExpectation {
-	return completionSpacingExpectation{
+	expectation := completionSpacingExpectation{
 		spacing: spacing,
 	}
+	return expectation
 }
 
 // CompletionTargetsExactly checks the complete ordered Completion target
@@ -336,26 +358,29 @@ func (locator CompletionTargetLocator) Occurrence(index int) CompletionExpectati
 // The comparison uses identities from the same Completion observation, including operation-local materialized command
 // identities; it does not require a Schema lookup.
 func (locator CompletionTargetLocator) OnSelectedCommand() CompletionExpectation {
-	return completionTargetIdentityExpectation{
+	expectation := completionTargetIdentityExpectation{
 		locator: locator.state,
 		kind:    uint8(completionTargetIdentitySelectedCommand),
 	}
+	return expectation
 }
 
 // CommandIdentityPresent returns an expectation that the located completion target carries a nonzero command identity.
 func (locator CompletionTargetLocator) CommandIdentityPresent() CompletionExpectation {
-	return completionTargetIdentityExpectation{
+	expectation := completionTargetIdentityExpectation{
 		locator: locator.state,
 		kind:    uint8(completionTargetIdentityCommand),
 	}
+	return expectation
 }
 
 // ValueIdentityPresent returns an expectation that the located completion target carries a nonzero value identity.
 func (locator CompletionTargetLocator) ValueIdentityPresent() CompletionExpectation {
-	return completionTargetIdentityExpectation{
+	expectation := completionTargetIdentityExpectation{
 		locator: locator.state,
 		kind:    uint8(completionTargetIdentityValue),
 	}
+	return expectation
 }
 
 // TargetAt returns the target at index in the located item's ordered TargetIndexes relationship, preserving the target
@@ -425,18 +450,20 @@ func (locator CompletionItemLocator) Kind(kind cli.CompletionCandidateKind) Comp
 
 // Recommended returns an expectation that the located item is marked recommended.
 func (locator CompletionItemLocator) Recommended() CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyRecommended,
 	}
+	return expectation
 }
 
 // FallbackOnly returns an expectation that the located item is marked fallback-only.
 func (locator CompletionItemLocator) FallbackOnly() CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyFallbackOnly,
 	}
+	return expectation
 }
 
 // Lifecycle returns an expectation that the located item carries exactly the observed lifecycle state. It checks
@@ -448,26 +475,29 @@ func (locator CompletionItemLocator) Lifecycle(state cli.LifecycleState) Complet
 // Sensitive returns an expectation that the located item is marked sensitive. Once an item is sensitive, clitest
 // redacts expected and observed item-property details on mismatches rather than exposing the protected value.
 func (locator CompletionItemLocator) Sensitive() CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertySensitive,
 	}
+	return expectation
 }
 
 // Required returns an expectation that the located item is marked required.
 func (locator CompletionItemLocator) Required() CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyRequired,
 	}
+	return expectation
 }
 
 // Conditional returns an expectation that the located item is marked conditional.
 func (locator CompletionItemLocator) Conditional() CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyConditional,
 	}
+	return expectation
 }
 
 // Match returns an expectation that the located item carries exactly kind as its Completion match kind.
@@ -536,30 +566,33 @@ func (locator CompletionItemLocator) Spacing(spacing cli.CompletionSpacing) Comp
 // It tests the exact heterogeneous CompletionItem.Declaration relation; it does not substitute a parent or related
 // declaration identity.
 func (locator CompletionItemLocator) DeclarationKind(expected cli.DeclarationKind) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:         locator.state,
 		property:        completionItemPropertyDeclarationKind,
 		declarationKind: expected,
 	}
+	return expectation
 }
 
 // Ungrouped returns an expectation that the located completion item has no completion-group relation.
 func (locator CompletionItemLocator) Ungrouped() CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyUngrouped,
 	}
+	return expectation
 }
 
 // Presentation returns a Completion expectation that checks the located item's
 // display text and description. It does not define completion ranking or
 // matching semantics.
 func (locator CompletionItemLocator) Presentation(displayText, description string) CompletionExpectation {
-	return completionItemPresentationExpectation{
+	expectation := completionItemPresentationExpectation{
 		locator:     locator.state,
 		displayText: displayText,
 		description: description,
 	}
+	return expectation
 }
 
 // Target returns the target referenced by the located native request's TargetIndex in the same Completion observation.
@@ -569,36 +602,40 @@ func (locator CompletionNativeRequestLocator) Target() CompletionTargetLocator {
 
 // Kind returns an expectation that the located native request has exactly kind.
 func (locator CompletionNativeRequestLocator) Kind(kind cli.CompletionNativeKind) CompletionExpectation {
-	return completionNativeRequestPropertyExpectation{
+	expectation := completionNativeRequestPropertyExpectation{
 		locator:  locator.state,
 		property: completionNativeRequestPropertyKind,
 		kind:     kind,
 	}
+	return expectation
 }
 
 // Mode returns an expectation that the located native request has exactly mode.
 func (locator CompletionNativeRequestLocator) Mode(mode cli.CompletionNativeMode) CompletionExpectation {
-	return completionNativeRequestPropertyExpectation{
+	expectation := completionNativeRequestPropertyExpectation{
 		locator:  locator.state,
 		property: completionNativeRequestPropertyMode,
 		mode:     mode,
 	}
+	return expectation
 }
 
 // Required returns an expectation that the located native request is marked required.
 func (locator CompletionNativeRequestLocator) Required() CompletionExpectation {
-	return completionNativeRequestPropertyExpectation{
+	expectation := completionNativeRequestPropertyExpectation{
 		locator:  locator.state,
 		property: completionNativeRequestPropertyRequired,
 	}
+	return expectation
 }
 
 // Conditional returns an expectation that the located native request is marked conditional.
 func (locator CompletionNativeRequestLocator) Conditional() CompletionExpectation {
-	return completionNativeRequestPropertyExpectation{
+	expectation := completionNativeRequestPropertyExpectation{
 		locator:  locator.state,
 		property: completionNativeRequestPropertyConditional,
 	}
+	return expectation
 }
 
 // Present returns an expectation that the group coordinate resolves in the returned Completion.
@@ -641,48 +678,53 @@ func (locator CompletionGroupLocator) Sensitive() CompletionExpectation {
 
 // Present returns an expectation that the returned Completion carries a delegation relationship.
 func (locator CompletionDelegationLocator) Present() CompletionExpectation {
-	return completionDelegationExpectation{
+	expectation := completionDelegationExpectation{
 		locator:  locator.state,
 		property: completionDelegationPropertyPresent,
 		present:  true,
 	}
+	return expectation
 }
 
 // Absent returns an expectation that a complete Completion carries no delegation relationship. A missing delegation in
 // a partial or truncated Completion is not expectation of absence.
 func (locator CompletionDelegationLocator) Absent() CompletionExpectation {
-	return completionDelegationExpectation{
+	expectation := completionDelegationExpectation{
 		locator:  locator.state,
 		property: completionDelegationPropertyPresent,
 		present:  false,
 	}
+	return expectation
 }
 
 // ArgsExactly returns an expectation that the delegation arguments exactly equal args in order.
 func (locator CompletionDelegationLocator) ArgsExactly(args ...string) CompletionExpectation {
-	return completionDelegationExpectation{
+	expectation := completionDelegationExpectation{
 		locator:  locator.state,
 		property: completionDelegationPropertyArgs,
 		args:     slices.Clone(args),
 	}
+	return expectation
 }
 
 // Cursor returns an expectation that the delegation carries exactly cursor.
 func (locator CompletionDelegationLocator) Cursor(cursor cli.CompletionCursor) CompletionExpectation {
-	return completionDelegationExpectation{
+	expectation := completionDelegationExpectation{
 		locator:  locator.state,
 		property: completionDelegationPropertyCursor,
 		cursor:   cursor,
 	}
+	return expectation
 }
 
 // Sensitive returns an expectation that the delegation is present and marked sensitive. When a sensitive delegation
 // mismatches, clitest redacts both expected and observed delegation-property details.
 func (locator CompletionDelegationLocator) Sensitive() CompletionExpectation {
-	return completionDelegationExpectation{
+	expectation := completionDelegationExpectation{
 		locator:  locator.state,
 		property: completionDelegationPropertySensitive,
 	}
+	return expectation
 }
 
 func (CompletionCase) conformanceCase() {}
@@ -690,30 +732,33 @@ func (CompletionCase) conformanceCase() {}
 // Dynamic returns a reusable declaration expectation that checks the public dynamic completion
 // capability exposed by the located completion declaration.
 func (locator CompletionDeclarationLocator) Dynamic() DeclarationExpectation {
-	return completionDeclarationExpectationValue{
+	value := completionDeclarationExpectationValue{
 		locator:  locator.state,
 		property: completionDeclarationExpectationDynamic,
 	}
+	return value
 }
 
 // Delegated returns a reusable declaration expectation that checks the public delegated
 // completion capability exposed by the located completion declaration.
 func (locator CompletionDeclarationLocator) Delegated() DeclarationExpectation {
-	return completionDeclarationExpectationValue{
+	value := completionDeclarationExpectationValue{
 		locator:  locator.state,
 		property: completionDeclarationExpectationDelegated,
 	}
+	return value
 }
 
 // Native returns a declaration expectation that checks the located completion declaration
 // exposes the expected native completion kind and mode as one public capability.
 func (locator CompletionDeclarationLocator) Native(kind cli.CompletionNativeKind, mode cli.CompletionNativeMode) DeclarationExpectation {
-	return completionDeclarationExpectationValue{
+	value := completionDeclarationExpectationValue{
 		locator:    locator.state,
 		property:   completionDeclarationExpectationNative,
 		nativeKind: kind,
 		nativeMode: mode,
 	}
+	return value
 }
 
 // DependenciesExactly returns a declaration expectation that checks the completion
@@ -723,11 +768,12 @@ func (locator CompletionDeclarationLocator) DependenciesExactly(values ...ValueL
 	for index, value := range values {
 		dependencies[index] = value.state
 	}
-	return completionDeclarationExpectationValue{
+	expectation := completionDeclarationExpectationValue{
 		locator:      locator.state,
 		property:     completionDeclarationExpectationDependencies,
 		dependencies: dependencies,
 	}
+	return expectation
 }
 
 const completionTargetLabel = "completion target"
@@ -1088,56 +1134,90 @@ type completionRankingExpectation struct {
 type completionSpacingExpectation struct{ spacing cli.CompletionSpacing }
 
 func completionTargetKindLocator(kind cli.CompletionTargetKind) CompletionTargetLocator {
-	return CompletionTargetLocator{state: &completionTargetLocatorState{
+	state := &completionTargetLocatorState{
 		mode: completionTargetLocatorKind,
 		kind: kind,
-	}}
+	}
+	locator := CompletionTargetLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionTargetIndexLocator(index int) CompletionTargetLocator {
-	return CompletionTargetLocator{state: &completionTargetLocatorState{
+	state := &completionTargetLocatorState{
 		mode:  completionTargetLocatorIndex,
 		index: index,
-	}}
+	}
+	locator := CompletionTargetLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionItemValueLocator(value string) CompletionItemLocator {
-	return CompletionItemLocator{state: &completionItemLocatorState{
+	state := &completionItemLocatorState{
 		mode:  completionItemLocatorValue,
 		value: value,
-	}}
+	}
+	locator := CompletionItemLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionItemIndexLocator(index int) CompletionItemLocator {
-	return CompletionItemLocator{state: &completionItemLocatorState{
+	state := &completionItemLocatorState{
 		mode:  completionItemLocatorIndex,
 		index: index,
-	}}
+	}
+	locator := CompletionItemLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionGroupIDLocator(id string) CompletionGroupLocator {
-	return CompletionGroupLocator{state: &completionGroupLocatorState{
+	state := &completionGroupLocatorState{
 		mode: completionGroupLocatorID,
 		id:   id,
-	}}
+	}
+	locator := CompletionGroupLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionGroupIndexLocator(index int) CompletionGroupLocator {
-	return CompletionGroupLocator{state: &completionGroupLocatorState{
+	state := &completionGroupLocatorState{
 		mode:  completionGroupLocatorIndex,
 		index: index,
-	}}
+	}
+	locator := CompletionGroupLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionNativeRequestIndexLocator(index int) CompletionNativeRequestLocator {
-	return CompletionNativeRequestLocator{state: &completionNativeRequestLocatorState{
+	state := &completionNativeRequestLocatorState{
 		valid: true,
 		index: index,
-	}}
+	}
+	locator := CompletionNativeRequestLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionDelegationLocator() CompletionDelegationLocator {
-	return CompletionDelegationLocator{state: &completionDelegationLocatorState{valid: true}}
+	state := &completionDelegationLocatorState{
+		valid: true,
+	}
+	locator := CompletionDelegationLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandEntrySelectionStepLocator(entry CommandEntryLocator) SelectionStepLocator {
@@ -1150,7 +1230,10 @@ func commandEntrySelectionStepLocator(entry CommandEntryLocator) SelectionStepLo
 		entry: entry.state,
 	}
 
-	return SelectionStepLocator{state: state}
+	locator := SelectionStepLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandDefaultSelectionStepLocator(commandDefault CommandDefaultLocator) SelectionStepLocator {
@@ -1163,7 +1246,10 @@ func commandDefaultSelectionStepLocator(commandDefault CommandDefaultLocator) Se
 		commandDefault: commandDefault.state,
 	}
 
-	return SelectionStepLocator{state: step}
+	locator := SelectionStepLocator{
+		state: step,
+	}
+	return locator
 }
 
 func selectionStepFrom(step SelectionStepLocator, origin InputOriginLocator) SelectionStepLocator {
@@ -1178,7 +1264,10 @@ func selectionStepFrom(step SelectionStepLocator, origin InputOriginLocator) Sel
 		return SelectionStepLocator{}
 	}
 
-	return SelectionStepLocator{state: &state}
+	locator := SelectionStepLocator{
+		state: &state,
+	}
+	return locator
 }
 
 func selectionStepSelects(step SelectionStepLocator, commands []CommandLocator) SelectionStepLocator {
@@ -1197,7 +1286,10 @@ func selectionStepSelects(step SelectionStepLocator, commands []CommandLocator) 
 	state := *step.state
 	state.commands = states
 
-	return SelectionStepLocator{state: &state}
+	locator := SelectionStepLocator{
+		state: &state,
+	}
+	return locator
 }
 
 func completionTargetOn(target CompletionTargetLocator, subject CompletionTargetSubject) CompletionTargetLocator {
@@ -1207,28 +1299,39 @@ func completionTargetOn(target CompletionTargetLocator, subject CompletionTarget
 	state := *target.state
 	state.subjectSet = true
 	state.subject = subject
-	return CompletionTargetLocator{state: &state}
+	locator := CompletionTargetLocator{
+		state: &state,
+	}
+	return locator
 }
 
 func completionItemTargetAt(item CompletionItemLocator, index int) CompletionTargetLocator {
 	if item.state == nil {
 		return CompletionTargetLocator{}
 	}
-	return CompletionTargetLocator{state: &completionTargetLocatorState{
+	state := &completionTargetLocatorState{
 		mode:  completionTargetLocatorItemIndex,
 		item:  item.state,
 		index: index,
-	}}
+	}
+	locator := CompletionTargetLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionNativeRequestTarget(request CompletionNativeRequestLocator) CompletionTargetLocator {
 	if request.state == nil {
 		return CompletionTargetLocator{}
 	}
-	return CompletionTargetLocator{state: &completionTargetLocatorState{
+	state := &completionTargetLocatorState{
 		mode:   completionTargetLocatorNativeRequest,
 		native: request.state,
-	}}
+	}
+	locator := CompletionTargetLocator{
+		state: state,
+	}
+	return locator
 }
 
 func completionObservationIncomplete(result cli.Completion) bool {
@@ -1873,104 +1976,117 @@ func resolveInspectionValueStates(states []*valueLocatorState, inspection cli.In
 }
 
 func completionTargetPresenceExpectation(locator CompletionTargetLocator, present bool) CompletionExpectation {
-	return completionTargetPresenceExpectationValue{
+	value := completionTargetPresenceExpectationValue{
 		locator: locator.state,
 		present: present,
 	}
+	return value
 }
 
 func completionTargetKindExpectation(locator CompletionTargetLocator, kind cli.CompletionTargetKind) CompletionExpectation {
-	return completionTargetPropertyExpectation{
+	expectation := completionTargetPropertyExpectation{
 		locator:  locator.state,
 		property: completionTargetPropertyKind,
 		kind:     kind,
 	}
+	return expectation
 }
 
 func completionTargetNameExpectation(locator CompletionTargetLocator, name string) CompletionExpectation {
-	return completionTargetPropertyExpectation{
+	expectation := completionTargetPropertyExpectation{
 		locator:  locator.state,
 		property: completionTargetPropertyName,
 		text:     name,
 	}
+	return expectation
 }
 
 func completionTargetSpellingExpectation(locator CompletionTargetLocator, spelling string) CompletionExpectation {
-	return completionTargetPropertyExpectation{
+	expectation := completionTargetPropertyExpectation{
 		locator:  locator.state,
 		property: completionTargetPropertySpelling,
 		text:     spelling,
 	}
+	return expectation
 }
 
 func completionItemPresenceExpectation(locator CompletionItemLocator, present bool) CompletionExpectation {
-	return completionItemPresenceExpectationValue{
+	value := completionItemPresenceExpectationValue{
 		locator: locator.state,
 		present: present,
 	}
+	return value
 }
 
 func completionItemValueExpectation(locator CompletionItemLocator, value string) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyValue,
 		text:     value,
 	}
+	return expectation
 }
 
 func completionItemReplacementExpectation(locator CompletionItemLocator, values []string) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyReplacement,
 		strings:  slices.Clone(values),
 	}
+	return expectation
 }
 
 func completionItemKindExpectation(locator CompletionItemLocator, kind cli.CompletionCandidateKind) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyKind,
 		kind:     kind,
 	}
+	return expectation
 }
 
 func completionItemLifecycleExpectation(locator CompletionItemLocator, state cli.LifecycleState) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:   locator.state,
 		property:  completionItemPropertyLifecycle,
 		lifecycle: state,
 	}
+	return expectation
 }
 
 func completionItemMatchExpectation(locator CompletionItemLocator, kind cli.CompletionMatchKind) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:   locator.state,
 		property:  completionItemPropertyMatchKind,
 		matchKind: kind,
 	}
+	return expectation
 }
 
 func completionItemPriorityExpectation(locator CompletionItemLocator, priority int) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyPriority,
 		integer:  priority,
 	}
+	return expectation
 }
 
 func completionItemSpacingExpectation(locator CompletionItemLocator, spacing cli.CompletionSpacing) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertySpacing,
 		spacing:  spacing,
 	}
+	return expectation
 }
 
 func completionItemGroupExpectation(locator CompletionItemLocator, group CompletionGroupLocator) CompletionExpectation {
-	return completionItemGroupExpectationValue{
+	value := completionItemGroupExpectationValue{
 		item:  locator.state,
 		group: group.state,
 	}
+	return value
 }
 
 func completionGroupMembershipIdentifiable(group cli.CompletionGroup, result cli.Completion) bool {
@@ -1991,37 +2107,45 @@ func completionItemTargetsExactlyExpectation(item CompletionItemLocator, targets
 	for i, target := range targets {
 		states[i] = target.state
 	}
-	return completionItemTargetsExpectationValue{
+	value := completionItemTargetsExpectationValue{
 		item:    item.state,
 		targets: states,
 	}
+	return value
 }
 
 func completionGroupPresenceExpectation(locator CompletionGroupLocator, present bool) CompletionExpectation {
-	return completionGroupPresenceExpectationValue{locator.state, present}
+	value := completionGroupPresenceExpectationValue{
+		locator: locator.state,
+		present: present,
+	}
+	return value
 }
 
 func completionGroupIDExpectation(locator CompletionGroupLocator, id string) CompletionExpectation {
-	return completionGroupPropertyExpectation{
+	expectation := completionGroupPropertyExpectation{
 		locator:  locator.state,
 		property: completionGroupPropertyID,
 		text:     id,
 	}
+	return expectation
 }
 
 func completionGroupPriorityExpectation(locator CompletionGroupLocator, priority int) CompletionExpectation {
-	return completionGroupPropertyExpectation{
+	expectation := completionGroupPropertyExpectation{
 		locator:  locator.state,
 		property: completionGroupPropertyPriority,
 		priority: priority,
 	}
+	return expectation
 }
 
 func completionGroupSensitiveExpectation(locator CompletionGroupLocator) CompletionExpectation {
-	return completionGroupPropertyExpectation{
+	expectation := completionGroupPropertyExpectation{
 		locator:  locator.state,
 		property: completionGroupPropertySensitive,
 	}
+	return expectation
 }
 
 func completionTargetsExactlyExpectation(locators []CompletionTargetLocator) CompletionExpectation {
@@ -2029,7 +2153,10 @@ func completionTargetsExactlyExpectation(locators []CompletionTargetLocator) Com
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionTargetsExactlyExpectationValue{states: states}
+	value := completionTargetsExactlyExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 func evaluateExactCompletionTargets(states []*completionTargetLocatorState, result cli.Completion) evaluationResult {
@@ -2057,7 +2184,10 @@ func completionItemsExactlyExpectation(locators []CompletionItemLocator) Complet
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionItemsExactlyExpectationValue{states: states}
+	value := completionItemsExactlyExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 func completionGroupsExactlyExpectation(locators []CompletionGroupLocator) CompletionExpectation {
@@ -2065,7 +2195,10 @@ func completionGroupsExactlyExpectation(locators []CompletionGroupLocator) Compl
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionGroupsExactlyExpectationValue{states: states}
+	value := completionGroupsExactlyExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 func completionNativeRequestsExactlyExpectation(locators []CompletionNativeRequestLocator) CompletionExpectation {
@@ -2073,145 +2206,165 @@ func completionNativeRequestsExactlyExpectation(locators []CompletionNativeReque
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return completionNativeRequestsExactlyExpectationValue{states: states}
+	value := completionNativeRequestsExactlyExpectationValue{
+		states: states,
+	}
+	return value
 }
 
 func completionItemDeclarationExpectation(locator CompletionItemLocator, declaration DeclarationIdentityLocator) CompletionExpectation {
 	expected, valid := locatorDeclarationIdentityValue(declaration)
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:          locator.state,
 		property:         completionItemPropertyDeclaration,
 		declaration:      expected,
 		declarationValid: valid,
 	}
+	return expectation
 }
 
 func completionTargetCommandPathExpectation(locator CompletionTargetLocator, path []string) CompletionExpectation {
-	return completionTargetPropertyExpectation{
+	expectation := completionTargetPropertyExpectation{
 		locator:  locator.state,
 		property: completionTargetPropertyCommandPath,
 		path:     slices.Clone(path),
 	}
+	return expectation
 }
 
 func completionTargetTermIndexExpectation(locator CompletionTargetLocator, index int) CompletionExpectation {
-	return completionTargetPropertyExpectation{
+	expectation := completionTargetPropertyExpectation{
 		locator:  locator.state,
 		property: completionTargetPropertyTermIndex,
 		index:    index,
 	}
+	return expectation
 }
 
 func completionTargetFlagValueFormExpectation(locator CompletionTargetLocator, form cli.FlagValueForm) CompletionExpectation {
-	return completionTargetPropertyExpectation{
+	expectation := completionTargetPropertyExpectation{
 		locator:   locator.state,
 		property:  completionTargetPropertyFlagValueForm,
 		valueForm: form,
 	}
+	return expectation
 }
 
 func completionTargetOccurrenceExpectation(locator CompletionTargetLocator, index int) CompletionExpectation {
-	return completionTargetPropertyExpectation{
+	expectation := completionTargetPropertyExpectation{
 		locator:  locator.state,
 		property: completionTargetPropertyOccurrence,
 		index:    index,
 	}
+	return expectation
 }
 
 func completionItemDisplayTextExpectation(locator CompletionItemLocator, text string) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyDisplayText,
 		text:     text,
 	}
+	return expectation
 }
 
 func completionItemDescriptionExpectation(locator CompletionItemLocator, description string) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyDescription,
 		text:     description,
 	}
+	return expectation
 }
 
 func completionItemDetailExpectation(locator CompletionItemLocator, detail string) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyDetail,
 		text:     detail,
 	}
+	return expectation
 }
 
 func completionItemSearchTermsExpectation(locator CompletionItemLocator, terms []string) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertySearchTerms,
 		strings:  slices.Clone(terms),
 	}
+	return expectation
 }
 
 func completionItemSortTextExpectation(locator CompletionItemLocator, text string) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertySortText,
 		text:     text,
 	}
+	return expectation
 }
 
 func completionItemCommitCharactersExpectation(locator CompletionItemLocator, characters []rune) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyCommitCharacters,
 		runes:    slices.Clone(characters),
 	}
+	return expectation
 }
 
 func completionItemMatchFieldExpectation(locator CompletionItemLocator, field cli.CompletionMatchField) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:    locator.state,
 		property:   completionItemPropertyMatchField,
 		matchField: field,
 	}
+	return expectation
 }
 
 func completionItemMatchFieldIndexExpectation(locator CompletionItemLocator, index int) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyMatchFieldIndex,
 		integer:  index,
 	}
+	return expectation
 }
 
 func completionItemMatchScoreExpectation(locator CompletionItemLocator, score int64) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyMatchScore,
 		score:    score,
 	}
+	return expectation
 }
 
 func completionItemMatchRangesExpectation(locator CompletionItemLocator, ranges []cli.CompletionRange) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyMatchRanges,
 		ranges:   slices.Clone(ranges),
 	}
+	return expectation
 }
 
 func completionItemMatchEditsExpectation(locator CompletionItemLocator, edits int) CompletionExpectation {
-	return completionItemPropertyExpectation{
+	expectation := completionItemPropertyExpectation{
 		locator:  locator.state,
 		property: completionItemPropertyMatchEdits,
 		integer:  edits,
 	}
+	return expectation
 }
 
 func completionGroupLabelExpectation(locator CompletionGroupLocator, label string) CompletionExpectation {
-	return completionGroupPropertyExpectation{
+	expectation := completionGroupPropertyExpectation{
 		locator:  locator.state,
 		property: completionGroupPropertyLabel,
 		text:     label,
 	}
+	return expectation
 }
 
 func completionGroupItemsExactlyExpectation(group CompletionGroupLocator, items []CompletionItemLocator) CompletionExpectation {
@@ -2219,16 +2372,18 @@ func completionGroupItemsExactlyExpectation(group CompletionGroupLocator, items 
 	for index, item := range items {
 		states[index] = item.state
 	}
-	return completionGroupItemsExpectation{
+	expectation := completionGroupItemsExpectation{
 		group: group.state,
 		items: states,
 	}
+	return expectation
 }
 
 func completionMessagesExactlyExpectation(messages []cli.CompletionMessage) CompletionExpectation {
-	return completionMessagesExpectation{
+	expectation := completionMessagesExpectation{
 		messages: slices.Clone(messages),
 	}
+	return expectation
 }
 
 func declarationIdentityKindPresent(identity cli.DeclarationIdentity, expected cli.DeclarationKind) bool {
@@ -2370,7 +2525,10 @@ func (expectation completionTargetPropertyExpectation) expected() evaluationFiel
 	case completionTargetPropertySpelling:
 		return property(evaluationText("spelling"), evaluationText(expectation.text))
 	case completionTargetPropertyCommandPath:
-		return property(evaluationText("command path"), stringCollectionField{values: expectation.path})
+		field := stringCollectionField{
+			values: expectation.path,
+		}
+		return property(evaluationText("command path"), field)
 	case completionTargetPropertyTermIndex:
 		return evaluationText(fmt.Sprintf("term index %d", expectation.index))
 	case completionTargetPropertyFlagValueForm:
@@ -2391,7 +2549,10 @@ func (expectation completionTargetPropertyExpectation) observed(target cli.Compl
 	case completionTargetPropertySpelling:
 		return property(evaluationText("spelling"), evaluationText(target.Spelling))
 	case completionTargetPropertyCommandPath:
-		return property(evaluationText("command path"), stringCollectionField{values: target.CommandPath})
+		field := stringCollectionField{
+			values: target.CommandPath,
+		}
+		return property(evaluationText("command path"), field)
 	case completionTargetPropertyTermIndex:
 		return evaluationText(fmt.Sprintf("term index %d", target.TermIndex))
 	case completionTargetPropertyFlagValueForm:
@@ -2490,7 +2651,10 @@ func (expectation completionItemPropertyExpectation) expected() evaluationField 
 	case completionItemPropertyValue:
 		return property(evaluationText("value"), evaluationText(expectation.text))
 	case completionItemPropertyReplacement:
-		return property(evaluationText("replacement"), stringCollectionField{values: expectation.strings})
+		field := stringCollectionField{
+			values: expectation.strings,
+		}
+		return property(evaluationText("replacement"), field)
 	case completionItemPropertyKind:
 		return property(evaluationText("kind"), evaluationText(fmt.Sprint(expectation.kind)))
 	case completionItemPropertyRecommended:
@@ -2512,7 +2676,10 @@ func (expectation completionItemPropertyExpectation) expected() evaluationField 
 	case completionItemPropertySpacing:
 		return property(evaluationText("spacing"), evaluationText(fmt.Sprint(expectation.spacing)))
 	case completionItemPropertyDeclaration:
-		return declarationIdentityField{value: expectation.declaration}
+		field := declarationIdentityField{
+			value: expectation.declaration,
+		}
+		return field
 	case completionItemPropertyDisplayText:
 		return property(evaluationText("display text"), evaluationText(expectation.text))
 	case completionItemPropertyDescription:
@@ -2520,11 +2687,17 @@ func (expectation completionItemPropertyExpectation) expected() evaluationField 
 	case completionItemPropertyDetail:
 		return property(evaluationText("detail"), evaluationText(expectation.text))
 	case completionItemPropertySearchTerms:
-		return property(evaluationText("search terms"), stringCollectionField{values: expectation.strings})
+		field := stringCollectionField{
+			values: expectation.strings,
+		}
+		return property(evaluationText("search terms"), field)
 	case completionItemPropertySortText:
 		return property(evaluationText("sort text"), evaluationText(expectation.text))
 	case completionItemPropertyCommitCharacters:
-		return property(evaluationText("commit characters"), runeCollectionField{values: expectation.runes})
+		field := runeCollectionField{
+			values: expectation.runes,
+		}
+		return property(evaluationText("commit characters"), field)
 	case completionItemPropertyMatchField:
 		return property(evaluationText("match field"), evaluationText(fmt.Sprint(expectation.matchField)))
 	case completionItemPropertyMatchFieldIndex:
@@ -2532,7 +2705,10 @@ func (expectation completionItemPropertyExpectation) expected() evaluationField 
 	case completionItemPropertyMatchScore:
 		return evaluationText(fmt.Sprintf("match score %d", expectation.score))
 	case completionItemPropertyMatchRanges:
-		return property(evaluationText("match ranges"), completionRangeCollectionField{values: expectation.ranges})
+		field := completionRangeCollectionField{
+			values: expectation.ranges,
+		}
+		return property(evaluationText("match ranges"), field)
 	case completionItemPropertyMatchEdits:
 		return evaluationText(fmt.Sprintf("match edits %d", expectation.integer))
 	case completionItemPropertyDeclarationKind:
@@ -2608,7 +2784,10 @@ func (expectation completionItemPropertyExpectation) observed(item cli.Completio
 	case completionItemPropertyValue:
 		return property(evaluationText("value"), evaluationText(item.Value))
 	case completionItemPropertyReplacement:
-		return property(evaluationText("replacement"), stringCollectionField{values: item.Replacement})
+		field := stringCollectionField{
+			values: item.Replacement,
+		}
+		return property(evaluationText("replacement"), field)
 	case completionItemPropertyKind:
 		return property(evaluationText("kind"), evaluationText(fmt.Sprint(item.Kind)))
 	case completionItemPropertyRecommended:
@@ -2630,7 +2809,10 @@ func (expectation completionItemPropertyExpectation) observed(item cli.Completio
 	case completionItemPropertySpacing:
 		return property(evaluationText("spacing"), evaluationText(fmt.Sprint(item.Spacing)))
 	case completionItemPropertyDeclaration:
-		return declarationIdentityField{value: item.Declaration}
+		field := declarationIdentityField{
+			value: item.Declaration,
+		}
+		return field
 	case completionItemPropertyDisplayText:
 		return property(evaluationText("display text"), evaluationText(item.DisplayText))
 	case completionItemPropertyDescription:
@@ -2638,11 +2820,17 @@ func (expectation completionItemPropertyExpectation) observed(item cli.Completio
 	case completionItemPropertyDetail:
 		return property(evaluationText("detail"), evaluationText(item.Detail))
 	case completionItemPropertySearchTerms:
-		return property(evaluationText("search terms"), stringCollectionField{values: item.SearchTerms})
+		field := stringCollectionField{
+			values: item.SearchTerms,
+		}
+		return property(evaluationText("search terms"), field)
 	case completionItemPropertySortText:
 		return property(evaluationText("sort text"), evaluationText(item.SortText))
 	case completionItemPropertyCommitCharacters:
-		return property(evaluationText("commit characters"), runeCollectionField{values: item.CommitCharacters})
+		field := runeCollectionField{
+			values: item.CommitCharacters,
+		}
+		return property(evaluationText("commit characters"), field)
 	case completionItemPropertyMatchField:
 		return property(evaluationText("match field"), evaluationText(fmt.Sprint(item.Match.Field)))
 	case completionItemPropertyMatchFieldIndex:
@@ -2650,7 +2838,10 @@ func (expectation completionItemPropertyExpectation) observed(item cli.Completio
 	case completionItemPropertyMatchScore:
 		return evaluationText(fmt.Sprintf("match score %d", item.Match.Score))
 	case completionItemPropertyMatchRanges:
-		return property(evaluationText("match ranges"), completionRangeCollectionField{values: item.Match.Ranges})
+		field := completionRangeCollectionField{
+			values: item.Match.Ranges,
+		}
+		return property(evaluationText("match ranges"), field)
 	case completionItemPropertyMatchEdits:
 		return evaluationText(fmt.Sprintf("match edits %d", item.Match.Edits))
 	case completionItemPropertyDeclarationKind:
@@ -2891,9 +3082,15 @@ func (expectation completionDelegationExpectation) expectedField() evaluationFie
 		}
 		return semanticRequirementAbsent
 	case completionDelegationPropertyArgs:
-		return property(evaluationText("args"), stringCollectionField{values: expectation.args})
+		field := stringCollectionField{
+			values: expectation.args,
+		}
+		return property(evaluationText("args"), field)
 	case completionDelegationPropertyCursor:
-		return completionCursorField{value: expectation.cursor}
+		field := completionCursorField{
+			value: expectation.cursor,
+		}
+		return field
 	case completionDelegationPropertySensitive:
 		return semanticRequirementSensitive
 	default:
@@ -2924,9 +3121,15 @@ func (expectation completionDelegationExpectation) actualField(delegation *cli.C
 	case completionDelegationPropertyPresent:
 		return evaluationText("present")
 	case completionDelegationPropertyArgs:
-		return property(evaluationText("args"), stringCollectionField{values: delegation.Args})
+		field := stringCollectionField{
+			values: delegation.Args,
+		}
+		return property(evaluationText("args"), field)
 	case completionDelegationPropertyCursor:
-		return completionCursorField{value: delegation.Cursor}
+		field := completionCursorField{
+			value: delegation.Cursor,
+		}
+		return field
 	case completionDelegationPropertySensitive:
 		return evaluationText(fmt.Sprintf("sensitive=%t", delegation.Sensitive))
 	default:
@@ -3087,16 +3290,18 @@ func (expectation completionMessagesExpectation) evaluateCompletion(result cli.C
 		if actual == expected {
 			continue
 		}
+		field := completionMessageField{
+			index: index,
+			value: expected,
+		}
+		completionMessageField := completionMessageField{
+			index: index,
+			value: actual,
+		}
 		return disprovedResult(
 			evaluationText("completion messages"),
-			completionMessageField{
-				index: index,
-				value: expected,
-			},
-			completionMessageField{
-				index: index,
-				value: actual,
-			},
+			field,
+			completionMessageField,
 		)
 	}
 	return provedResult()
@@ -3244,30 +3449,34 @@ func (expected completionObservedMessagesExpectation) evaluateCompletion(result 
 		}
 	}
 	if len(expected) != len(result.Messages) {
+		field := collectionCardinalityField{
+			name:  "expected completion messages",
+			count: len(expected),
+		}
+		collectionCardinalityField := collectionCardinalityField{
+			name:  "observed completion messages",
+			count: len(result.Messages),
+		}
 		return disprovedResult(
 			evaluationText(subject),
-			collectionCardinalityField{
-				name:  "expected completion messages",
-				count: len(expected),
-			},
-			collectionCardinalityField{
-				name:  "observed completion messages",
-				count: len(result.Messages),
-			},
+			field,
+			collectionCardinalityField,
 		)
 	}
 	for index := range expected {
 		if expected[index] != result.Messages[index] {
+			field := completionMessageField{
+				index: index,
+				value: expected[index],
+			}
+			completionMessageField := completionMessageField{
+				index: index,
+				value: result.Messages[index],
+			}
 			return disprovedResult(
 				evaluationText(subject),
-				completionMessageField{
-					index: index,
-					value: expected[index],
-				},
-				completionMessageField{
-					index: index,
-					value: result.Messages[index],
-				},
+				field,
+				completionMessageField,
 			)
 		}
 	}
@@ -3393,10 +3602,16 @@ func (expectation completionReplaceExpectation) evaluateCompletion(result cli.Co
 	if result.Replace == expectation.span {
 		return provedResult()
 	}
+	field := completionSpanField{
+		value: expectation.span,
+	}
+	completionSpanField := completionSpanField{
+		value: result.Replace,
+	}
 	return disprovedResult(
 		evaluationText("completion replacement"),
-		completionSpanField{value: expectation.span},
-		completionSpanField{value: result.Replace},
+		field,
+		completionSpanField,
 	)
 }
 

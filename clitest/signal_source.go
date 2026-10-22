@@ -57,7 +57,9 @@ func SignalSource[K comparable](options SignalSourceOptions[K]) (cli.SignalSourc
 		closed:      make(chan struct{}),
 		reraiseWake: make(chan struct{}, 1),
 	}
-	control := &SignalSourceControl[K]{state: state}
+	control := &SignalSourceControl[K]{
+		state: state,
+	}
 	signals := append([]cli.SignalDescriptor[K](nil), options.Signals...)
 	source := cli.SignalSource[K]{
 		Signals: signals,
@@ -81,7 +83,9 @@ func SignalWatchSource[K comparable](options SignalWatchSourceOptions[K]) (cli.S
 		reraiseWake:  make(chan struct{}, 1),
 		closed:       make(chan struct{}),
 	}
-	control := &SignalWatchSourceControl[K]{state: state}
+	control := &SignalWatchSourceControl[K]{
+		state: state,
+	}
 	signals := append([]cli.SignalDescriptor[K](nil), options.Signals...)
 	source := cli.SignalWatchSource[K]{
 		Signals:   signals,
@@ -108,7 +112,9 @@ func (control *SignalSourceControl[K]) Notify(notification cli.SignalNotificatio
 	if err != nil {
 		return err
 	}
-	record := ordinarySignalRecord[K]{notification: cloneSignalNotification(notification)}
+	record := ordinarySignalRecord[K]{
+		notification: cloneSignalNotification(notification),
+	}
 	return state.enqueue(record)
 }
 
@@ -121,7 +127,9 @@ func (control *SignalSourceControl[K]) Fail(failure error) error {
 	if err != nil {
 		return err
 	}
-	record := ordinarySignalRecord[K]{err: failure}
+	record := ordinarySignalRecord[K]{
+		err: failure,
+	}
 	return state.enqueue(record)
 }
 
@@ -332,10 +340,11 @@ func (err signalFixtureContextError) Unwrap() error { return err.cause }
 func (state *ordinarySignalFixtureState[K]) open(ctx context.Context) (cli.SignalStream[K], error) {
 	var stream cli.SignalStream[K]
 	if err := context.Cause(ctx); err != nil {
-		return cli.SignalStream[K]{}, signalFixtureContextError{
+		failure := signalFixtureContextError{
 			operation: "open",
 			cause:     err,
 		}
+		return cli.SignalStream[K]{}, failure
 	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
@@ -379,10 +388,11 @@ func (state *ordinarySignalFixtureState[K]) receive(ctx context.Context) (cli.Si
 		state.mu.Unlock()
 		select {
 		case <-ctx.Done():
-			return cli.SignalNotification[K]{}, signalFixtureContextError{
+			failure := signalFixtureContextError{
 				operation: "receive",
 				cause:     context.Cause(ctx),
 			}
+			return cli.SignalNotification[K]{}, failure
 		case <-wake:
 		}
 	}
@@ -423,10 +433,11 @@ func (state *ordinarySignalFixtureState[K]) close() error {
 
 func (state *ordinarySignalFixtureState[K]) reraise(ctx context.Context, signal K) error {
 	if err := context.Cause(ctx); err != nil {
-		return signalFixtureContextError{
+		failure := signalFixtureContextError{
 			operation: "reraise",
 			cause:     err,
 		}
+		return failure
 	}
 	state.mu.Lock()
 	state.reraiseHistory = append(state.reraiseHistory, signal)
@@ -473,10 +484,11 @@ func (state *ordinarySignalFixtureState[K]) runReraiseStream() {
 func (state *advancedSignalFixtureState[K]) subscribe(ctx context.Context, revision cli.SignalWatchRevision, signals []K) (cli.SignalSubscription[K], error) {
 	var subscription cli.SignalSubscription[K]
 	if err := context.Cause(ctx); err != nil {
-		return cli.SignalSubscription[K]{}, signalFixtureContextError{
+		failure := signalFixtureContextError{
 			operation: "subscribe",
 			cause:     err,
 		}
+		return cli.SignalSubscription[K]{}, failure
 	}
 	if revision == 0 {
 		return cli.SignalSubscription[K]{}, errSignalSourceInvalidInitialWatch
@@ -504,10 +516,11 @@ func (state *advancedSignalFixtureState[K]) subscribe(ctx context.Context, revis
 
 func (state *advancedSignalFixtureState[K]) setWatch(ctx context.Context, revision cli.SignalWatchRevision, signals []K) error {
 	if err := context.Cause(ctx); err != nil {
-		return signalFixtureContextError{
+		failure := signalFixtureContextError{
 			operation: "set watch",
 			cause:     err,
 		}
+		return failure
 	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
@@ -636,10 +649,11 @@ func (state *advancedSignalFixtureState[K]) runWatchStream() {
 
 func (state *advancedSignalFixtureState[K]) reraise(ctx context.Context, signal K) error {
 	if err := context.Cause(ctx); err != nil {
-		return signalFixtureContextError{
+		failure := signalFixtureContextError{
 			operation: "reraise",
 			cause:     err,
 		}
+		return failure
 	}
 	state.mu.Lock()
 	state.reraiseHistory = append(state.reraiseHistory, signal)

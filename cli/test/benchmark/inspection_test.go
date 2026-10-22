@@ -51,7 +51,9 @@ func BenchmarkInspectArgumentsAndEnvironment(b *testing.B) {
 		for index := range args {
 			args[index] = fmt.Sprintf("arg-%04d", index)
 		}
-		request := cli.InspectionRequest{Args: args}
+		request := cli.InspectionRequest{
+			Args: args,
+		}
 		preflightInspectionInputs(b, app, request)
 		b.Run(fmt.Sprintf("Args/Tokens=%d", tokens), func(b *testing.B) {
 			b.ReportAllocs()
@@ -67,7 +69,9 @@ func BenchmarkInspectArgumentsAndEnvironment(b *testing.B) {
 				Value: fmt.Sprintf("value-%04d", index),
 			}
 		}
-		request := cli.InspectionRequest{Env: env}
+		request := cli.InspectionRequest{
+			Env: env,
+		}
 		preflightInspectionInputs(b, app, request)
 		b.Run(fmt.Sprintf("Environment/Entries=%d", entries), func(b *testing.B) {
 			b.ReportAllocs()
@@ -80,7 +84,9 @@ func inspectionInputApplication(tb testing.TB) cli.Application {
 	tb.Helper()
 	definition := cli.Definition[inputConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[inputConfig]) {
 			values := root.Values.Sequence(&root.Config.Strings, cli.Value.String())
 			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[inputConfig]) {

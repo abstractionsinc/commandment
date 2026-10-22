@@ -53,10 +53,11 @@ func projectEffectiveValueLiteral(model *effectiveModel, destination ValueID, va
 	if err != nil {
 		return ValueLiteral{}, errInvalidModelTopology
 	}
-	return ValueLiteral{
+	literal := ValueLiteral{
 		Type: vt,
 		Text: text,
-	}, nil
+	}
+	return literal, nil
 }
 
 func projectApplicationSchema(model staticProgram) (*Schema, error) {

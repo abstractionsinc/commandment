@@ -79,7 +79,9 @@ func (draft *applicationDraft) discard() {
 	if draft == nil || draft.closed {
 		return
 	}
-	*draft = applicationDraft{closed: true}
+	*draft = applicationDraft{
+		closed: true,
+	}
 }
 
 func compileRoot[C any](draft *applicationDraft, definition Definition[C]) (commandRef, ReleaseScheme, error) {

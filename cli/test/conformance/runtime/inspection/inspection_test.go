@@ -66,7 +66,7 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 	runStarted := make(chan runObservation, operations)
 	runFinished := make(chan runObservation, operations)
 	releaseRuns := make(chan struct{})
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Subcommands.CommandsFrom(func(ctx context.Context, batch *cli.CommandBatch[config]) error {
@@ -84,9 +84,12 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 						cfg.Value,
 					)
 				}
-				return cli.CompletionContribution{
-					Candidates: []cli.CompletionCandidate{{Value: "stable"}},
-				}, nil
+				contribution := cli.CompletionContribution{
+					Candidates: []cli.CompletionCandidate{{
+						Value: "stable",
+					}},
+				}
+				return contribution, nil
 			}).
 				Long("value")
 		},
@@ -109,7 +112,8 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 			}
 			return nil
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -171,9 +175,7 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 	errs := make(chan error, operations)
 	var wg sync.WaitGroup
 	for worker := range operations {
-		wg.Add(1)
-		go func(worker int) {
-			defer wg.Done()
+		wg.Go(func() {
 			<-startMixed
 
 			inspectCtx := context.WithValue(
@@ -188,7 +190,10 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 				Args: []string{"--value", fmt.Sprintf("inspect-%d", worker)},
 			})
 			if err != nil || inspection.Status != cli.InspectionStatusReady {
-				errs <- concurrentOperationError{"Inspect", err}
+				errs <- concurrentOperationError{
+					operation: "Inspect",
+					err:       err,
+				}
 				return
 			}
 
@@ -207,7 +212,10 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 				},
 			})
 			if err != nil || !completionContainsValue(commandCompletion, "remote") {
-				errs <- concurrentOperationError{"command Complete", err}
+				errs <- concurrentOperationError{
+					operation: "command Complete",
+					err:       err,
+				}
 				return
 			}
 
@@ -226,18 +234,27 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 				},
 			})
 			if err != nil || !completionContainsValue(valueCompletion, "stable") {
-				errs <- concurrentOperationError{"value Complete", err}
+				errs <- concurrentOperationError{
+					operation: "value Complete",
+					err:       err,
+				}
 				return
 			}
 			if schema := app.Schema(); schema.Root == 0 {
-				errs <- concurrentOperationError{"Schema", nil}
+				errs <- concurrentOperationError{
+					operation: "Schema",
+					err:       nil,
+				}
 				return
 			}
 			reference, err := app.Reference(cli.ReferenceOptions{})
 			if err != nil || reference.Root == 0 {
-				errs <- concurrentOperationError{"Reference", err}
+				errs <- concurrentOperationError{
+					operation: "Reference",
+					err:       err,
+				}
 			}
-		}(worker)
+		})
 	}
 	close(startMixed)
 	wg.Wait()
@@ -290,7 +307,9 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 			operation: "Inspect",
 		},
 	)
-	postInspection, err := app.Inspect(postInspectCtx, cli.InspectionRequest{Args: []string{"--value", "post"}})
+	postInspection, err := app.Inspect(postInspectCtx, cli.InspectionRequest{
+		Args: []string{"--value", "post"},
+	})
 	if err != nil || postInspection.Status != cli.InspectionStatusReady {
 		t.Fatalf("post-Run Inspect = status %v err %v", postInspection.Status, err)
 	}
@@ -303,8 +322,10 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 		},
 	)
 	postCommandCompletion, err := app.Complete(postCommandCtx, cli.CompletionRequest{
-		Args:   []string{""},
-		Cursor: cli.CompletionCursor{Argument: 0},
+		Args: []string{""},
+		Cursor: cli.CompletionCursor{
+			Argument: 0,
+		},
 	})
 	if err != nil || !completionContainsValue(postCommandCompletion, "remote") {
 		t.Fatalf("post-Run command Complete = %#v err %v", postCommandCompletion, err)
@@ -318,8 +339,10 @@ func TestConcurrentIndependentPublicOperationsRemainOperationLocal(t *testing.T)
 		},
 	)
 	postValueCompletion, err := app.Complete(postValueCtx, cli.CompletionRequest{
-		Args:   []string{"--value", ""},
-		Cursor: cli.CompletionCursor{Argument: 1},
+		Args: []string{"--value", ""},
+		Cursor: cli.CompletionCursor{
+			Argument: 1,
+		},
 	})
 	if err != nil || !completionContainsValue(postValueCompletion, "stable") {
 		t.Fatalf("post-Run value Complete = %#v err %v", postValueCompletion, err)
@@ -436,7 +459,7 @@ func TestInspectionDoesNotEnterExecutionOrSignalRuntime(t *testing.T) {
 	handlerCalled := false
 	noticeDelivered := false
 	source := &inspectionCountingSignalSource{}
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			registeredSignal := root.Signals.Source(source.Source()).Signal("counted")
@@ -458,7 +481,8 @@ func TestInspectionDoesNotEnterExecutionOrSignalRuntime(t *testing.T) {
 			handlerCalled = true
 			return nil
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -494,21 +518,23 @@ type inspectionCountingSignalSource struct {
 }
 
 func (source *inspectionCountingSignalSource) Source() cli.SignalSource[string] {
-	return cli.SignalSource[string]{
+	signalSource := cli.SignalSource[string]{
 		Signals: []cli.SignalDescriptor[string]{{
 			Signal:   "counted",
 			Fidelity: cli.SignalSourceDeliveryFidelityExact,
 		}},
 		Open: func(_ context.Context) (cli.SignalStream[string], error) {
 			source.open++
-			return cli.SignalStream[string]{
+			stream := cli.SignalStream[string]{
 				Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 					<-ctx.Done()
 					return cli.SignalNotification[string]{}, ctx.Err()
 				},
-			}, nil
+			}
+			return stream, nil
 		},
 	}
+	return signalSource
 }
 
 type inspectionModeConfig struct{ Mode string }
@@ -575,9 +601,11 @@ func TestInspectionMaterializesDynamicDomainOnlyOnDemandAndReusesCanonicalDomain
 	t.Parallel()
 	type config = inspectionModeConfig
 	calls := 0
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -594,7 +622,8 @@ func TestInspectionMaterializesDynamicDomainOnlyOnDemandAndReusesCanonicalDomain
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if calls != 0 {
 		t.Fatalf("Compile() executed dynamic domain %d times", calls)
 	}
@@ -701,9 +730,11 @@ func TestInspectionArgumentFormSelectionDistinguishesNoMatchFromUnrelatedGrammar
 func TestInspectionProjectsPolicyOutcomesAndNoticeSuppression(t *testing.T) {
 	t.Parallel()
 	type config = inspectionNameConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
 			root.Values.Default(name, "ready")
@@ -717,7 +748,8 @@ func TestInspectionProjectsPolicyOutcomesAndNoticeSuppression(t *testing.T) {
 				AdvisoryCode: "ready",
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -736,7 +768,7 @@ func TestInspectionProjectsPolicyOutcomesAndNoticeSuppression(t *testing.T) {
 func TestInspectionUsesStableOperationLocaleAndResolvedPresentation(t *testing.T) {
 	t.Parallel()
 	type config = inspectionConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Description: cli.Description{
 			Short: "tool short",
@@ -750,7 +782,8 @@ func TestInspectionUsesStableOperationLocaleAndResolvedPresentation(t *testing.T
 				},
 			}},
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -789,9 +822,11 @@ func TestContextualValueStateAuthorizationDoesNotCreateDependency(t *testing.T) 
 	t.Parallel()
 	type config = inspectionDeclaredUndeclaredConfig
 	var ruleCalled, advisoryCalled bool
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			declared := root.Values.String(&root.Config.Declared)
 			undeclared := root.Values.String(&root.Config.Undeclared)
@@ -832,7 +867,8 @@ func TestContextualValueStateAuthorizationDoesNotCreateDependency(t *testing.T) 
 				Message:  "context",
 			}).Subject(declared).DependsOn(declared)
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -855,8 +891,16 @@ func TestInspectionHelpAndVersionStopBeforeRunOnlyDemand(t *testing.T) {
 		args   []string
 		action cli.InvocationAction
 	}{
-		{name: "help", args: []string{"--help"}, action: cli.InvocationActionHelp},
-		{name: "version", args: []string{"--version"}, action: cli.InvocationActionVersion},
+		{
+			name:   "help",
+			args:   []string{"--help"},
+			action: cli.InvocationActionHelp,
+		},
+		{
+			name:   "version",
+			args:   []string{"--version"},
+			action: cli.InvocationActionVersion,
+		},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
@@ -872,7 +916,7 @@ func TestInspectionHelpAndVersionStopBeforeRunOnlyDemand(t *testing.T) {
 			middlewareCalls := 0
 			handlerCalls := 0
 
-			app := clitest.Compile(t, cli.Definition[config]{
+			definition := cli.Definition[config]{
 				Name:    "tool",
 				Release: cli.Release.Ordered("v1", "v1"),
 				Declare: func(root *cli.CommandBuilder[config]) {
@@ -895,7 +939,8 @@ func TestInspectionHelpAndVersionStopBeforeRunOnlyDemand(t *testing.T) {
 					handlerCalls++
 					return nil
 				},
-			})
+			}
+			app := clitest.Compile(t, definition)
 
 			facts := []cli.FactProvider{cli.FactsFor[config](func(context.Context, *cli.FactSupply[config]) error {
 				factCalls++
@@ -979,13 +1024,14 @@ func TestInspectionProjectsExplicitCommandSelectionPathAndCausalEntry(t *testing
 func TestInspectionDoesNotRejectResponseCapableApplicationWithoutResponseLexicalEntry(t *testing.T) {
 	t.Parallel()
 	type config = inspectionConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ResponseFiles(true)
 		},
 		Run: func(context.Context, *config) error { return nil },
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -996,23 +1042,25 @@ func TestInspectionProjectsSuccessfulResponseIncludeWithoutFlatteningItsLexicalF
 	t.Parallel()
 	type config = inspectionConfig
 	loads := 0
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "commandment",
 		Declare: func(root *cli.CommandBuilder[config]) { root.Dialect.ResponseFiles(true) },
 		Run:     func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	token := clitest.TokenAt(0)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"@empty"},
 		ResponseFiles: cli.ResponseFileAccess{
 			Load: func(_ context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
 				loads++
-				return cli.ResponseFile{
+				file := cli.ResponseFile{
 					Key:      request.Path,
 					Revision: cli.Revision("r1"),
 					Location: "virtual:" + request.Path,
 					Content:  nil,
-				}, nil
+				}
+				return file, nil
 			},
 		},
 	}).Require(t, clitest.InspectionReady(), token.Role(cli.TokenRoleResponseFile), token.Text("@empty"), token.Origin().Present(), token.Origin().Source().Present())
@@ -1024,11 +1072,14 @@ func TestInspectionProjectsSuccessfulResponseIncludeWithoutFlatteningItsLexicalF
 func TestInspectionProjectsResolvedExplicitScalarCandidate(t *testing.T) {
 	t.Parallel()
 	type config = inspectionNameConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) { root.Flags.String(&root.Config.Name).Long("name") },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	flag := root.Flag("--name")
 	value := flag.Value()
@@ -1047,14 +1098,17 @@ func TestInspectionProjectsResolvedExplicitScalarCandidate(t *testing.T) {
 func TestInspectionResolvesEnvironmentCandidate(t *testing.T) {
 	t.Parallel()
 	type config = inspectionNameConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
 			root.Values.Environment(name, "TOOL_NAME")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	env := root.Environment("TOOL_NAME")
 	value := env.Value()
@@ -1076,9 +1130,11 @@ func TestInspectionSkipsSuppressedComputedDefaultWithoutCallingIt(t *testing.T) 
 	t.Parallel()
 	type config = inspectionNameConfig
 	calls := 0
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
 			root.Flags.ValueFor(name).Long("name")
@@ -1089,7 +1145,8 @@ func TestInspectionSkipsSuppressedComputedDefaultWithoutCallingIt(t *testing.T) 
 				),
 			)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().Flag("--name").Value()
 	explicit, computed := value.ProducerAt(0), value.ProducerAt(1)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -1107,9 +1164,11 @@ func TestInspectionSkipsSuppressedComputedDefaultWithoutCallingIt(t *testing.T) 
 func TestInspectionOptionalComputedDefaultOmissionFallsThroughStaticDefault(t *testing.T) {
 	t.Parallel()
 	type config = inspectionNameConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
 			root.Values.OptionalComputedDefault(
@@ -1122,7 +1181,8 @@ func TestInspectionOptionalComputedDefaultOmissionFallsThroughStaticDefault(t *t
 			)
 			root.Values.Default(name, "static")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().ValueAt(0)
 	p0, p1 := value.ProducerAt(0), value.ProducerAt(1)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
@@ -1136,14 +1196,17 @@ func TestInspectionOptionalComputedDefaultOmissionFallsThroughStaticDefault(t *t
 func TestInspectionShortCountClusterUsesIndependentTokensAndOneCandidate(t *testing.T) {
 	t.Parallel()
 	type config = inspectionVerboseConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ShortFlagClustering(cli.ShortFlagClusteringEnabled)
 			root.Flags.Count(&root.Config.Verbose).Occurrences(cli.Count.ZeroOrMore()).Short('v')
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	flag := root.Flag("-v")
 	value := flag.Value()
@@ -1171,14 +1234,17 @@ func TestInspectionShortCountClusterUsesIndependentTokensAndOneCandidate(t *test
 func TestInspectionRedactsSensitiveValueAndCandidateInput(t *testing.T) {
 	t.Parallel()
 	type config = inspectionSecretConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			secret := root.Values.String(&root.Config.Secret).Sensitive()
 			root.Flags.ValueFor(secret).Long("secret").Sensitive()
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().Flag("--secret").Value()
 	candidate := value.CandidateAt(0)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -1192,11 +1258,14 @@ func TestInspectionRedactsSensitiveValueAndCandidateInput(t *testing.T) {
 func TestInspectionReturnsPartialValueGraphWithInvalidInputDiagnostic(t *testing.T) {
 	t.Parallel()
 	type config = inspectionCountConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) { root.Flags.Int(&root.Config.Count).Long("count") },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().Flag("--count").Value()
 	candidate := value.CandidateAt(0)
 	diagnostic := clitest.Diagnostic(cli.DiagnosticInvalidValue)
@@ -1214,11 +1283,14 @@ func TestInspectionResolvesInvocationDefaultThroughOrdinaryCandidateModel(t *tes
 	t.Parallel()
 	type config = inspectionNameConfig
 	var name cli.Destination[config, string]
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) { name = root.Values.String(&root.Config.Name) },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().ValueAt(0)
 	candidate := value.CandidateAt(0)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -1241,9 +1313,11 @@ func TestInspectionSuppliedFactSuppressesResolvedFact(t *testing.T) {
 	type config = inspectionTenantConfig
 	var tenant cli.Destination[config, string]
 	resolverCalls := 0
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			tenant = root.Facts.Resolve(
 				&root.Config.Tenant,
@@ -1253,7 +1327,8 @@ func TestInspectionSuppliedFactSuppressesResolvedFact(t *testing.T) {
 				},
 			).Destination()
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().FactAt(0).Value()
 	effective, suppressed := value.ContributorAt(0), value.CandidateAt(1)
 	supplied, resolved := value.ProducerAt(0), value.ProducerAt(1)
@@ -1285,15 +1360,18 @@ func TestInspectionEnvironmentEmptySequenceAdaptersPreserveWholeVersusSegment(t 
 	t.Run("elements empty is no effect", func(t *testing.T) {
 		t.Parallel()
 		type config = inspectionTagsConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "tool",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				tags := root.Values.Sequence(&root.Config.Tags, cli.Value.String())
 				root.Values.Environment(tags, "TOOL_TAGS").Elements(",")
 				root.Values.Default(tags, []string{"fallback"})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		envDecl := clitest.RootCommand().Environment("TOOL_TAGS")
 		value := envDecl.Value()
 		env, fallback := value.CandidateAt(0), value.CandidateAt(1)
@@ -1318,15 +1396,18 @@ func TestInspectionEnvironmentEmptySequenceAdaptersPreserveWholeVersusSegment(t 
 	t.Run("whole sequence empty is effective", func(t *testing.T) {
 		t.Parallel()
 		type config = inspectionTagsConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "tool",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				tags := root.Values.Sequence(&root.Config.Tags, cli.Value.String())
 				root.Values.Environment(tags, "TOOL_TAGS").WholeSequence(",")
 				root.Values.Default(tags, []string{"fallback"})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		envDecl := clitest.RootCommand().Environment("TOOL_TAGS")
 		value := envDecl.Value()
 		env, fallback := value.CandidateAt(0), value.CandidateAt(1)
@@ -1350,14 +1431,17 @@ func TestInspectionEnvironmentEmptySequenceAdaptersPreserveWholeVersusSegment(t 
 func TestInspectionEnvironmentKeyedEntriesPreserveAtomicEntryGranularity(t *testing.T) {
 	t.Parallel()
 	type config = inspectionLabelsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(cli.Value.String(), cli.Value.Int()))
 			root.Values.Environment(labels, "TOOL_LABELS").KeyedEntries(",")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	env := clitest.RootCommand().Environment("TOOL_LABELS")
 	value := env.Value()
 	c0, c1 := value.CandidateAt(0), value.CandidateAt(1)
@@ -1385,14 +1469,17 @@ func TestInspectionEnvironmentKeyedEntriesPreserveAtomicEntryGranularity(t *test
 func TestInspectionEnvironmentPrefixUsesSuffixAsKeyAndRawValue(t *testing.T) {
 	t.Parallel()
 	type config = inspectionLabelsConfig2
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(cli.Value.String(), cli.Value.String()))
 			root.Values.EnvironmentPrefix(labels, "APP_LABEL_")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	env := clitest.RootCommand().Environment("APP_LABEL_")
 	value := env.Value()
 	c0, c1 := value.CandidateAt(0), value.CandidateAt(1)
@@ -1423,15 +1510,18 @@ func TestInspectionEnvironmentPrefixUsesSuffixAsKeyAndRawValue(t *testing.T) {
 func TestInspectionEnvironmentWholeKeyedEmptySuppressesLowerEntries(t *testing.T) {
 	t.Parallel()
 	type config = inspectionLabelsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(cli.Value.String(), cli.Value.Int()))
 			root.Values.Environment(labels, "TOOL_LABELS").WholeKeyed(",")
 			root.Values.Default(labels, map[string]int{"fallback": 1})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	envDecl := clitest.RootCommand().Environment("TOOL_LABELS")
 	value := envDecl.Value()
 	env, fallback := value.CandidateAt(0), value.CandidateAt(1)
@@ -1460,7 +1550,7 @@ func TestProviderAdvisoryNoticeUsesProviderLocalizationAcrossInspectionAndRun(t 
 		reason  = "provider reason"
 		hint    = "provider hint"
 	)
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -1515,7 +1605,8 @@ func TestProviderAdvisoryNoticeUsesProviderLocalizationAcrossInspectionAndRun(t 
 				return nil
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	remote := root.Command("remote")
 	localized := clitest.Notice(cli.NoticeAdvisory).Advisory("localized").On(remote)
@@ -1566,11 +1657,12 @@ func TestProviderAdvisoryNoticeUsesProviderLocalizationAcrossInspectionAndRun(t 
 	assertRun := func(label string, locale cli.Locale, wantMessage, wantReason, wantHint string) cli.Notice {
 		t.Helper()
 		var delivered []cli.Notice
-		err := app.Run(t.Context(), cli.RunRequest{
+		runRequest := cli.RunRequest{
 			Args:   []string{"remote"},
 			Locale: locale,
 			Notify: func(_ context.Context, notice cli.Notice) error { delivered = append(delivered, notice); return nil },
-		})
+		}
+		err := app.Run(t.Context(), runRequest)
 		if err != nil {
 			t.Fatalf("%s Run() error = %v", label, err)
 		}
@@ -1599,7 +1691,10 @@ func TestInspectionPlansExplicitSignalRequirementsWithoutSubscribing(t *testing.
 	opens := 0
 	source := cli.SignalSource[string]{
 		Signals: []cli.SignalDescriptor[string]{
-			{Signal: inspectionSignalNativeInterrupt, Fidelity: cli.SignalSourceDeliveryFidelityExact},
+			{
+				Signal:   inspectionSignalNativeInterrupt,
+				Fidelity: cli.SignalSourceDeliveryFidelityExact,
+			},
 		},
 		Open: func(context.Context) (cli.SignalStream[string], error) {
 			opens++
@@ -1607,7 +1702,7 @@ func TestInspectionPlansExplicitSignalRequirementsWithoutSubscribing(t *testing.
 		},
 	}
 	var interrupt cli.Signal
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Run:  func(context.Context, *config) error { return nil },
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -1617,7 +1712,8 @@ func TestInspectionPlansExplicitSignalRequirementsWithoutSubscribing(t *testing.
 				root.Signals.Action.Abort(17),
 			)
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -1642,11 +1738,14 @@ func TestInspectionReportsMissingSignalHostCapability(t *testing.T) {
 	type config = inspectionConfig
 	source := cli.SignalSource[string]{
 		Signals: []cli.SignalDescriptor[string]{
-			{Signal: inspectionSignalNativeInterrupt, Fidelity: cli.SignalSourceDeliveryFidelityExact},
+			{
+				Signal:   inspectionSignalNativeInterrupt,
+				Fidelity: cli.SignalSourceDeliveryFidelityExact,
+			},
 		},
 		Open: func(context.Context) (cli.SignalStream[string], error) { panic("Inspect opened signal source") },
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Run:  func(context.Context, *config) error { return nil },
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -1656,7 +1755,8 @@ func TestInspectionReportsMissingSignalHostCapability(t *testing.T) {
 				root.Signals.Action.Abort(17),
 			)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
 		clitest.InspectionRejected(),
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticIncompatibleSignalSource).Present()),
@@ -1671,13 +1771,18 @@ func TestInspectionClearInheritedRemovesOnlyStrictAncestorPolicies(t *testing.T)
 	type config = inspectionConfig
 	source := cli.SignalSource[string]{
 		Signals: []cli.SignalDescriptor[string]{
-			{Signal: inspectionSignalNativeInterrupt, Fidelity: cli.SignalSourceDeliveryFidelityExact},
+			{
+				Signal:   inspectionSignalNativeInterrupt,
+				Fidelity: cli.SignalSourceDeliveryFidelityExact,
+			},
 		},
 		Open: func(context.Context) (cli.SignalStream[string], error) { panic("Inspect opened signal source") },
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			interrupt := root.Signals.Source(source).Signal(inspectionSignalNativeInterrupt)
 			root.Signals.Policy(
@@ -1699,13 +1804,16 @@ func TestInspectionClearInheritedRemovesOnlyStrictAncestorPolicies(t *testing.T)
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	child := root.Command("child")
 	p0, p1 := child.SignalPolicyAt(0), child.SignalPolicyAt(1)
 	clitest.Schema(app).
 		Require(t, root.SignalPoliciesExactly(root.SignalPolicyAt(0)), child.SignalPoliciesExactly(p0, p1))
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: []string{"child"}}).Require(t,
+	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: []string{"child"},
+	}).Require(t,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(root, child),
 		clitest.ExecutionAdmission().
@@ -1718,16 +1826,22 @@ func TestInspectionSignalPolicyFollowsCanonicalCommandThroughAliasAndDefault(t *
 	t.Parallel()
 	type config = inspectionConfig
 	newSource := func() cli.SignalSource[string] {
-		return cli.SignalSource[string]{
+		source := cli.SignalSource[string]{
 			Signals: []cli.SignalDescriptor[string]{
-				{Signal: inspectionSignalNativeInterrupt, Fidelity: cli.SignalSourceDeliveryFidelityExact},
+				{
+					Signal:   inspectionSignalNativeInterrupt,
+					Fidelity: cli.SignalSourceDeliveryFidelityExact,
+				},
 			},
 			Open: func(context.Context) (cli.SignalStream[string], error) { panic("Inspect opened signal source") },
 		}
+		return source
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			interrupt := root.Signals.Source(newSource()).Signal(inspectionSignalNativeInterrupt)
 			root.Subcommands.Command(cli.Command[config]{
@@ -1741,12 +1855,15 @@ func TestInspectionSignalPolicyFollowsCanonicalCommandThroughAliasAndDefault(t *
 				},
 			}).Default()
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	child := root.Command("child")
 	policy := child.SignalPolicyAt(0)
 	for _, args := range [][]string{{"alias"}, {}} {
-		clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: args}).Require(t,
+		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+			Args: args,
+		}).Require(t,
 			clitest.InspectionReady(),
 			clitest.SelectionPathExactly(root, child),
 			clitest.ExecutionAdmission().SignalPoliciesExactly(policy), policy.Status(cli.SignalPolicyStatusReady),
@@ -1755,9 +1872,11 @@ func TestInspectionSignalPolicyFollowsCanonicalCommandThroughAliasAndDefault(t *
 
 	t.Run("provider policy is operation-local and rejected output is inert", func(t *testing.T) {
 		t.Parallel()
-		providerApp := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "commandment",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(rootBuilder *cli.CommandBuilder[config]) {
 				interrupt := rootBuilder.Signals.Source(newSource()).Signal(inspectionSignalNativeInterrupt)
 				rootBuilder.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
@@ -1773,11 +1892,14 @@ func TestInspectionSignalPolicyFollowsCanonicalCommandThroughAliasAndDefault(t *
 					return nil
 				})
 			},
-		})
+		}
+		providerApp := clitest.Compile(t, definition)
 		remote := root.Command("remote")
 		remotePolicy := remote.SignalPolicyAt(0)
 		for range 2 {
-			clitest.Inspect(t.Context(), providerApp, cli.InspectionRequest{Args: []string{"remote"}}).
+			clitest.Inspect(t.Context(), providerApp, cli.InspectionRequest{
+				Args: []string{"remote"},
+			}).
 				Require(t,
 					clitest.InspectionReady(),
 					clitest.SelectionPathExactly(root, remote),
@@ -1787,9 +1909,11 @@ func TestInspectionSignalPolicyFollowsCanonicalCommandThroughAliasAndDefault(t *
 		}
 
 		wantErr := errors.New("reject provider output")
-		rejectedApp := clitest.Compile(t, cli.Definition[config]{
+		definitionUnderTest := cli.Definition[config]{
 			Name: "commandment",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(rootBuilder *cli.CommandBuilder[config]) {
 				interrupt := rootBuilder.Signals.Source(newSource()).Signal(inspectionSignalNativeInterrupt)
 				rootBuilder.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
@@ -1805,8 +1929,11 @@ func TestInspectionSignalPolicyFollowsCanonicalCommandThroughAliasAndDefault(t *
 					return wantErr
 				})
 			},
+		}
+		rejectedApp := clitest.Compile(t, definitionUnderTest)
+		proof := clitest.Inspect(t.Context(), rejectedApp, cli.InspectionRequest{
+			Args: []string{"rejected"},
 		})
-		proof := clitest.Inspect(t.Context(), rejectedApp, cli.InspectionRequest{Args: []string{"rejected"}})
 		proof.Require(
 			t,
 			clitest.InspectionRejected(),
@@ -1963,7 +2090,7 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 
 	t.Run("not introduced command", func(t *testing.T) {
 		t.Parallel()
-		app := clitest.Compile(t, cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name:    "tool",
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -1974,7 +2101,8 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 					},
 				})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"future"},
 		}).Require(t,
@@ -1985,7 +2113,7 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 
 	t.Run("removed command", func(t *testing.T) {
 		t.Parallel()
-		app := clitest.Compile(t, cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name:    "tool",
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -1996,7 +2124,8 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 					},
 				})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"old"},
 		}).Require(t,
@@ -2008,7 +2137,7 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 	t.Run("not introduced argument", func(t *testing.T) {
 		t.Parallel()
 		type config = inspectionValueConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name:    "tool",
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
@@ -2018,7 +2147,8 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 					})
 				})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"value"},
 		}).Require(t,
@@ -2030,7 +2160,7 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 	t.Run("removed argument", func(t *testing.T) {
 		t.Parallel()
 		type config = inspectionValueConfig
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name:    "tool",
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
@@ -2040,7 +2170,8 @@ func TestGrammarDiagnosticCode(t *testing.T) {
 					})
 				})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"value"},
 		}).Require(t,
@@ -2243,11 +2374,14 @@ func inspectionOnlyInspectionCandidate(t *testing.T, inspection cli.Inspection) 
 func TestInspectionCandidateIDsAreResultLocal(t *testing.T) {
 	t.Parallel()
 	type config struct{ Name string }
-	app := inspectionMustCompilePublic(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) { root.Flags.String(&root.Config.Name).Long("name") },
-	})
+	}
+	app := inspectionMustCompilePublic(t, definition)
 
 	inspect := func(value string) cli.Inspection {
 		t.Helper()

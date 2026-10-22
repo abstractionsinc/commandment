@@ -22,7 +22,9 @@ type valueStateIfObservedExpectationValue struct {
 
 func resolveObservedInspectionCommandLocator(state *commandLocatorState, commands map[cli.CommandID]cli.CommandInspection) locatorResolution[cli.CommandInspection] {
 	label := commandLocatorLabel(state)
-	resolution := locatorResolution[cli.CommandInspection]{subject: label}
+	resolution := locatorResolution[cli.CommandInspection]{
+		subject: label,
+	}
 	if state == nil || state.mode == commandLocatorInvalid {
 		resolution.status = locatorResolutionInvalid
 		resolution.subject = semanticSubjectCommand
@@ -1531,10 +1533,11 @@ func snapshotValueStaticDefault(value cli.ValueStaticDefault) cli.ValueStaticDef
 }
 
 func valueStateIfObservedExpectation(locator ValueLocator, states []cli.ResolutionState) InspectionExpectation {
-	return valueStateIfObservedExpectationValue{
+	value := valueStateIfObservedExpectationValue{
 		locator: locator.state,
 		states:  slices.Clone(states),
 	}
+	return value
 }
 
 func (observedCommandDoesNotExistExpectation) inspectionExpectation() {}

@@ -203,10 +203,11 @@ func (err responseFilesContextError) Unwrap() error { return err.cause }
 func (state *responseFilesState) load(ctx context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
 	state.requests.recordLoad(request)
 	if err := context.Cause(ctx); err != nil {
-		return cli.ResponseFile{}, responseFilesContextError{
+		failure := responseFilesContextError{
 			operation: "load",
 			cause:     err,
 		}
+		return cli.ResponseFile{}, failure
 	}
 	if file, ok := state.loads[request]; ok {
 		return cloneResponseFile(file), nil
@@ -220,10 +221,11 @@ func (state *responseFilesState) load(ctx context.Context, request cli.ResponseF
 func (state *responseFilesState) complete(ctx context.Context, request cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
 	state.requests.recordCompletion(request)
 	if err := context.Cause(ctx); err != nil {
-		return cli.CompletionContribution{}, responseFilesContextError{
+		failure := responseFilesContextError{
 			operation: "complete",
 			cause:     err,
 		}
+		return cli.CompletionContribution{}, failure
 	}
 	if contribution, ok := state.completions[request]; ok {
 		return cloneCompletionContribution(contribution), nil

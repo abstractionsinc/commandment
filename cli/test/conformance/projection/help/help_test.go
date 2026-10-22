@@ -547,8 +547,10 @@ func TestDefaultHelpAlienctlEscapesPresentationControls(t *testing.T) {
 		Description: cli.Description{
 			Long: "safe\x1b[31m description",
 		},
-		Usage:    []string{"alienctl scan\t<TARGET>"},
-		Examples: []cli.Example{{CommandLine: "alienctl scan A-17\t\x1b[2J"}},
+		Usage: []string{"alienctl scan\t<TARGET>"},
+		Examples: []cli.Example{{
+			CommandLine: "alienctl scan A-17\t\x1b[2J",
+		}},
 	}
 	text, err := cli.DefaultHelp(cli.DefaultHelpConfig{})(t.Context(), page)
 	if err != nil {
@@ -684,7 +686,7 @@ func TestRunHelpProjectsSelectedTargetWithoutBusinessExecution(t *testing.T) {
 			factSupplyCalls := 0
 			source := &helpCountingSignalSource{}
 
-			app, err := cli.Compile(cli.Definition[config]{
+			definition := cli.Definition[config]{
 				Name:    "tool",
 				Release: cli.Release.SemVer("2.0.0"),
 				Help: cli.HelpConfig{
@@ -735,14 +737,15 @@ func TestRunHelpProjectsSelectedTargetWithoutBusinessExecution(t *testing.T) {
 					handlerCalls++
 					return nil
 				},
-			})
+			}
+			app, err := cli.Compile(definition)
 			if err != nil {
 				t.Fatalf("Compile() error = %v", err)
 			}
 			referenceProof := clitest.Reference(app, cli.ReferenceOptions{})
 			referenceProof.Require(t, clitest.RootCommand().Exists())
 
-			err = app.Run(t.Context(), cli.RunRequest{
+			runRequest := cli.RunRequest{
 				Args:   test.args,
 				Stdout: &output,
 				Facts: []cli.FactProvider{cli.FactsFor[config](func(context.Context, *cli.FactSupply[config]) error {
@@ -753,7 +756,8 @@ func TestRunHelpProjectsSelectedTargetWithoutBusinessExecution(t *testing.T) {
 					noticeCalls++
 					return nil
 				},
-			})
+			}
+			err = app.Run(t.Context(), runRequest)
 			if err != nil {
 				t.Fatalf("Run(%v) error = %v", test.args, err)
 			}
@@ -795,8 +799,10 @@ func TestRunHelpProjectsSelectedTargetWithoutBusinessExecution(t *testing.T) {
 			}); err != nil {
 				t.Fatalf("second Run(--help) error = %v", err)
 			}
-			if !helpTestCommandNames(pages[len(pages)-1])["child"] ||
-				helpTestCommandNames(pages[len(pages)-1])["mutated"] {
+			names := helpTestCommandNames(pages[len(pages)-1])
+			_, hasChild := names["child"]
+			_, hasMutated := names["mutated"]
+			if !hasChild || hasMutated {
 				t.Fatalf("renderer mutation leaked across operations: %#v", pages[len(pages)-1].CommandGroups)
 			}
 		})
@@ -809,7 +815,7 @@ func TestRunAutomaticHelpActivatesAfterCompleteDefaultSelectionChain(t *testing.
 	var output strings.Builder
 	var pages []cli.HelpPage
 	handlerCalls := 0
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			WhenEmpty: true,
@@ -832,7 +838,8 @@ func TestRunAutomaticHelpActivatesAfterCompleteDefaultSelectionChain(t *testing.
 				},
 			}).Default()
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -874,7 +881,7 @@ func TestRunAutomaticStructuralHelpUsesFinalDefaultSelectedCommand(t *testing.T)
 	type config = helpConfig
 	var output strings.Builder
 	var pages []cli.HelpPage
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, page cli.HelpPage) (string, error) {
@@ -898,7 +905,8 @@ func TestRunAutomaticStructuralHelpUsesFinalDefaultSelectedCommand(t *testing.T)
 				},
 			}).Default()
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -930,7 +938,7 @@ func TestRunHelpProviderTargetAndImmediateNamespaceShareOperationSnapshot(t *tes
 	immediateProviderCalls := 0
 	descendantProviderCalls := 0
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, observed cli.HelpPage) (string, error) {
@@ -969,7 +977,8 @@ func TestRunHelpProviderTargetAndImmediateNamespaceShareOperationSnapshot(t *tes
 				return nil
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	expectHelp := func() {
 		clitest.RequireHelpPresentation(t, page,
@@ -1037,7 +1046,7 @@ func TestRunHelpAppliesAvailabilityVisibilityLifecycleProfileAndLocale(t *testin
 	t.Parallel()
 	type config = helpProfileGateUnavailableInvisibleRemovedCurrentConfig
 	var page cli.HelpPage
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Description: cli.Description{
 			Short: "tool short",
@@ -1092,7 +1101,8 @@ func TestRunHelpAppliesAvailabilityVisibilityLifecycleProfileAndLocale(t *testin
 				})
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -1101,11 +1111,12 @@ func TestRunHelpAppliesAvailabilityVisibilityLifecycleProfileAndLocale(t *testin
 	})
 	referenceProof.Require(t, clitest.EffectiveLocale("fr"), clitest.RootCommand().Exists())
 	var output strings.Builder
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Args:   []string{"--help"},
 		Locale: "fr",
 		Stdout: &output,
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatalf("Run(--help) error = %v", err)
 	}
 	if page.Locale != "fr" || page.Description.Short != "outil court" ||
@@ -1118,11 +1129,17 @@ func TestRunHelpAppliesAvailabilityVisibilityLifecycleProfileAndLocale(t *testin
 		)
 	}
 	commands := helpTestCommandNames(page)
-	if !commands["prod-only"] || commands["default-only"] {
+	_, hasProdOnly := commands["prod-only"]
+	_, hasDefaultOnly := commands["default-only"]
+	if !hasProdOnly || hasDefaultOnly {
 		t.Fatalf("profile command membership = %#v", commands)
 	}
 	flags := helpTestFlagNames(page)
-	if !flags["--current"] || flags["--unavailable"] || flags["--invisible"] || flags["--removed"] {
+	_, hasCurrent := flags["--current"]
+	_, hasUnavailable := flags["--unavailable"]
+	_, hasInvisible := flags["--invisible"]
+	_, hasRemoved := flags["--removed"]
+	if !hasCurrent || hasUnavailable || hasInvisible || hasRemoved {
 		t.Fatalf("availability/visibility/lifecycle flags = %#v", flags)
 	}
 }
@@ -1135,7 +1152,7 @@ func TestRunHelpDemandsOnlyRequiredValuesDefaultsAndDomains(t *testing.T) {
 	defaultCalls := 0
 	unusedDefaultCalls := 0
 	var page cli.HelpPage
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, observed cli.HelpPage) (string, error) {
@@ -1180,7 +1197,8 @@ func TestRunHelpDemandsOnlyRequiredValuesDefaultsAndDomains(t *testing.T) {
 			)
 			root.Flags.String(&root.Config.Unrelated).Long("unrelated")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -1203,7 +1221,9 @@ func TestRunHelpDemandsOnlyRequiredValuesDefaultsAndDomains(t *testing.T) {
 		)
 	}
 	flags := helpTestFlagNames(page)
-	if !flags["--visible"] || !flags["--unrelated"] {
+	_, hasVisible := flags["--visible"]
+	_, hasUnrelated := flags["--unrelated"]
+	if !hasVisible || !hasUnrelated {
 		t.Fatalf("visible flags = %#v", flags)
 	}
 }
@@ -1214,7 +1234,7 @@ func TestRunHelpDoesNotDemandDependenciesOfInactiveProfileProducer(t *testing.T)
 	var page cli.HelpPage
 	sourceDomainCalls := 0
 	inactiveDefaultCalls := 0
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, observed cli.HelpPage) (string, error) {
@@ -1258,7 +1278,8 @@ func TestRunHelpDoesNotDemandDependenciesOfInactiveProfileProducer(t *testing.T)
 				})
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -1278,7 +1299,8 @@ func TestRunHelpDoesNotDemandDependenciesOfInactiveProfileProducer(t *testing.T)
 			inactiveDefaultCalls,
 		)
 	}
-	if !helpTestFlagNames(page)["--visible"] {
+	flags := helpTestFlagNames(page)
+	if _, ok := flags["--visible"]; !ok {
 		t.Fatalf("active-profile visibility dependency was not resolved: %#v", page.FlagGroups)
 	}
 }
@@ -1289,7 +1311,7 @@ func TestRunHelpRequiredMaterializationFailureSkipsRenderer(t *testing.T) {
 	failure := errors.New("domain unavailable")
 	domainCalls := 0
 	rendererCalls := 0
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(context.Context, cli.HelpPage) (string, error) {
@@ -1309,7 +1331,8 @@ func TestRunHelpRequiredMaterializationFailureSkipsRenderer(t *testing.T) {
 			visible.Long("visible")
 			visible.VisibleWhen(root.When.Resolved(mode))
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -1339,9 +1362,11 @@ func TestRunHelpRendererAndOutputFailuresPreserveIsolation(t *testing.T) {
 		t.Parallel()
 		renderErr := errors.New("renderer failed")
 		handlerCalls := 0
-		app, err := cli.Compile(cli.Definition[config]{
-			Name:            "tool",
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Help: cli.HelpConfig{
 				Renderer: func(_ context.Context, page cli.HelpPage) (string, error) {
 					if page.ApplicationName != "tool" || len(page.Usage) == 0 {
@@ -1354,7 +1379,8 @@ func TestRunHelpRendererAndOutputFailuresPreserveIsolation(t *testing.T) {
 				handlerCalls++
 				return nil
 			},
-		})
+		}
+		app, err := cli.Compile(definition)
 		if err != nil {
 			t.Fatalf("Compile() error = %v", err)
 		}
@@ -1379,9 +1405,11 @@ func TestRunHelpRendererAndOutputFailuresPreserveIsolation(t *testing.T) {
 		writeErr := errors.New("write failed")
 		renderCalls := 0
 		handlerCalls := 0
-		app, err := cli.Compile(cli.Definition[config]{
-			Name:            "tool",
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Help: cli.HelpConfig{
 				Renderer: func(_ context.Context, page cli.HelpPage) (string, error) {
 					renderCalls++
@@ -1395,7 +1423,8 @@ func TestRunHelpRendererAndOutputFailuresPreserveIsolation(t *testing.T) {
 				handlerCalls++
 				return nil
 			},
-		})
+		}
+		app, err := cli.Compile(definition)
 		if err != nil {
 			t.Fatalf("Compile() error = %v", err)
 		}
@@ -1444,15 +1473,27 @@ func TestDefaultHelpPreservesAuthoritativeOrderAndIsDeterministic(t *testing.T) 
 			Flags:     "Flags",
 		},
 		CommandGroups: []cli.HelpCommandGroup{{
-			Title:    "Commands",
-			Commands: []cli.HelpCommand{{Name: "zeta"}, {Name: "alpha"}},
+			Title: "Commands",
+			Commands: []cli.HelpCommand{{
+				Name: "zeta",
+			}, {
+				Name: "alpha",
+			}},
 		}},
-		ArgumentForms: []cli.HelpArgumentForm{{Terms: []cli.HelpArgumentTerm{{Name: "ZETA"}, {Name: "ALPHA"}}}},
+		ArgumentForms: []cli.HelpArgumentForm{{Terms: []cli.HelpArgumentTerm{{
+			Name: "ZETA",
+		}, {
+			Name: "ALPHA",
+		}}}},
 		FlagGroups: []cli.HelpFlagGroup{{
 			Title: "Flags",
 			Flags: []cli.HelpFlag{
-				{FlagSpellings: []cli.FlagSpellingID{zetaLong, zetaShort}},
-				{FlagSpellings: []cli.FlagSpellingID{alphaLong}},
+				{
+					FlagSpellings: []cli.FlagSpellingID{zetaLong, zetaShort},
+				},
+				{
+					FlagSpellings: []cli.FlagSpellingID{alphaLong},
+				},
 			},
 		}},
 		FlagSpellings: map[cli.FlagSpellingID]cli.HelpFlagSpelling{
@@ -1508,26 +1549,26 @@ func TestDefaultHelpPreservesAuthoritativeOrderAndIsDeterministic(t *testing.T) 
 	}
 }
 
-func helpTestCommandNames(page cli.HelpPage) map[string]bool {
-	result := make(map[string]bool)
+func helpTestCommandNames(page cli.HelpPage) map[string]struct{} {
+	result := make(map[string]struct{})
 	for _, group := range page.CommandGroups {
 		for _, command := range group.Commands {
-			result[command.Name] = true
+			result[command.Name] = struct{}{}
 		}
 	}
 	return result
 }
 
-func helpTestFlagNames(page cli.HelpPage) map[string]bool {
-	result := make(map[string]bool)
+func helpTestFlagNames(page cli.HelpPage) map[string]struct{} {
+	result := make(map[string]struct{})
 	for _, group := range page.FlagGroups {
 		for _, flag := range group.Flags {
 			if flag.ActionEntry != 0 {
-				result[flag.ActionSpelling.Text] = true
+				result[flag.ActionSpelling.Text] = struct{}{}
 				continue
 			}
 			for _, id := range flag.FlagSpellings {
-				result[page.FlagSpellings[id].Spelling.Text] = true
+				result[page.FlagSpellings[id].Spelling.Text] = struct{}{}
 			}
 		}
 	}
@@ -1591,7 +1632,7 @@ func TestHelpPresentationOrderingHiddenEntriesAndActionSyntax(t *testing.T) {
 	t.Parallel()
 	type config = helpZetaAlphaPlainConfig
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, got cli.HelpPage) (string, error) {
@@ -1628,7 +1669,8 @@ func TestHelpPresentationOrderingHiddenEntriesAndActionSyntax(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	declared := clitest.RootCommand().HelpFlagGroup("Options")
 	clitest.Schema(app).Require(t,
 		declared.Kind(cli.HelpGroupDeclared),
@@ -1691,7 +1733,7 @@ func TestHelpNormalizationClosesHiddenSpellingReplacementWithoutRenderingClosure
 	t.Parallel()
 	type config = helpEnabledConfig
 	var pages []cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("2.0.0"),
 		Help: cli.HelpConfig{
@@ -1709,7 +1751,8 @@ func TestHelpNormalizationClosesHiddenSpellingReplacementWithoutRenderingClosure
 			old.ReplacedBy(replacement)
 			flag.Long("private").Hidden()
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	old := clitest.RootCommand().Flag("--old").Spelling("--old")
 	newSpelling := clitest.RootCommand().Flag("--old").Spelling("--new")
 	private := clitest.RootCommand().Flag("--old").Spelling("--private")
@@ -1768,7 +1811,7 @@ func TestHelpNormalizationClosesHiddenSpellingReplacementWithoutRenderingClosure
 func TestHelpActionRowsPreserveExactOwnerPayloadAndDoNotConflateCrossFormReplacement(t *testing.T) {
 	t.Parallel()
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("2.0.0"),
 		Help: cli.HelpConfig{
@@ -1778,18 +1821,27 @@ func TestHelpActionRowsPreserveExactOwnerPayloadAndDoNotConflateCrossFormReplace
 			},
 			ReplaceEntries: func(entries *cli.HelpActionEntries) {
 				oldFlag := entries.Long("assist").
-					Description(cli.Description{Short: "assist"}).
-					Release(cli.ReleaseLifecycle{DeprecatedIn: "2.0.0"})
+					Description(cli.Description{
+						Short: "assist",
+					}).
+					Release(cli.ReleaseLifecycle{
+						DeprecatedIn: "2.0.0",
+					})
 				hiddenCommand := entries.Command("guide").Hidden()
 				oldFlag.ReplacedBy(hiddenCommand)
 				oldCommand := entries.Command("manual").
-					Description(cli.Description{Short: "manual"}).
-					Release(cli.ReleaseLifecycle{DeprecatedIn: "2.0.0"})
+					Description(cli.Description{
+						Short: "manual",
+					}).
+					Release(cli.ReleaseLifecycle{
+						DeprecatedIn: "2.0.0",
+					})
 				hiddenFlag := entries.Long("manual-new").Hidden()
 				oldCommand.ReplacedBy(hiddenFlag)
 			},
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	schema := clitest.Schema(app)
 	assist := clitest.ResolveDeclaration(t, schema, clitest.RootCommand().ActionEntryAt(0))
 	guide := clitest.ResolveDeclaration(t, schema, clitest.RootCommand().ActionEntryAt(1))
@@ -1831,7 +1883,7 @@ func TestHelpValueDomainNormalizationProjectsDescriptionHiddenCanonicalAndReplac
 	t.Parallel()
 	type config = helpModeConfig
 	var pages []cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, got cli.HelpPage) (string, error) {
@@ -1858,7 +1910,8 @@ func TestHelpValueDomainNormalizationProjectsDescriptionHiddenCanonicalAndReplac
 			})
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Schema(app).Require(t,
 		domain.Entry("prod").Hidden(),
@@ -1924,7 +1977,7 @@ func TestHelpValueDomainNormalizationProjectsDescriptionHiddenCanonicalAndReplac
 func TestHelpActionFlagSubtreeInheritancePreservesExactActionOwnerAndInlineSyntax(t *testing.T) {
 	t.Parallel()
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, got cli.HelpPage) (string, error) {
@@ -1934,7 +1987,9 @@ func TestHelpActionFlagSubtreeInheritancePreservesExactActionOwnerAndInlineSynta
 			ReplaceEntries: func(entries *cli.HelpActionEntries) {
 				entries.Long("assist").
 					Placement(cli.FlagPlacementSubtree).
-					Description(cli.Description{Short: "global help"})
+					Description(cli.Description{
+						Short: "global help",
+					})
 			},
 		},
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -1942,7 +1997,8 @@ func TestHelpActionFlagSubtreeInheritancePreservesExactActionOwnerAndInlineSynta
 				Name: "child",
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	schema := clitest.Schema(app)
 	assist := clitest.ResolveDeclaration(t, schema, clitest.RootCommand().ActionEntryAt(0))
 	schema.Require(t, assist.Exists())
@@ -1972,7 +2028,7 @@ func TestHelpActionFlagSubtreeInheritancePreservesExactActionOwnerAndInlineSynta
 func TestInspectionProjectsAutomaticHelpRoutingAfterDefaultSelection(t *testing.T) {
 	t.Parallel()
 	type config = helpConfig
-	whenEmptyApp, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Help: cli.HelpConfig{
 			WhenEmpty: true,
@@ -1988,7 +2044,8 @@ func TestInspectionProjectsAutomaticHelpRoutingAfterDefaultSelection(t *testing.
 				},
 			}).Default()
 		},
-	})
+	}
+	whenEmptyApp, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile(WhenEmpty) error = %v", err)
 	}
@@ -2073,11 +2130,12 @@ func TestFrameworkHelpPhrasesForLocaleUseSelectedLocale(t *testing.T) {
 		},
 	})
 	var output strings.Builder
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Args:   []string{"--help"},
 		Locale: "en-US",
 		Stdout: &output,
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatal(err)
 	}
 	clitest.RequireHelpPresentation(t, page,
@@ -2112,7 +2170,7 @@ func TestHelpProjectionBuildsUsageAlternatives(t *testing.T) {
 	t.Parallel()
 	type config = helpNameItemsConfig
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, got cli.HelpPage) (string, error) {
@@ -2131,7 +2189,8 @@ func TestHelpProjectionBuildsUsageAlternatives(t *testing.T) {
 			})
 		},
 		Run: func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	var output strings.Builder
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--help"},
@@ -2151,7 +2210,7 @@ func TestHelpUsageRendersLiteralOptionalAndRepeatedTerms(t *testing.T) {
 	t.Parallel()
 	type config = helpValueItemsConfig
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, got cli.HelpPage) (string, error) {
@@ -2166,7 +2225,8 @@ func TestHelpUsageRendersLiteralOptionalAndRepeatedTerms(t *testing.T) {
 				form.Strings(&form.Config.Items, "ITEM", cli.Count.OneOrMore())
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--help"},
 		Stdout: &strings.Builder{},
@@ -2181,7 +2241,7 @@ func TestHelpUsageRendersLiteralOptionalAndRepeatedTerms(t *testing.T) {
 func TestDefaultHelpRendersStructuredPresentation(t *testing.T) {
 	t.Parallel()
 	type config = helpNameModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Description: cli.Description{
 			Long: "Long description",
@@ -2196,7 +2256,8 @@ func TestDefaultHelpRendersStructuredPresentation(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	var output strings.Builder
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--help"},
@@ -2231,7 +2292,7 @@ func TestHelpProjectionPreservesExamplesSensitivityAndCommandKinds(t *testing.T)
 	t.Parallel()
 	type config = helpSecretConfig
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Examples: []cli.Example{{
 			Description: "application example",
@@ -2267,7 +2328,8 @@ func TestHelpProjectionPreservesExamplesSensitivityAndCommandKinds(t *testing.T)
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	var output strings.Builder
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--help"},
@@ -2316,7 +2378,7 @@ func TestHelpProjectionPreservesArgumentTermKinds(t *testing.T) {
 		Format: func(string) []string { return []string{"left", "right"} },
 	}
 	var page cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Renderer: func(_ context.Context, got cli.HelpPage) (string, error) {
@@ -2331,7 +2393,8 @@ func TestHelpProjectionPreservesArgumentTermKinds(t *testing.T) {
 				form.Tokens(pair, "PAIR", language)
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--help"},
 		Stdout: &strings.Builder{},
@@ -2349,9 +2412,11 @@ func TestHelpProjectionPreservesArgumentTermKinds(t *testing.T) {
 
 func TestFrameworkTranslationsRemainSeparateFromApplicationLocalization(t *testing.T) {
 	t.Parallel()
-	app := clitest.Compile(t, cli.Definition[struct{}]{
-		Name:        "alienctl",
-		Description: cli.Description{Short: "Usage"},
+	definition := cli.Definition[struct{}]{
+		Name: "alienctl",
+		Description: cli.Description{
+			Short: "Usage",
+		},
 		Localization: cli.Localization{
 			DefaultLocale: "en",
 			Bundles: []cli.TranslationBundle{{
@@ -2367,13 +2432,15 @@ func TestFrameworkTranslationsRemainSeparateFromApplicationLocalization(t *testi
 				"Usage": "Utilisation",
 			},
 		}},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	var output strings.Builder
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Args:   []string{"--help"},
 		Stdout: &output,
 		Locale: "fr",
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatal(err)
 	}
 	text := output.String()
@@ -2390,19 +2457,21 @@ type helpCountingSignalSource struct {
 }
 
 func (source *helpCountingSignalSource) Source() cli.SignalSource[string] {
-	return cli.SignalSource[string]{
+	signalSource := cli.SignalSource[string]{
 		Signals: []cli.SignalDescriptor[string]{{
 			Signal:   "counted",
 			Fidelity: cli.SignalSourceDeliveryFidelityExact,
 		}},
 		Open: func(_ context.Context) (cli.SignalStream[string], error) {
 			source.open++
-			return cli.SignalStream[string]{
+			stream := cli.SignalStream[string]{
 				Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 					<-ctx.Done()
 					return cli.SignalNotification[string]{}, ctx.Err()
 				},
-			}, nil
+			}
+			return stream, nil
 		},
 	}
+	return signalSource
 }

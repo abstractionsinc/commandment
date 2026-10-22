@@ -2,13 +2,13 @@ package shelltest
 
 import (
 	"bytes"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
 
 func testTerminalOutput(reply func([]byte) error) *terminalOutput {
-	return &terminalOutput{
+	output := &terminalOutput{
 		changed:      make(chan struct{}, 1),
 		available:    true,
 		decckmKnown:  true,
@@ -16,6 +16,7 @@ func testTerminalOutput(reply func([]byte) error) *terminalOutput {
 		scrollBottom: terminalRows - 1,
 		reply:        reply,
 	}
+	return output
 }
 
 func TestTerminalOutputMaintainsLiveSemanticScreen(t *testing.T) {
@@ -29,7 +30,7 @@ func TestTerminalOutputMaintainsLiveSemanticScreen(t *testing.T) {
 		t.Fatal("live terminal screen unavailable")
 	}
 	want := []string{"prompt> abd", "next"}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("screen = %#v, want %#v", got, want)
 	}
 }
@@ -60,7 +61,7 @@ func TestTerminalOutputAnswersCursorAndGeometryQueriesTruthfully(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"\x1b[1;4R", "\x1b[8;48;160t"}
-	if !reflect.DeepEqual(replies, want) {
+	if !slices.Equal(replies, want) {
 		t.Fatalf("terminal replies = %#v, want %#v", replies, want)
 	}
 }
@@ -72,7 +73,7 @@ func TestTerminalOutputIgnoresMetaInputModeForScreenTruth(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, ok := output.snapshot(output.currentGeneration())
-	if !ok || !reflect.DeepEqual(got, []string{"before after"}) {
+	if !ok || !slices.Equal(got, []string{"before after"}) {
 		t.Fatalf("screen = %#v, %t", got, ok)
 	}
 }
@@ -84,7 +85,7 @@ func TestTerminalOutputIgnoresKeyboardProtocolControlsForScreenTruth(t *testing.
 		t.Fatal(err)
 	}
 	got, ok := output.snapshot(output.currentGeneration())
-	if !ok || !reflect.DeepEqual(got, []string{"abcdXYZ"}) {
+	if !ok || !slices.Equal(got, []string{"abcdXYZ"}) {
 		t.Fatalf("screen = %#v, %t", got, ok)
 	}
 }
@@ -96,7 +97,7 @@ func TestTerminalOutputIgnoresCursorStyleForScreenTruth(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, ok := output.snapshot(output.currentGeneration())
-	if !ok || !reflect.DeepEqual(got, []string{"before after"}) {
+	if !ok || !slices.Equal(got, []string{"before after"}) {
 		t.Fatalf("screen = %#v, %t", got, ok)
 	}
 }
@@ -128,7 +129,7 @@ func TestTerminalOutputReassemblesUTF8AcrossReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, ok := output.snapshot(output.currentGeneration())
-	if !ok || !reflect.DeepEqual(got, []string{"\u754c"}) {
+	if !ok || !slices.Equal(got, []string{"\u754c"}) {
 		t.Fatalf("screen = %#v, %t", got, ok)
 	}
 }
@@ -155,7 +156,7 @@ func TestTerminalOutputPreservesGraphemeAcrossReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, ok := output.snapshot(output.currentGeneration())
-	if !ok || !reflect.DeepEqual(got, []string{"\U0001f468\u200d\U0001f4bb"}) {
+	if !ok || !slices.Equal(got, []string{"\U0001f468\u200d\U0001f4bb"}) {
 		t.Fatalf("screen = %#v, %t", got, ok)
 	}
 }
@@ -198,7 +199,7 @@ func TestTerminalOutputAutowrapPreservesCursorTruth(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"\x1b[1;160R", "\x1b[2;2R"}
-	if !reflect.DeepEqual(replies, want) {
+	if !slices.Equal(replies, want) {
 		t.Fatalf("terminal replies = %#v, want %#v", replies, want)
 	}
 }
@@ -228,7 +229,7 @@ func TestTerminalOutputAnswersStatusQueryAndFailsDSRAfterTruthLoss(t *testing.T)
 	if _, err := output.Write([]byte("\x1b[5n")); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(replies, []string{"\x1b[0n"}) {
+	if !slices.Equal(replies, []string{"\x1b[0n"}) {
 		t.Fatalf("status replies = %#v", replies)
 	}
 	if _, err := output.Write([]byte("\x1b[999z\x1b[6n")); err != nil {
@@ -249,14 +250,14 @@ func TestTerminalOutputAlternateScreenDoesNotMergePrimaryPresentation(t *testing
 		t.Fatal(err)
 	}
 	lines, ok := output.snapshot(output.currentGeneration())
-	if !ok || !reflect.DeepEqual(lines, []string{"primary"}) {
+	if !ok || !slices.Equal(lines, []string{"primary"}) {
 		t.Fatalf("restored primary screen = %#v, %t", lines, ok)
 	}
 	if _, err := output.Write([]byte("\x1b[?1049hsecond")); err != nil {
 		t.Fatal(err)
 	}
 	lines, ok = output.snapshot(output.currentGeneration())
-	if !ok || !reflect.DeepEqual(lines, []string{"second"}) {
+	if !ok || !slices.Equal(lines, []string{"second"}) {
 		t.Fatalf("active alternate screen = %#v, %t", lines, ok)
 	}
 }
@@ -276,13 +277,22 @@ func TestTerminalOutputBoundedOSCBecomesUnavailable(t *testing.T) {
 
 func TestTerminalSessionEnterUsesDECCKMAndRejectsUnknownMode(t *testing.T) {
 	t.Parallel()
-	for name, test := range map[string]struct {
+	for _, test := range []struct {
+		name     string
 		sequence string
 		want     string
 	}{
-		"normal":      {want: "ab\x1b[D"},
-		"application": {sequence: "\x1b[?1h", want: "ab\x1bOD"},
+		{
+			name: "normal",
+			want: "ab\x1b[D",
+		},
+		{
+			name:     "application",
+			sequence: "\x1b[?1h",
+			want:     "ab\x1bOD",
+		},
 	} {
+		name := test.name
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			var terminal bytes.Buffer
@@ -292,8 +302,16 @@ func TestTerminalSessionEnterUsesDECCKMAndRejectsUnknownMode(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			session := &terminalSession{input: &lockedWriter{writer: &terminal}, output: output}
-			if err := session.enter(Input{BeforeCursor: "a", AfterCursor: "b"}); err != nil {
+			session := &terminalSession{
+				input: &lockedWriter{
+					writer: &terminal,
+				},
+				output: output,
+			}
+			if err := session.enter(Input{
+				BeforeCursor: "a",
+				AfterCursor:  "b",
+			}); err != nil {
 				t.Fatal(err)
 			}
 			if terminal.String() != test.want {
@@ -307,8 +325,15 @@ func TestTerminalSessionEnterUsesDECCKMAndRejectsUnknownMode(t *testing.T) {
 	if _, err := output.Write([]byte("\x1b[?")); err != nil {
 		t.Fatal(err)
 	}
-	session := &terminalSession{input: &lockedWriter{writer: &terminal}, output: output}
-	if err := session.enter(Input{AfterCursor: "b"}); err == nil {
+	session := &terminalSession{
+		input: &lockedWriter{
+			writer: &terminal,
+		},
+		output: output,
+	}
+	if err := session.enter(Input{
+		AfterCursor: "b",
+	}); err == nil {
 		t.Fatal("cursor movement guessed while DECCKM mode was unresolved")
 	}
 }

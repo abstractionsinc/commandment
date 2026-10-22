@@ -226,39 +226,46 @@ func signalEscalate(state *signalActionPlanState, duration time.Duration, destin
 }
 
 func signalIgnore[C any](actions signalActions[C]) SignalActionPlan[C] {
-	return signalCompletePlan[C]{
-		state: newSignalActionPlan(actions, authoringSignalAction{
-			kind:  signalActionKindIgnore,
-			valid: true,
-		}),
+	action := authoringSignalAction{
+		kind:  signalActionKindIgnore,
+		valid: true,
 	}
+	plan := signalCompletePlan[C]{
+		state: newSignalActionPlan(actions, action),
+	}
+	return plan
 }
 
 func signalCancel[C any](actions signalActions[C]) signalSequence[C] {
-	return signalSequence[C]{
-		state: newSignalActionPlan(actions, authoringSignalAction{
-			kind:  signalActionKindCancel,
-			valid: true,
-		}),
+	action := authoringSignalAction{
+		kind:  signalActionKindCancel,
+		valid: true,
 	}
+	sequence := signalSequence[C]{
+		state: newSignalActionPlan(actions, action),
+	}
+	return sequence
 }
 
 func signalHandle[C any](actions signalActions[C], handler SignalHandler[C]) signalSequence[C] {
-	return signalSequence[C]{
+	sequence := signalSequence[C]{
 		state: newSignalActionPlan(actions, eraseSignalHandler(handler)),
 	}
+	return sequence
 }
 
 func signalForward[C any](actions signalActions[C], target SignalTarget[C]) signalSequence[C] {
-	return signalSequence[C]{
+	sequence := signalSequence[C]{
 		state: newSignalActionPlan(actions, signalTargetAction(signalActionKindForward, target, Signal{}, nil)),
 	}
+	return sequence
 }
 
 func signalSend[C any](actions signalActions[C], target SignalTarget[C], signal Signal) signalSequence[C] {
-	return signalSequence[C]{
+	sequence := signalSequence[C]{
 		state: newSignalActionPlan(actions, signalTargetAction(signalActionKindSend, target, signal, nil)),
 	}
+	return sequence
 }
 
 func signalSendFrom[C any](actions signalActions[C], target SignalTarget[C], source Destination[C, Signal]) signalSequence[C] {
@@ -268,7 +275,7 @@ func signalSendFrom[C any](actions signalActions[C], target SignalTarget[C], sou
 			owner = draft.identity
 		})
 	}
-	return signalSequence[C]{
+	sequence := signalSequence[C]{
 		state: newSignalActionPlan(
 			actions,
 			signalTargetAction(
@@ -279,6 +286,7 @@ func signalSendFrom[C any](actions signalActions[C], target SignalTarget[C], sou
 			),
 		),
 	}
+	return sequence
 }
 
 func signalEmit[C any](actions signalActions[C], endpoint SignalEndpointDeclaration[C]) signalSequence[C] {
@@ -294,9 +302,10 @@ func signalEmit[C any](actions signalActions[C], endpoint SignalEndpointDeclarat
 		endpoint: ref,
 		valid:    ref.valid(),
 	}
-	return signalSequence[C]{
+	sequence := signalSequence[C]{
 		state: newSignalActionPlan(actions, authoringSignalActionValue),
 	}
+	return sequence
 }
 
 func signalAbort[C any](actions signalActions[C], code int) SignalActionPlan[C] {
@@ -305,42 +314,49 @@ func signalAbort[C any](actions signalActions[C], code int) SignalActionPlan[C] 
 		exitCode: code,
 		valid:    true,
 	}
-	return signalCompletePlan[C]{
+	plan := signalCompletePlan[C]{
 		state: newSignalActionPlan(actions, authoringSignalActionValue),
 	}
+	return plan
 }
 
 func signalReraise[C any](actions signalActions[C]) SignalActionPlan[C] {
-	return signalCompletePlan[C]{
-		state: newSignalActionPlan(actions, authoringSignalAction{
-			kind:  signalActionKindReraise,
-			valid: true,
-		}),
+	action := authoringSignalAction{
+		kind:  signalActionKindReraise,
+		valid: true,
 	}
+	plan := signalCompletePlan[C]{
+		state: newSignalActionPlan(actions, action),
+	}
+	return plan
 }
 
 func sequenceAppend[C any](sequence signalSequence[C], action authoringSignalAction) signalSequence[C] {
-	return signalSequence[C]{
+	result := signalSequence[C]{
 		state: appendSignalAction(sequence.state, action),
 	}
+	return result
 }
 
 func sequenceTerminal[C any](sequence signalSequence[C], action authoringSignalAction) SignalActionPlan[C] {
-	return signalCompletePlan[C]{
+	plan := signalCompletePlan[C]{
 		state: appendSignalAction(sequence.state, action),
 	}
+	return plan
 }
 
 func sequenceAfter[C any](sequence signalSequence[C], duration time.Duration, destination *destinationHandle) signalEscalation[C] {
-	return signalEscalation[C]{
+	escalation := signalEscalation[C]{
 		state: signalEscalate(sequence.state, duration, destination),
 	}
+	return escalation
 }
 
 func escalationComplete[C any](escalation signalEscalation[C], action authoringSignalAction) SignalActionPlan[C] {
-	return signalCompletePlan[C]{
+	plan := signalCompletePlan[C]{
 		state: appendSignalAction(escalation.state, action),
 	}
+	return plan
 }
 
 func eraseSignalHandler[C any](handler SignalHandler[C]) authoringSignalAction {
@@ -481,10 +497,11 @@ func configurationBindingsOverlap(left, right configurationBinding) bool {
 }
 
 func signalCancelAction() authoringSignalAction {
-	return authoringSignalAction{
+	action := authoringSignalAction{
 		kind:  signalActionKindCancel,
 		valid: true,
 	}
+	return action
 }
 
 func signalAbortAction(code int) authoringSignalAction {
@@ -498,10 +515,11 @@ func signalAbortAction(code int) authoringSignalAction {
 }
 
 func signalReraiseAction() authoringSignalAction {
-	return authoringSignalAction{
+	action := authoringSignalAction{
 		kind:  signalActionKindReraise,
 		valid: true,
 	}
+	return action
 }
 
 func signalForwardAction[C any](target SignalTarget[C]) authoringSignalAction {

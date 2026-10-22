@@ -59,7 +59,9 @@ func TestNoticeResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Parallel()
 	flag := cli.FlagID(7)
 	inspection := cli.Inspection{
-		Flags: map[cli.FlagID]cli.FlagInspection{flag: {ID: flag}},
+		Flags: map[cli.FlagID]cli.FlagInspection{flag: {
+			ID: flag,
+		}},
 		Notices: []cli.NoticeInspection{
 			{
 				Code: cli.NoticeDeprecatedFlag,
@@ -114,7 +116,11 @@ func TestNoticeResolutionPreservesResolutionStatus(t *testing.T) {
 			t.Fatalf("typed subject = %#v", got)
 		}
 		commandInspection := cli.Inspection{
-			Commands: map[cli.CommandID]cli.CommandInspection{1: {ID: 1}, 2: {ID: 2}},
+			Commands: map[cli.CommandID]cli.CommandInspection{1: {
+				ID: 1,
+			}, 2: {
+				ID: 2,
+			}},
 			Notices: []cli.NoticeInspection{
 				{
 					Code:    cli.NoticeDeprecatedFlag,
@@ -241,7 +247,9 @@ func TestNoticeReplacementPreservesIncompleteObservation(t *testing.T) {
 			t.Fatal("noticeReplacementExpectation must satisfy noticeExpectation")
 		}
 		inspection := cli.Inspection{
-			Flags: map[cli.FlagID]cli.FlagInspection{flag: {ID: flag}},
+			Flags: map[cli.FlagID]cli.FlagInspection{flag: {
+				ID: flag,
+			}},
 			Notices: []cli.NoticeInspection{{
 				Code: cli.NoticeDeprecatedFlag,
 				Declaration: cli.DeclarationIdentity{
@@ -261,7 +269,9 @@ func TestNoticeReplacementPreservesIncompleteObservation(t *testing.T) {
 			t.Fatal("noticeReplacementExpectation must satisfy noticeExpectation")
 		}
 		inspection := cli.Inspection{
-			Flags: map[cli.FlagID]cli.FlagInspection{flag: {ID: flag}},
+			Flags: map[cli.FlagID]cli.FlagInspection{flag: {
+				ID: flag,
+			}},
 			Notices: []cli.NoticeInspection{{
 				Code: cli.NoticeDeprecatedFlag,
 				Declaration: cli.DeclarationIdentity{
@@ -281,7 +291,11 @@ func TestNoticeReplacementPreservesIncompleteObservation(t *testing.T) {
 			t.Fatal("noticeReplacementExpectation must satisfy noticeExpectation")
 		}
 		inspection := cli.Inspection{
-			Flags: map[cli.FlagID]cli.FlagInspection{flag: {ID: flag}, replacement: {ID: replacement}},
+			Flags: map[cli.FlagID]cli.FlagInspection{flag: {
+				ID: flag,
+			}, replacement: {
+				ID: replacement,
+			}},
 			Notices: []cli.NoticeInspection{{
 				Code: cli.NoticeDeprecatedFlag,
 				Declaration: cli.DeclarationIdentity{
@@ -394,7 +408,11 @@ func TestNoticeInspectionExpectationsConserveFilteringAndReplacementFailures(t *
 	t.Parallel()
 
 	inspection := cli.Inspection{
-		Notices: []cli.NoticeInspection{{Code: cli.NoticeDeprecatedFlag}, {Code: cli.NoticeDeprecatedFlag}},
+		Notices: []cli.NoticeInspection{{
+			Code: cli.NoticeDeprecatedFlag,
+		}, {
+			Code: cli.NoticeDeprecatedFlag,
+		}},
 	}
 	state := *Notice(cli.NoticeDeprecatedFlag).state
 	state.advisorySet = true

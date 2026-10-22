@@ -15,6 +15,18 @@ import (
 	"time"
 )
 
+// RuntimeVersionParser derives the semantic runtime version from bounded probe output.
+type RuntimeVersionParser func(string) (string, error)
+
+// Runtime declares one exact shell runtime and its version probe. Its zero value is invalid:
+// Executable and VersionArgs must be nonempty and ParseVersion must be non-nil. VersionArgs is
+// snapshotted when an operation retains the runtime declaration.
+type Runtime struct {
+	Executable   string
+	VersionArgs  []string
+	ParseVersion RuntimeVersionParser
+}
+
 const (
 	runtimeProbeOutputLimit = 1 << 20
 	runtimeProbeTimeout     = 10 * time.Second
@@ -36,19 +48,21 @@ type executableFingerprint struct {
 func verifyRuntime(parent context.Context, workspace string, runtime Runtime) (verifiedRuntime, error) {
 	resolved, err := exec.LookPath(runtime.Executable)
 	if err != nil {
-		return verifiedRuntime{}, &failureError{
+		failure := &failureError{
 			subject: "resolve runtime executable",
 			detail:  strconv.Quote(runtime.Executable),
 			cause:   err,
 		}
+		return verifiedRuntime{}, failure
 	}
 	resolved, err = filepath.Abs(resolved)
 	if err != nil {
-		return verifiedRuntime{}, &failureError{
+		failure := &failureError{
 			subject: "resolve absolute runtime executable",
 			detail:  strconv.Quote(resolved),
 			cause:   err,
 		}
+		return verifiedRuntime{}, failure
 	}
 
 	fingerprint, err := fingerprintExecutable(resolved)
@@ -67,27 +81,32 @@ func verifyRuntime(parent context.Context, workspace string, runtime Runtime) (v
 	command := exec.CommandContext(ctx, resolved, runtime.VersionArgs...)
 	command.Dir = workspace
 	command.Env = probeEnvironment
-	output := &boundedOutput{limit: runtimeProbeOutputLimit}
+	output := &boundedOutput{
+		limit: runtimeProbeOutputLimit,
+	}
 	command.Stdout = output
 	command.Stderr = output
 	if err := command.Run(); err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return verifiedRuntime{}, &failureError{
+			failure := &failureError{
 				subject: "probe runtime version",
 				cause:   ctx.Err(),
 			}
+			return verifiedRuntime{}, failure
 		}
-		return verifiedRuntime{}, &failureError{
+		failure := &failureError{
 			subject: "probe runtime version",
 			detail:  boundedFailureDetail("output=" + strconv.Quote(output.String())),
 			cause:   err,
 		}
+		return verifiedRuntime{}, failure
 	}
 	if output.exceeded {
-		return verifiedRuntime{}, &failureError{
+		failure := &failureError{
 			subject: "probe runtime version output exceeded byte limit",
 			detail:  strconv.Itoa(runtimeProbeOutputLimit),
 		}
+		return verifiedRuntime{}, failure
 	}
 
 	probedFingerprint, err := fingerprintExecutable(resolved)
@@ -95,25 +114,33 @@ func verifyRuntime(parent context.Context, workspace string, runtime Runtime) (v
 		return verifiedRuntime{}, err
 	}
 	if !fingerprint.equal(probedFingerprint) {
-		return verifiedRuntime{}, &failureError{subject: "runtime executable changed during version probe"}
+		failure := &failureError{
+			subject: "runtime executable changed during version probe",
+		}
+		return verifiedRuntime{}, failure
 	}
 
 	probeOutput := output.String()
 	version, err := runtime.ParseVersion(probeOutput)
 	if err != nil {
-		return verifiedRuntime{}, &failureError{
+		failure := &failureError{
 			subject: "parse runtime version",
 			cause:   err,
 		}
+		return verifiedRuntime{}, failure
 	}
 	if version == "" {
-		return verifiedRuntime{}, &failureError{subject: "parse runtime version returned an empty token"}
+		failure := &failureError{
+			subject: "parse runtime version returned an empty token",
+		}
+		return verifiedRuntime{}, failure
 	}
 	if !strings.Contains(probeOutput, version) {
-		return verifiedRuntime{}, &failureError{
+		failure := &failureError{
 			subject: "parsed runtime version was not observed verbatim in probe output",
 			detail:  boundedFailureDetail(strconv.Quote(version)),
 		}
+		return verifiedRuntime{}, failure
 	}
 
 	verified := verifiedRuntime{
@@ -128,36 +155,40 @@ func fingerprintExecutable(path string) (executableFingerprint, error) {
 	//nolint:gosec // path is the exact executable spelling selected by exec.LookPath for runtime verification.
 	file, err := os.Open(path)
 	if err != nil {
-		return executableFingerprint{}, &failureError{
+		failure := &failureError{
 			subject: "open runtime executable",
 			detail:  strconv.Quote(path),
 			cause:   err,
 		}
+		return executableFingerprint{}, failure
 	}
 	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {
-		return executableFingerprint{}, &failureError{
+		failure := &failureError{
 			subject: "stat runtime executable",
 			detail:  strconv.Quote(path),
 			cause:   err,
 		}
+		return executableFingerprint{}, failure
 	}
 	if !info.Mode().IsRegular() {
-		return executableFingerprint{}, &failureError{
+		failure := &failureError{
 			subject: "runtime executable is not a regular file",
 			detail:  strconv.Quote(path),
 		}
+		return executableFingerprint{}, failure
 	}
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
-		return executableFingerprint{}, &failureError{
+		failure := &failureError{
 			subject: "hash runtime executable",
 			detail:  strconv.Quote(path),
 			cause:   err,
 		}
+		return executableFingerprint{}, failure
 	}
 	var digest [sha256.Size]byte
 	hash.Sum(digest[:0])
@@ -184,7 +215,10 @@ func verifyRuntimeExecutable(runtime verifiedRuntime) error {
 		return err
 	}
 	if !runtime.fingerprint.equal(fingerprint) {
-		return &failureError{subject: "runtime executable changed after version verification"}
+		failure := &failureError{
+			subject: "runtime executable changed after version verification",
+		}
+		return failure
 	}
 	return nil
 }

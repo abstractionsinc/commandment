@@ -277,9 +277,10 @@ func (language KeyValueLanguage[K, V]) KeyOnly(value V) KeyValueLanguage[K, V] {
 	}
 	state.keyOnly = true
 	state.keyOnlyValue = value
-	return KeyValueLanguage[K, V]{
+	keyValueLanguage := KeyValueLanguage[K, V]{
 		state: &state,
 	}
+	return keyValueLanguage
 }
 
 // SeparatedBy returns a copy of the keyed language using separator between encoded keys and values.
@@ -295,7 +296,10 @@ func (language KeyValueLanguage[K, V]) SeparatedBy(separator string) KeyValueLan
 		state.separator = separator
 		state.separatorSet = true
 	}
-	return KeyValueLanguage[K, V]{state: &state}
+	keyValueLanguage := KeyValueLanguage[K, V]{
+		state: &state,
+	}
+	return keyValueLanguage
 }
 
 var (
@@ -673,9 +677,10 @@ func freezeTokenRepresentation(format func() []string) *frozenTokenRepresentatio
 	if format == nil {
 		return nil
 	}
-	return &frozenTokenRepresentation{
+	representation := &frozenTokenRepresentation{
 		format: format,
 	}
+	return representation
 }
 
 func (representation *frozenTokenRepresentation) tokensSnapshot() []string {
@@ -697,10 +702,11 @@ type conversionOutcome struct {
 }
 
 func acceptedConversion(value any) conversionOutcome {
-	return conversionOutcome{
+	outcome := conversionOutcome{
 		kind:  conversionOutcomeAccepted,
 		value: snapshotMutableValue(value),
 	}
+	return outcome
 }
 
 func acceptedTokenConversion(value any, format func() []string) conversionOutcome {
@@ -720,20 +726,22 @@ func rejectedConversion(err error) conversionOutcome {
 	if err == nil {
 		panic("semantic: nil conversion rejection")
 	}
-	return conversionOutcome{
+	outcome := conversionOutcome{
 		kind: conversionOutcomeRejected,
 		err:  err,
 	}
+	return outcome
 }
 
 func failedConversion(err error) conversionOutcome {
 	if err == nil {
 		panic("semantic: nil conversion failure")
 	}
-	return conversionOutcome{
+	outcome := conversionOutcome{
 		kind: conversionOutcomeFailed,
 		err:  err,
 	}
+	return outcome
 }
 
 func (outcome conversionOutcome) Kind() conversionOutcomeKind { return outcome.kind }
@@ -781,10 +789,11 @@ func compileTokenLanguage(name string, evaluate func(context.Context, []string) 
 	if name == "" || evaluate == nil {
 		panic("semantic: invalid token language")
 	}
-	return tokenLanguage{
+	language := tokenLanguage{
 		name:     name,
 		evaluate: evaluate,
 	}
+	return language
 }
 
 func (language tokenLanguage) Valid() bool { return language.name != "" && language.evaluate != nil }

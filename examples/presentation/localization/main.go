@@ -32,8 +32,10 @@ var definition = cli.Definition[rootConfig]{
 		cb.Flags.ValueFor(locale).LocaleSelector().Occurrences(cli.Count.Optional()).Long("locale")
 
 		scanCmd := cli.Command[struct{}]{
-			Name:        "scan",
-			Description: cli.Description{Short: scanDescription},
+			Name: "scan",
+			Description: cli.Description{
+				Short: scanDescription,
+			},
 		}
 		cb.Subcommands.Command(scanCmd)
 	},

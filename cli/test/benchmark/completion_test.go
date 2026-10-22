@@ -11,9 +11,13 @@ import (
 
 func BenchmarkComplete(b *testing.B) {
 	definition := cli.Definition[inputConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[inputConfig]) {
 			root.Subcommands.Command(cli.Command[inputConfig]{
 				Name: "deploy",
@@ -47,9 +51,13 @@ func BenchmarkComplete(b *testing.B) {
 func BenchmarkCompleteSelectedPath(b *testing.B) {
 	for _, depth := range [...]int{1, 4, 16, 64} {
 		definition := cli.Definition[inputConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[inputConfig]) {
 				declareCompletionDepth(root, depth, 0)
 			},
@@ -92,9 +100,13 @@ func BenchmarkCompleteSelectedPath(b *testing.B) {
 func BenchmarkCompleteUnrelatedSubtree(b *testing.B) {
 	for _, unrelated := range [...]int{16, 64, 256, 1024} {
 		definition := cli.Definition[inputConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[inputConfig]) {
 				root.Subcommands.Command(cli.Command[inputConfig]{
 					Name: "target",

@@ -54,19 +54,21 @@ type argumentDelegationCompletion[C any] struct {
 // CompleteBy attaches semantic value completion to this flag declaration.
 func (flag FlagDeclaration[C, T]) CompleteBy(complete ValueCompleter[C], options ...SourceOption) flagCompletion[C, T] {
 	setFlagAuthoringCompletion(flag.state, flag.flag, valueCompletionAuthoring(complete, nil, nil, options))
-	return flagCompletion[C, T]{
+	completion := flagCompletion[C, T]{
 		state: flag.state,
 		flag:  flag.flag,
 	}
+	return completion
 }
 
 // CompleteTokensBy attaches token-language completion to this flag declaration.
 func (flag FlagDeclaration[C, T]) CompleteTokensBy(complete TokenLanguageCompleter[C], options ...SourceOption) flagCompletion[C, T] {
 	setFlagAuthoringCompletion(flag.state, flag.flag, valueCompletionAuthoring(nil, complete, nil, options))
-	return flagCompletion[C, T]{
+	completion := flagCompletion[C, T]{
 		state: flag.state,
 		flag:  flag.flag,
 	}
+	return completion
 }
 
 // CompleteWith attaches client-native completion to this flag declaration.
@@ -128,11 +130,15 @@ func (completion flagCompletion[C, T]) flagDeclaration() FlagDeclaration[C, T] {
 			handle = destination.handle
 		})
 	}
-	return FlagDeclaration[C, T]{
+	destination := Destination[C, T]{
+		handle: handle,
+	}
+	declaration := FlagDeclaration[C, T]{
 		state:       completion.state,
-		destination: Destination[C, T]{handle: handle},
+		destination: destination,
 		flag:        completion.flag,
 	}
+	return declaration
 }
 
 // Long continues spelling authoring for the same flag after native composition.
@@ -162,19 +168,21 @@ func (completion flagCompletedDeclaration[C, T]) flagDeclaration() FlagDeclarati
 // CompleteBy attaches semantic value completion to this positional declaration.
 func (argument ArgumentDeclaration[C, T]) CompleteBy(complete ValueCompleter[C], options ...SourceOption) argumentCompletion[C] {
 	setArgumentAuthoringCompletion(argument.state, argument.term, valueCompletionAuthoring(complete, nil, nil, options))
-	return argumentCompletion[C]{
+	completion := argumentCompletion[C]{
 		state: argument.state,
 		term:  argument.term,
 	}
+	return completion
 }
 
 // CompleteTokensBy attaches token-language completion to this positional declaration.
 func (argument ArgumentDeclaration[C, T]) CompleteTokensBy(complete TokenLanguageCompleter[C], options ...SourceOption) argumentCompletion[C] {
 	setArgumentAuthoringCompletion(argument.state, argument.term, valueCompletionAuthoring(nil, complete, nil, options))
-	return argumentCompletion[C]{
+	completion := argumentCompletion[C]{
 		state: argument.state,
 		term:  argument.term,
 	}
+	return completion
 }
 
 // CompleteWith attaches client-native completion to this positional declaration.
@@ -186,10 +194,11 @@ func (argument ArgumentDeclaration[C, T]) CompleteWith(native CompletionNativeKi
 // DelegateCompletionBy attaches semantic completion delegation to this positional declaration.
 func (argument ArgumentDeclaration[C, T]) DelegateCompletionBy(delegate CompletionDelegator[C], options ...SourceOption) argumentDelegationCompletion[C] {
 	setArgumentAuthoringCompletion(argument.state, argument.term, delegationCompletionAuthoring(delegate, nil, options))
-	return argumentDelegationCompletion[C]{
+	completion := argumentDelegationCompletion[C]{
 		state: argument.state,
 		term:  argument.term,
 	}
+	return completion
 }
 
 // From replaces the dependencies observed by this positional completion callback.

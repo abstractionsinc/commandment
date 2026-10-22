@@ -124,12 +124,8 @@ const (
 	grammarFuzzPositionalFormFail
 )
 
-func grammarFuzzFormSelectionCodec(
-	name string,
-	outcome grammarFuzzPositionalFormOutcome, failure error,
-	calls *atomic.Int32,
-) cli.ValueCodec[string] {
-	return cli.ValueCodec[string]{
+func grammarFuzzFormSelectionCodec(name string, outcome grammarFuzzPositionalFormOutcome, failure error, calls *atomic.Int32) cli.ValueCodec[string] {
+	codec := cli.ValueCodec[string]{
 		Name: name,
 		Parse: func(text string) (string, error) {
 			calls.Add(1)
@@ -151,6 +147,7 @@ func grammarFuzzFormSelectionCodec(
 		Format:   func(value string) string { return value },
 		Snapshot: cli.Value.Assign[string](),
 	}
+	return codec
 }
 
 type grammarFuzzFormSelectionFixture struct {
@@ -212,7 +209,7 @@ func grammarFuzzNewFormSelectionFixture(t *testing.T, a, b grammarFuzzPositional
 	if _, ok := schema.Values[valueBID]; !ok {
 		t.Fatalf("argument b destination %v missing from schema values", valueBID)
 	}
-	return grammarFuzzFormSelectionFixture{
+	fixture := grammarFuzzFormSelectionFixture{
 		app:      app,
 		valueAID: valueAID,
 		valueBID: valueBID,
@@ -220,6 +217,7 @@ func grammarFuzzNewFormSelectionFixture(t *testing.T, a, b grammarFuzzPositional
 		callsB:   callsB,
 		failure:  failure,
 	}
+	return fixture
 }
 
 func inspectionResolvedText(inspection cli.Inspection, id cli.ValueID) bool {
@@ -284,7 +282,10 @@ func fuzzNameSuffix(value string) string {
 
 func inspectSnapshot(t *testing.T, app cli.Application, args ...string) (cli.Inspection, error) {
 	t.Helper()
-	return clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: args}).Inspection()
+	request := cli.InspectionRequest{
+		Args: args,
+	}
+	return clitest.Inspect(t.Context(), app, request).Inspection()
 }
 
 func argumentTermByName(t *testing.T, inspection cli.Inspection, name string) cli.ArgumentTermInspection {
@@ -300,34 +301,74 @@ func argumentTermByName(t *testing.T, inspection cli.Inspection, name string) cl
 
 func FuzzPositionalAllocationAndFormProperties(f *testing.F) {
 	type allocationConfig struct{ First, Second []string }
-	greedy := clitest.Compile(f, cli.Definition[allocationConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[allocationConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
-		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[allocationConfig]) {
-			form.Strings(&form.Config.First, "first", cli.Count.Optional()).Greedy()
-			form.Strings(&form.Config.Second, "second", cli.Count.Optional())
-		})
-	}})
-	minimal := clitest.Compile(f, cli.Definition[allocationConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[allocationConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
-		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[allocationConfig]) {
-			form.Strings(&form.Config.First, "first", cli.Count.Optional()).Minimal()
-			form.Strings(&form.Config.Second, "second", cli.Count.Optional())
-		})
-	}})
-	ambiguous := clitest.Compile(f, cli.Definition[allocationConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[allocationConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
-		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[allocationConfig]) {
-			form.Strings(&form.Config.First, "first", cli.Count.ZeroOrMore())
-			form.Strings(&form.Config.Second, "second", cli.Count.ZeroOrMore())
-		})
-	}})
+	definition := cli.Definition[allocationConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[allocationConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
+			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[allocationConfig]) {
+				form.Strings(&form.Config.First, "first", cli.Count.Optional()).Greedy()
+				form.Strings(&form.Config.Second, "second", cli.Count.Optional())
+			})
+		},
+	}
+	greedy := clitest.Compile(f, definition)
+	definitionUnderTest := cli.Definition[allocationConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[allocationConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
+			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[allocationConfig]) {
+				form.Strings(&form.Config.First, "first", cli.Count.Optional()).Minimal()
+				form.Strings(&form.Config.Second, "second", cli.Count.Optional())
+			})
+		},
+	}
+	minimal := clitest.Compile(f, definitionUnderTest)
+	definitionUnderTest2 := cli.Definition[allocationConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[allocationConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
+			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[allocationConfig]) {
+				form.Strings(&form.Config.First, "first", cli.Count.ZeroOrMore())
+				form.Strings(&form.Config.Second, "second", cli.Count.ZeroOrMore())
+			})
+		},
+	}
+	ambiguous := clitest.Compile(f, definitionUnderTest2)
 	type boundedConfig struct{ Values []string }
-	bounded := clitest.Compile(f, cli.Definition[boundedConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[boundedConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
-		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[boundedConfig]) {
-			form.Strings(&form.Config.Values, "value", cli.Count.Between(0, 2))
-		})
-	}})
+	definitionUnderTest3 := cli.Definition[boundedConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[boundedConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
+			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[boundedConfig]) {
+				form.Strings(&form.Config.Values, "value", cli.Count.Between(0, 2))
+			})
+		},
+	}
+	bounded := clitest.Compile(f, definitionUnderTest3)
 	f.Add("x")
 	f.Add("")
 	f.Add("tail")
@@ -367,12 +408,26 @@ func FuzzPositionalAllocationAndFormProperties(f *testing.F) {
 
 		firstLiteral := "alpha" + fuzzNameSuffix(payload)
 		secondLiteral := "beta" + fuzzNameSuffix(payload)
-		formApp := clitest.Compile(t, cli.Definition[struct{}]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[struct{}]) {
-			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[struct{}]) { form.Literal(firstLiteral) })
-			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[struct{}]) { form.Literal(secondLiteral) })
-		}})
-		clitest.Inspect(t.Context(), formApp, cli.InspectionRequest{Args: []string{firstLiteral}}).Require(t, clitest.RootCommand().ArgumentFormAt(0).Selected())
-		clitest.Inspect(t.Context(), formApp, cli.InspectionRequest{Args: []string{secondLiteral}}).Require(t, clitest.RootCommand().ArgumentFormAt(1).Selected())
+		definition := cli.Definition[struct{}]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
+			Declare: func(root *cli.CommandBuilder[struct{}]) {
+				root.Arguments.Form(func(form *cli.ArgumentFormBuilder[struct{}]) { form.Literal(firstLiteral) })
+				root.Arguments.Form(func(form *cli.ArgumentFormBuilder[struct{}]) { form.Literal(secondLiteral) })
+			},
+		}
+		formApp := clitest.Compile(t, definition)
+		clitest.Inspect(t.Context(), formApp, cli.InspectionRequest{
+			Args: []string{firstLiteral},
+		}).Require(t, clitest.RootCommand().ArgumentFormAt(0).Selected())
+		clitest.Inspect(t.Context(), formApp, cli.InspectionRequest{
+			Args: []string{secondLiteral},
+		}).Require(t, clitest.RootCommand().ArgumentFormAt(1).Selected())
 	})
 }
 
@@ -395,63 +450,144 @@ func FuzzGeneralGrammarLexicalProperties(f *testing.F) {
 		Mode    string
 		Verbose bool
 	}
-	flagApp := clitest.Compile(f, cli.Definition[flagConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[flagConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
-		root.Flags.String(&root.Config.Mode).Long("mode").ValueForms(cli.FlagValueFormSeparate, cli.FlagValueFormAssigned)
-		root.Flags.Bool(&root.Config.Verbose).Long("verbose")
-	}})
+	definition := cli.Definition[flagConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[flagConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
+			root.Flags.String(&root.Config.Mode).Long("mode").ValueForms(cli.FlagValueFormSeparate, cli.FlagValueFormAssigned)
+			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
+		},
+	}
+	flagApp := clitest.Compile(f, definition)
 	type remainderConfig struct {
 		Rest []string
 		Pos  []string
 	}
-	remainderApp := clitest.Compile(f, cli.Definition[remainderConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[remainderConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
-		root.Subcommands.Command(cli.Command[remainderConfig]{Name: "child"})
-		rest := root.Values.Sequence(&root.Config.Rest, cli.Value.String())
-		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[remainderConfig]) {
-			form.Remainder(rest, "rest", cli.Count.ZeroOrMore())
-		})
-	}})
-	positionalApp := clitest.Compile(f, cli.Definition[remainderConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[remainderConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
-		root.Subcommands.Command(cli.Command[remainderConfig]{Name: "child"})
-		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[remainderConfig]) {
-			form.Strings(&form.Config.Pos, "arg", cli.Count.Between(1, 2))
-		})
-	}})
+	definitionUnderTest := cli.Definition[remainderConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[remainderConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
+			root.Subcommands.Command(cli.Command[remainderConfig]{
+				Name: "child",
+			})
+			rest := root.Values.Sequence(&root.Config.Rest, cli.Value.String())
+			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[remainderConfig]) {
+				form.Remainder(rest, "rest", cli.Count.ZeroOrMore())
+			})
+		},
+	}
+	remainderApp := clitest.Compile(f, definitionUnderTest)
+	definitionUnderTest2 := cli.Definition[remainderConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[remainderConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
+			root.Subcommands.Command(cli.Command[remainderConfig]{
+				Name: "child",
+			})
+			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[remainderConfig]) {
+				form.Strings(&form.Config.Pos, "arg", cli.Count.Between(1, 2))
+			})
+		},
+	}
+	positionalApp := clitest.Compile(f, definitionUnderTest2)
 	type terminatorConfig struct {
 		Items   []string
 		Verbose bool
 	}
-	terminatorApp := clitest.Compile(f, cli.Definition[terminatorConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[terminatorConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
-		root.Flags.Strings(&root.Config.Items).Occurrences(cli.Count.Between(0, 2)).ValuesPerOccurrence(cli.Count.Between(2, 3)).TerminatedBy(";").Long("item").ValueForms(cli.FlagValueFormSeparate)
-		root.Flags.Bool(&root.Config.Verbose).Long("verbose")
-	}})
+	definitionUnderTest3 := cli.Definition[terminatorConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[terminatorConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
+			root.Flags.Strings(&root.Config.Items).Occurrences(cli.Count.Between(0, 2)).ValuesPerOccurrence(cli.Count.Between(2, 3)).TerminatedBy(";").Long("item").ValueForms(cli.FlagValueFormSeparate)
+			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
+		},
+	}
+	terminatorApp := clitest.Compile(f, definitionUnderTest3)
 	type clusterConfig struct {
 		A       bool
 		Include string
 	}
-	clusterApp := clitest.Compile(f, cli.Definition[clusterConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[clusterConfig]) {
-		root.Dialect.ShortFlagClustering(cli.ShortFlagClusteringEnabled)
-		root.Flags.Bool(&root.Config.A).Short('a')
-		root.Flags.String(&root.Config.Include).Short('I').ValueForms(cli.FlagValueFormJoined)
-	}})
+	definitionUnderTest4 := cli.Definition[clusterConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[clusterConfig]) {
+			root.Dialect.ShortFlagClustering(cli.ShortFlagClusteringEnabled)
+			root.Flags.Bool(&root.Config.A).Short('a')
+			root.Flags.String(&root.Config.Include).Short('I').ValueForms(cli.FlagValueFormJoined)
+		},
+	}
+	clusterApp := clitest.Compile(f, definitionUnderTest4)
 	type numberConfig struct{ Number int }
-	numberApp := clitest.Compile(f, cli.Definition[numberConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[numberConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
-		root.Flags.Int(&root.Config.Number).HyphenValues(cli.HyphenValueNegativeNumbers).Long("number").ValueForms(cli.FlagValueFormSeparate)
-	}})
+	definitionUnderTest5 := cli.Definition[numberConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[numberConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
+			root.Flags.Int(&root.Config.Number).HyphenValues(cli.HyphenValueNegativeNumbers).Long("number").ValueForms(cli.FlagValueFormSeparate)
+		},
+	}
+	numberApp := clitest.Compile(f, definitionUnderTest5)
 	type actionConfig struct{ Arg string }
-	actionApp := clitest.Compile(f, cli.Definition[actionConfig]{Name: "tool", ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[actionConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
-		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[actionConfig]) { form.String(&form.Config.Arg, "arg") })
-	}})
+	definitionUnderTest6 := cli.Definition[actionConfig]{
+		Name: "tool",
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[actionConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderBeforeArguments)
+			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[actionConfig]) { form.String(&form.Config.Arg, "arg") })
+		},
+	}
+	actionApp := clitest.Compile(f, definitionUnderTest6)
 	type recoveryConfig struct{ Verbose bool }
-	recoveryApp := clitest.Compile(f, cli.Definition[recoveryConfig]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[recoveryConfig]) {
-		root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
-		root.Flags.Bool(&root.Config.Verbose).Long("verbose")
-	}})
+	definitionUnderTest7 := cli.Definition[recoveryConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Declare: func(root *cli.CommandBuilder[recoveryConfig]) {
+			root.Dialect.FlagOrder(cli.FlagOrderInterspersed)
+			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
+		},
+	}
+	recoveryApp := clitest.Compile(f, definitionUnderTest7)
 
 	f.Add("value")
 	f.Add("")
@@ -460,40 +596,74 @@ func FuzzGeneralGrammarLexicalProperties(f *testing.F) {
 	f.Fuzz(func(t *testing.T, raw string) {
 		payload := grammarDataFuzzToken(raw)
 		base := "serve" + fuzzNameSuffix(payload)
-		nameApp := clitest.Compile(t, cli.Definition[struct{}]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, ShellCompletion: cli.ShellCompletion{Disabled: true}, Declare: func(root *cli.CommandBuilder[struct{}]) {
-			root.Dialect.CommandMatching(cli.NameMatchingUniquePrefix)
-			root.Dialect.CommandNormalization(cli.NameNormalizationASCIICaseFold)
-			root.Subcommands.Command(cli.Command[struct{}]{Name: base})
-			root.Subcommands.Command(cli.Command[struct{}]{Name: base + "r"})
-		}})
+		definition := cli.Definition[struct{}]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
+			Declare: func(root *cli.CommandBuilder[struct{}]) {
+				root.Dialect.CommandMatching(cli.NameMatchingUniquePrefix)
+				root.Dialect.CommandNormalization(cli.NameNormalizationASCIICaseFold)
+				root.Subcommands.Command(cli.Command[struct{}]{
+					Name: base,
+				})
+				root.Subcommands.Command(cli.Command[struct{}]{
+					Name: base + "r",
+				})
+			},
+		}
+		nameApp := clitest.Compile(t, definition)
 		exact := clitest.Command(base)
-		clitest.Inspect(t.Context(), nameApp, cli.InspectionRequest{Args: []string{strings.ToUpper(base)}}).Require(t, exact.Selected(), clitest.TokenAt(0).Role(cli.TokenRoleCommand))
+		clitest.Inspect(t.Context(), nameApp, cli.InspectionRequest{
+			Args: []string{strings.ToUpper(base)},
+		}).Require(t, exact.Selected(), clitest.TokenAt(0).Role(cli.TokenRoleCommand))
 		prefix := base[:len(base)-1]
-		ambiguous := clitest.Inspect(t.Context(), nameApp, cli.InspectionRequest{Args: []string{prefix}})
+		ambiguous := clitest.Inspect(t.Context(), nameApp, cli.InspectionRequest{
+			Args: []string{prefix},
+		})
 		ambiguous.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticAmbiguousCommand).Present()))
 		ai, _ := ambiguous.Inspection()
 		if len(ai.Tokens) != 1 || ai.Tokens[0].Role != cli.TokenRoleUnknown {
 			t.Fatalf("ambiguous name token=%#v", ai.Tokens)
 		}
 
-		separate := clitest.Inspect(t.Context(), flagApp, cli.InspectionRequest{Args: []string{"--mode", payload}})
+		separate := clitest.Inspect(t.Context(), flagApp, cli.InspectionRequest{
+			Args: []string{"--mode", payload},
+		})
 		separate.Require(t, clitest.TokenAt(0).Role(cli.TokenRoleFlag), clitest.TokenAt(1).Role(cli.TokenRoleFlagValue))
-		assigned := clitest.Inspect(t.Context(), flagApp, cli.InspectionRequest{Args: []string{"--mode=" + payload}})
+		assigned := clitest.Inspect(t.Context(), flagApp, cli.InspectionRequest{
+			Args: []string{"--mode=" + payload},
+		})
 		assigned.Require(t, clitest.TokenAt(0).Role(cli.TokenRoleFlag))
-		missing := clitest.Inspect(t.Context(), flagApp, cli.InspectionRequest{Args: []string{"--mode", "--verbose"}})
+		missing := clitest.Inspect(t.Context(), flagApp, cli.InspectionRequest{
+			Args: []string{"--mode", "--verbose"},
+		})
 		missing.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticMissingValue).Present()), clitest.TokenAt(1).Role(cli.TokenRoleFlag))
-		owned := clitest.Inspect(t.Context(), remainderApp, cli.InspectionRequest{Args: []string{payload, "child", "--help"}})
+		owned := clitest.Inspect(t.Context(), remainderApp, cli.InspectionRequest{
+			Args: []string{payload, "child", "--help"},
+		})
 		owned.Require(t, clitest.SelectionPathExactly(clitest.RootCommand()), clitest.TokenAt(0).Role(cli.TokenRoleRemainder), clitest.TokenAt(1).Role(cli.TokenRoleRemainder), clitest.TokenAt(2).Role(cli.TokenRoleRemainder))
-		afterEnd := clitest.Inspect(t.Context(), positionalApp, cli.InspectionRequest{Args: []string{"--", payload}})
+		afterEnd := clitest.Inspect(t.Context(), positionalApp, cli.InspectionRequest{
+			Args: []string{"--", payload},
+		})
 		afterEnd.Require(t, clitest.TokenAt(0).Role(cli.TokenRoleEndOfOptions), clitest.TokenAt(1).Role(cli.TokenRolePositional))
 		if payload != "child" {
-			handoff := clitest.Inspect(t.Context(), positionalApp, cli.InspectionRequest{Args: []string{payload, "child"}})
+			handoff := clitest.Inspect(t.Context(), positionalApp, cli.InspectionRequest{
+				Args: []string{payload, "child"},
+			})
 			handoff.Require(t, clitest.SelectionPathExactly(clitest.RootCommand()), clitest.TokenAt(0).Role(cli.TokenRolePositional), clitest.TokenAt(1).Role(cli.TokenRolePositional))
 		}
 
-		premature := clitest.Inspect(t.Context(), terminatorApp, cli.InspectionRequest{Args: []string{"--item", payload, ";", "--verbose"}})
+		premature := clitest.Inspect(t.Context(), terminatorApp, cli.InspectionRequest{
+			Args: []string{"--item", payload, ";", "--verbose"},
+		})
 		premature.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticMissingValue).Present()), clitest.TokenAt(3).Role(cli.TokenRoleFlag))
-		closed := clitest.Inspect(t.Context(), terminatorApp, cli.InspectionRequest{Args: []string{"--item", payload, payload, ";"}})
+		closed := clitest.Inspect(t.Context(), terminatorApp, cli.InspectionRequest{
+			Args: []string{"--item", payload, payload, ";"},
+		})
 		if _, err := closed.Inspection(); err != nil {
 			t.Fatalf("closed variable occurrence rejected: %v", err)
 		}
@@ -502,7 +672,9 @@ func FuzzGeneralGrammarLexicalProperties(f *testing.F) {
 		if clusterValue == "" {
 			clusterValue = "x"
 		}
-		cluster := clitest.Inspect(t.Context(), clusterApp, cli.InspectionRequest{Args: []string{"-aI" + clusterValue}})
+		cluster := clitest.Inspect(t.Context(), clusterApp, cli.InspectionRequest{
+			Args: []string{"-aI" + clusterValue},
+		})
 		ci, cerr := cluster.Inspection()
 		if cerr != nil {
 			t.Fatalf("cluster error: %v", cerr)
@@ -516,23 +688,38 @@ func FuzzGeneralGrammarLexicalProperties(f *testing.F) {
 			t.Fatalf("negative number rejected: %v", err)
 		}
 		bad := "-" + fuzzNameSuffix(payload) + "x"
-		badResult := clitest.Inspect(t.Context(), numberApp, cli.InspectionRequest{Args: []string{"--number", bad}})
+		badResult := clitest.Inspect(t.Context(), numberApp, cli.InspectionRequest{
+			Args: []string{"--number", bad},
+		})
 		badResult.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticMissingValue).Present()))
 
-		action := clitest.Inspect(t.Context(), actionApp, cli.InspectionRequest{Args: []string{"--help"}})
+		action := clitest.Inspect(t.Context(), actionApp, cli.InspectionRequest{
+			Args: []string{"--help"},
+		})
 		action.Require(t, clitest.InvocationAction(cli.InvocationActionHelp).Selected(), clitest.TokenAt(0).Role(cli.TokenRoleAction))
-		actionAfterEnd := clitest.Inspect(t.Context(), actionApp, cli.InspectionRequest{Args: []string{"--", "--help"}})
+		actionAfterEnd := clitest.Inspect(t.Context(), actionApp, cli.InspectionRequest{
+			Args: []string{"--", "--help"},
+		})
 		actionAfterEnd.Require(t, clitest.TokenAt(1).Role(cli.TokenRolePositional))
 
-		rec := clitest.Inspect(t.Context(), recoveryApp, cli.InspectionRequest{Args: []string{"--unknown=" + payload, "--verbose"}})
+		rec := clitest.Inspect(t.Context(), recoveryApp, cli.InspectionRequest{
+			Args: []string{"--unknown=" + payload, "--verbose"},
+		})
 		rec.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticUnknownFlag).Present()), clitest.TokenAt(1).Role(cli.TokenRoleFlag))
-		bare := clitest.Inspect(t.Context(), recoveryApp, cli.InspectionRequest{Args: []string{"--unknown", payload, "--verbose"}})
+		bare := clitest.Inspect(t.Context(), recoveryApp, cli.InspectionRequest{
+			Args: []string{"--unknown", payload, "--verbose"},
+		})
 		bare.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticUnknownFlag).Present()))
 		bi, _ := bare.Inspection()
 		if len(bi.Tokens) != 3 || bi.Tokens[2].Role != cli.TokenRoleUnknown {
 			t.Fatalf("bare recovery tokens=%#v", bi.Tokens)
 		}
-		limited := clitest.Inspect(t.Context(), recoveryApp, cli.InspectionRequest{Args: []string{"--unknown=" + payload, "--another=" + payload}, Limits: cli.AnalysisLimits{Diagnostics: 1}})
+		limited := clitest.Inspect(t.Context(), recoveryApp, cli.InspectionRequest{
+			Args: []string{"--unknown=" + payload, "--another=" + payload},
+			Limits: cli.AnalysisLimits{
+				Diagnostics: 1,
+			},
+		})
 		limited.Require(t, clitest.FailsWith(clitest.DiagnosticAt(0).Code(cli.DiagnosticUnknownFlag), clitest.DiagnosticsTruncated()))
 	})
 }

@@ -46,7 +46,10 @@ func (signals *Signals[C]) Endpoint[Events ~<-chan SignalEvent](storage *Events)
 		}
 		endpoint = draft.signalEndpoints.append(draft, record)
 	})
-	return SignalEndpointDeclaration[C]{endpoint: endpoint}
+	declaration := SignalEndpointDeclaration[C]{
+		endpoint: endpoint,
+	}
+	return declaration
 }
 
 // ClearInherited removes every currently surviving signal policy owned by strict ancestors of this
@@ -74,10 +77,11 @@ type signalEndpointRecord struct {
 
 func acceptSignalEndpointRecord(id SignalEndpointID, command CommandID, position declarationPosition) signalEndpointRecord {
 	mustCommand(command)
-	return signalEndpointRecord{
+	record := signalEndpointRecord{
 		meta:    acceptRecordMeta(id, position),
 		command: command,
 	}
+	return record
 }
 
 // WithBinding returns record with its configuration binding and typed endpoint
@@ -105,11 +109,12 @@ var (
 )
 
 func acceptSignalSender(processID, userID, code int) SignalSender {
-	return SignalSender{
+	sender := SignalSender{
 		ProcessID: processID,
 		UserID:    userID,
 		Code:      code,
 	}
+	return sender
 }
 
 type signalNotification struct {
@@ -503,7 +508,8 @@ func (err *SignalTermination) Error() string {
 // TerminatedBy returns a SignalTermination carrying signal. It is the public error
 // form used for a terminal reraised-signal outcome.
 func TerminatedBy(signal Signal) error {
-	return &SignalTermination{
+	termination := &SignalTermination{
 		Signal: signal,
 	}
+	return termination
 }

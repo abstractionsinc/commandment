@@ -335,11 +335,15 @@ func declareAttachedArgument[C, T any](form *ArgumentFormBuilder[C], destination
 		valid:         valid,
 	}
 	term, handle := stageAttachedArgumentTerm(session, form.profile, formRef, termDraft, handle)
-	return ArgumentDeclaration[C, T]{
+	returnedDestination := Destination[C, T]{
+		handle: handle,
+	}
+	declaration := ArgumentDeclaration[C, T]{
 		state:       session,
-		destination: Destination[C, T]{handle: handle},
+		destination: returnedDestination,
 		term:        term,
 	}
+	return declaration
 }
 
 func declareEmbeddedArgument[C, T any](form *ArgumentFormBuilder[C], storage *T, kind argumentTermKind, destinationKind destinationDeclarationKind, language any, name string, count CountRange) ArgumentDeclaration[C, T] {
@@ -365,11 +369,15 @@ func declareEmbeddedArgument[C, T any](form *ArgumentFormBuilder[C], storage *T,
 		valid: valid,
 	}
 	term, handle := stageEmbeddedArgumentTerm(session, form.profile, formRef, termDraft, destination)
-	return ArgumentDeclaration[C, T]{
+	returnedDestination := Destination[C, T]{
+		handle: handle,
+	}
+	declaration := ArgumentDeclaration[C, T]{
 		state:       session,
-		destination: Destination[C, T]{handle: handle},
+		destination: returnedDestination,
 		term:        term,
 	}
+	return declaration
 }
 
 func declareArgumentValue[C, T any](form *ArgumentFormBuilder[C], storage *T, name string, language ValueLanguage[T]) ArgumentDeclaration[C, T] {
@@ -403,11 +411,15 @@ func declareArgumentValue[C, T any](form *ArgumentFormBuilder[C], storage *T, na
 		valid: valid,
 	}
 	term, handle := stageEmbeddedArgumentTerm(session, form.profile, formRef, termDraft, destination)
-	return ArgumentDeclaration[C, T]{
+	returnedDestination := Destination[C, T]{
+		handle: handle,
+	}
+	declaration := ArgumentDeclaration[C, T]{
 		state:       session,
-		destination: Destination[C, T]{handle: handle},
+		destination: returnedDestination,
 		term:        term,
 	}
+	return declaration
 }
 
 func declareArgumentValueFor[C, T any](form *ArgumentFormBuilder[C], destination destinationLike[C, T], name string) ArgumentDeclaration[C, T] {
@@ -436,10 +448,11 @@ func declareArgumentLiteral[C any](form *ArgumentFormBuilder[C], token string) A
 		valid:   state != nil && record.valid(),
 	}
 	term := stageLiteralArgumentTerm(state, form.profile, record, termDraft)
-	return ArgumentLiteralDeclaration[C]{
+	declaration := ArgumentLiteralDeclaration[C]{
 		state: state,
 		term:  term,
 	}
+	return declaration
 }
 
 func declareArgumentRemainder[C any](form *ArgumentFormBuilder[C], destination destinationLike[C, []string], name string, count CountRange) ArgumentDeclaration[C, []string] {
@@ -1076,10 +1089,11 @@ type argumentFormSelection struct {
 
 func acceptArgumentFormSelection(destination ValueID, value any) argumentFormSelection {
 	mustDestination(destination)
-	return argumentFormSelection{
+	selection := argumentFormSelection{
 		destination: destination,
 		value:       value,
 	}
+	return selection
 }
 
 type argumentFormRecord struct {
@@ -1091,10 +1105,11 @@ type argumentFormRecord struct {
 
 func acceptArgumentFormRecord(id ArgumentFormID, command CommandID, position declarationPosition) argumentFormRecord {
 	mustCommand(command)
-	return argumentFormRecord{
+	record := argumentFormRecord{
 		meta:    acceptRecordMeta(id, position),
 		command: command,
 	}
+	return record
 }
 
 func (record argumentFormRecord) Selections() []argumentFormSelection {
@@ -1121,10 +1136,11 @@ func acceptArgumentTermRecord(id ArgumentTermID, form ArgumentFormID, position d
 	if !form.present() {
 		panic("semantic: invalid argument-form identity")
 	}
-	return argumentTermRecord{
+	record := argumentTermRecord{
 		meta: acceptRecordMeta(id, position),
 		form: form,
 	}
+	return record
 }
 
 func acceptArgumentValueTermRecord(id ArgumentTermID, form ArgumentFormID, destination ValueID, position declarationPosition) argumentTermRecord {

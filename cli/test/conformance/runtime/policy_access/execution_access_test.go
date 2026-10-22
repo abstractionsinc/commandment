@@ -209,14 +209,15 @@ func TestStageAccessPreservesAuthoringSemantics(t *testing.T) {
 	stdin := strings.NewReader("input")
 	stdout := &strings.Builder{}
 	stderr := &strings.Builder{}
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Args:             []string{"--profile", "prod", "child"},
 		Locale:           "en-US",
 		WorkingDirectory: "/workspace",
 		Stdin:            stdin,
 		Stdout:           stdout,
 		Stderr:           stderr,
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if seen == nil || seen.Profile != "prod" || seen.Locale != "en-US" || seen.WorkingDirectory != "/workspace" ||
@@ -267,7 +268,7 @@ func TestAccessSelectedAncestorPolarity(t *testing.T) {
 		}
 	}
 	definition := func(kind accessKind, relationship relation) cli.Definition[config] {
-		return cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				switch relationship {
@@ -313,6 +314,7 @@ func TestAccessSelectedAncestorPolarity(t *testing.T) {
 				}
 			},
 		}
+		return definition
 	}
 
 	tests := []struct {
@@ -321,18 +323,78 @@ func TestAccessSelectedAncestorPolarity(t *testing.T) {
 		relationship relation
 		valid        bool
 	}{
-		{"value same command", accessValue, relationSame, false},
-		{"value ancestor", accessValue, relationAncestor, true},
-		{"value sibling", accessValue, relationSibling, false},
-		{"value descendant", accessValue, relationDescendant, false},
-		{"optional value same command", accessOptionalValue, relationSame, false},
-		{"optional value ancestor", accessOptionalValue, relationAncestor, true},
-		{"optional value sibling", accessOptionalValue, relationSibling, false},
-		{"optional value descendant", accessOptionalValue, relationDescendant, false},
-		{"value state same command", accessValueState, relationSame, true},
-		{"value state ancestor", accessValueState, relationAncestor, true},
-		{"value state sibling", accessValueState, relationSibling, false},
-		{"value state descendant", accessValueState, relationDescendant, false},
+		{
+			name:         "value same command",
+			kind:         accessValue,
+			relationship: relationSame,
+			valid:        false,
+		},
+		{
+			name:         "value ancestor",
+			kind:         accessValue,
+			relationship: relationAncestor,
+			valid:        true,
+		},
+		{
+			name:         "value sibling",
+			kind:         accessValue,
+			relationship: relationSibling,
+			valid:        false,
+		},
+		{
+			name:         "value descendant",
+			kind:         accessValue,
+			relationship: relationDescendant,
+			valid:        false,
+		},
+		{
+			name:         "optional value same command",
+			kind:         accessOptionalValue,
+			relationship: relationSame,
+			valid:        false,
+		},
+		{
+			name:         "optional value ancestor",
+			kind:         accessOptionalValue,
+			relationship: relationAncestor,
+			valid:        true,
+		},
+		{
+			name:         "optional value sibling",
+			kind:         accessOptionalValue,
+			relationship: relationSibling,
+			valid:        false,
+		},
+		{
+			name:         "optional value descendant",
+			kind:         accessOptionalValue,
+			relationship: relationDescendant,
+			valid:        false,
+		},
+		{
+			name:         "value state same command",
+			kind:         accessValueState,
+			relationship: relationSame,
+			valid:        true,
+		},
+		{
+			name:         "value state ancestor",
+			kind:         accessValueState,
+			relationship: relationAncestor,
+			valid:        true,
+		},
+		{
+			name:         "value state sibling",
+			kind:         accessValueState,
+			relationship: relationSibling,
+			valid:        false,
+		},
+		{
+			name:         "value state descendant",
+			kind:         accessValueState,
+			relationship: relationDescendant,
+			valid:        false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -434,7 +496,7 @@ func TestResolvedLocaleSelectorPreservesExecutionSemantics(t *testing.T) {
 	type rootConfig = executionAccessLocaleNoiseRootConfig
 	type childConfig = executionAccessLocaleChildConfig
 	var got cli.Locale
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -457,7 +519,8 @@ func TestResolvedLocaleSelectorPreservesExecutionSemantics(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--locale", "fr", "child"},
 	}); err != nil {
@@ -503,7 +566,7 @@ func TestResolvedLocaleSelectorAcceptsLocaleValues(t *testing.T) {
 	type rootConfig = executionAccessLocaleRootConfig
 	type childConfig = executionAccessLocaleChildConfig
 	var got cli.Locale
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -528,7 +591,8 @@ func TestResolvedLocaleSelectorAcceptsLocaleValues(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--locale", "fr", "child"},
 	}); err != nil {

@@ -167,20 +167,22 @@ func BenchmarkHelpDependencyClosure(b *testing.B) {
 }
 
 func helpAction() cli.HelpConfig {
-	return cli.HelpConfig{
+	config := cli.HelpConfig{
 		Renderer: func(context.Context, cli.HelpPage) (string, error) {
 			return "help", nil
 		},
 	}
+	return config
 }
 
 func capturingHelpAction(page *cli.HelpPage) cli.HelpConfig {
-	return cli.HelpConfig{
+	config := cli.HelpConfig{
 		Renderer: func(_ context.Context, got cli.HelpPage) (string, error) {
 			*page = got
 			return "help", nil
 		},
 	}
+	return config
 }
 
 func helpFanInApplication(b testing.TB, relevant int, help cli.HelpConfig) cli.Application {
@@ -269,7 +271,9 @@ func helpChainApplication(b testing.TB, relevant int, help cli.HelpConfig) cli.A
 
 func helpPreflight(b testing.TB, app cli.Application, request cli.RunRequest) {
 	b.Helper()
-	inspectionRequest := cli.InspectionRequest{Args: []string{"--help"}}
+	inspectionRequest := cli.InspectionRequest{
+		Args: []string{"--help"},
+	}
 	proof := clitest.Inspect(b.Context(), app, inspectionRequest)
 	proof.Require(b,
 		clitest.InvocationAction(cli.InvocationActionHelp).Selected(),

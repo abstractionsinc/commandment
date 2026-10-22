@@ -18,7 +18,9 @@ func TestHomeShortcutTargetsNavigateWithEarth(t *testing.T) {
 		home.Exists(),
 		home.Targets(navigate),
 	)
-	homeRequest := cli.InspectionRequest{Args: []string{"home"}}
+	homeRequest := cli.InspectionRequest{
+		Args: []string{"home"},
+	}
 	clitest.Inspect(t.Context(), app, homeRequest).Require(t,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(root, navigate),

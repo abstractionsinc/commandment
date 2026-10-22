@@ -15,14 +15,18 @@ func TestNavigateSelectsTheMatchingArgumentForm(t *testing.T) {
 	world := command.ArgumentFormAt(0)
 	coordinates := command.ArgumentFormAt(1)
 
-	marsRequest := cli.InspectionRequest{Args: []string{"navigate", "mars"}}
+	marsRequest := cli.InspectionRequest{
+		Args: []string{"navigate", "mars"},
+	}
 	clitest.Inspect(t.Context(), app, marsRequest).Require(t,
 		clitest.InspectionReady(),
 		world.Selected(),
 		coordinates.NotSelected(),
 		world.Term("world").Value().Text("mars"),
 	)
-	coordinatesRequest := cli.InspectionRequest{Args: []string{"navigate", "12", "8", "4"}}
+	coordinatesRequest := cli.InspectionRequest{
+		Args: []string{"navigate", "12", "8", "4"},
+	}
 	clitest.Inspect(t.Context(), app, coordinatesRequest).Require(t,
 		clitest.InspectionReady(),
 		coordinates.Selected(),

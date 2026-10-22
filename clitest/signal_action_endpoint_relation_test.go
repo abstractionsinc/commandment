@@ -18,8 +18,12 @@ func TestSignalActionEndpointRelationAcrossObservations(t *testing.T) {
 	policy := cli.SignalPolicySchema{
 		ID: policyID,
 		Actions: []cli.SignalAction{
-			{EndpointID: endpointID},
-			{EndpointID: otherEndpointID},
+			{
+				EndpointID: endpointID,
+			},
+			{
+				EndpointID: otherEndpointID,
+			},
 		},
 	}
 	endpoint := cli.SignalEndpoint{
@@ -56,7 +60,9 @@ func TestSignalActionEndpointRelationAcrossObservations(t *testing.T) {
 			},
 		},
 		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyReference{
-			policyID: {SignalPolicySchema: policy},
+			policyID: {
+				SignalPolicySchema: policy,
+			},
 		},
 		SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpoint{
 			endpointID:      endpoint,
@@ -77,8 +83,12 @@ func TestSignalActionEndpointRelationAcrossObservations(t *testing.T) {
 			},
 		},
 		SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpointInspection{
-			endpointID:      {SignalEndpoint: endpoint},
-			otherEndpointID: {SignalEndpoint: otherEndpoint},
+			endpointID: {
+				SignalEndpoint: endpoint,
+			},
+			otherEndpointID: {
+				SignalEndpoint: otherEndpoint,
+			},
 		},
 		ExecutionAdmission: cli.ExecutionAdmissionInspection{
 			SignalEndpoints: []cli.SignalEndpointID{otherEndpointID},
@@ -91,14 +101,37 @@ func TestSignalActionEndpointRelationAcrossObservations(t *testing.T) {
 		t.Fatalf("relation locator stores observed endpoint identity: %#v", relation.state)
 	}
 
-	for name, outcome := range map[string]evaluationResult{
-		"schema capacity":     schemaExpectationOutcome(t, relation.Capacity(64), &schema),
-		"schema origin":       schemaExpectationOutcome(t, relation.Origin(cli.DeclarationOriginApplication), &schema),
-		"reference capacity":  referenceExpectationOutcome(t, relation.Capacity(64), reference),
-		"reference origin":    referenceExpectationOutcome(t, relation.Origin(cli.DeclarationOriginApplication), reference),
-		"inspection capacity": inspectionExpectationOutcome(t, relation.Capacity(64), inspection),
-		"inspection status":   inspectionExpectationOutcome(t, relation.Status(cli.SignalEndpointStatusUnknown), inspection),
+	for _, test := range []struct {
+		name    string
+		outcome evaluationResult
+	}{
+		{
+			name:    "schema capacity",
+			outcome: schemaExpectationOutcome(t, relation.Capacity(64), &schema),
+		},
+		{
+			name:    "schema origin",
+			outcome: schemaExpectationOutcome(t, relation.Origin(cli.DeclarationOriginApplication), &schema),
+		},
+		{
+			name:    "reference capacity",
+			outcome: referenceExpectationOutcome(t, relation.Capacity(64), reference),
+		},
+		{
+			name:    "reference origin",
+			outcome: referenceExpectationOutcome(t, relation.Origin(cli.DeclarationOriginApplication), reference),
+		},
+		{
+			name:    "inspection capacity",
+			outcome: inspectionExpectationOutcome(t, relation.Capacity(64), inspection),
+		},
+		{
+			name:    "inspection status",
+			outcome: inspectionExpectationOutcome(t, relation.Status(cli.SignalEndpointStatusUnknown), inspection),
+		},
 	} {
+		name := test.name
+		outcome := test.outcome
 		if outcome.status != evaluationProved {
 			t.Fatalf("%s = %#v", name, outcome)
 		}
@@ -108,11 +141,25 @@ func TestSignalActionEndpointRelationAcrossObservations(t *testing.T) {
 	}
 
 	second := RootCommand().SignalPolicyAt(0).ActionAt(1).SignalEndpoint()
-	for name, outcome := range map[string]evaluationResult{
-		"schema selected action":     schemaExpectationOutcome(t, second.Capacity(32), &schema),
-		"reference selected action":  referenceExpectationOutcome(t, second.Capacity(32), reference),
-		"inspection selected action": inspectionExpectationOutcome(t, second.Capacity(32), inspection),
+	for _, test := range []struct {
+		name    string
+		outcome evaluationResult
+	}{
+		{
+			name:    "schema selected action",
+			outcome: schemaExpectationOutcome(t, second.Capacity(32), &schema),
+		},
+		{
+			name:    "reference selected action",
+			outcome: referenceExpectationOutcome(t, second.Capacity(32), reference),
+		},
+		{
+			name:    "inspection selected action",
+			outcome: inspectionExpectationOutcome(t, second.Capacity(32), inspection),
+		},
 	} {
+		name := test.name
+		outcome := test.outcome
 		if outcome.status != evaluationProved {
 			t.Fatalf("%s = %#v", name, outcome)
 		}
@@ -131,14 +178,18 @@ func TestSignalActionEndpointRelationAbsenceAmbiguityAndTruncation(t *testing.T)
 		SignalPolicies: []cli.SignalPolicyID{policyID},
 	}
 	basePolicy := cli.SignalPolicySchema{
-		ID:      policyID,
-		Actions: []cli.SignalAction{{EndpointID: endpointID}},
+		ID: policyID,
+		Actions: []cli.SignalAction{{
+			EndpointID: endpointID,
+		}},
 	}
 
 	t.Run("no relation is absent even when ID zero exists", func(t *testing.T) {
 		t.Parallel()
 		zeroPolicy := basePolicy
-		zeroPolicy.Actions = []cli.SignalAction{{EndpointID: 0}}
+		zeroPolicy.Actions = []cli.SignalAction{{
+			EndpointID: 0,
+		}}
 		schema := cli.Schema{
 			Root:           rootID,
 			Commands:       map[cli.CommandID]cli.CommandSchema{rootID: baseCommand},
@@ -214,7 +265,9 @@ func TestSignalActionEndpointRelationAbsenceAmbiguityAndTruncation(t *testing.T)
 				},
 			},
 			SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyReference{
-				policyID: {SignalPolicySchema: basePolicy},
+				policyID: {
+					SignalPolicySchema: basePolicy,
+				},
 			},
 			SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpoint{53003: {
 				ID:       53003,
@@ -267,8 +320,10 @@ func TestSignalActionEndpointRelationAbsenceAmbiguityAndTruncation(t *testing.T)
 	t.Run("parent missing and ambiguous statuses propagate", func(t *testing.T) {
 		t.Parallel()
 		missing := cli.Schema{
-			Root:     rootID,
-			Commands: map[cli.CommandID]cli.CommandSchema{rootID: {ID: rootID}},
+			Root: rootID,
+			Commands: map[cli.CommandID]cli.CommandSchema{rootID: {
+				ID: rootID,
+			}},
 		}
 		if resolved := resolveSchemaSignalEndpointLocator(relation.state, &missing); resolved.status != locatorResolutionAbsent {
 			status := resolved.status
@@ -328,7 +383,9 @@ func TestSignalActionEndpointRelationAbsenceAmbiguityAndTruncation(t *testing.T)
 				},
 			},
 			SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyReference{
-				policyID: {SignalPolicySchema: basePolicy},
+				policyID: {
+					SignalPolicySchema: basePolicy,
+				},
 			},
 		}
 		if resolved := resolveReferenceSignalEndpointLocator(ambiguousRelation.state, reference); resolved.status != locatorResolutionAmbiguous {
@@ -396,8 +453,10 @@ func TestSignalActionEndpointRelationFailureOutputSuppressesSignalIDs(t *testing
 		SignalPolicies: []cli.SignalPolicyID{policyID},
 	}
 	basePolicy := cli.SignalPolicySchema{
-		ID:      policyID,
-		Actions: []cli.SignalAction{{EndpointID: endpointID}},
+		ID: policyID,
+		Actions: []cli.SignalAction{{
+			EndpointID: endpointID,
+		}},
 	}
 	mismatch := cli.Schema{
 		Root:           rootID,
@@ -450,32 +509,48 @@ func TestSignalActionEndpointRelationFailureOutputSuppressesSignalIDs(t *testing
 		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicySchema{policyID: basePolicy},
 	}
 
-	outcomes := map[string]evaluationResult{
-		"property mismatch": schemaExpectationOutcome(t, relation.Capacity(64), &mismatch),
-		"missing target":    schemaExpectationOutcome(t, relation.Capacity(64), &missingTarget),
-		"ambiguous parent":  schemaExpectationOutcome(t, ambiguousRelation.Capacity(64), &ambiguous),
-		"truncated target":  inspectionExpectationOutcome(t, relation.Capacity(64), truncated),
+	propertyMismatch := schemaExpectationOutcome(t, relation.Capacity(64), &mismatch)
+	outcomes := []struct {
+		name    string
+		outcome evaluationResult
+	}{
+		{
+			name:    "property mismatch",
+			outcome: propertyMismatch,
+		},
+		{
+			name:    "missing target",
+			outcome: schemaExpectationOutcome(t, relation.Capacity(64), &missingTarget),
+		},
+		{
+			name:    "ambiguous parent",
+			outcome: schemaExpectationOutcome(t, ambiguousRelation.Capacity(64), &ambiguous),
+		},
+		{
+			name:    "truncated target",
+			outcome: inspectionExpectationOutcome(t, relation.Capacity(64), truncated),
+		},
 	}
-	for name, outcome := range outcomes {
-		if outcome.status == evaluationProved {
-			t.Fatalf("%s unexpectedly satisfied: %#v", name, outcome)
+	for _, test := range outcomes {
+		if test.outcome.status == evaluationProved {
+			t.Fatalf("%s unexpectedly satisfied: %#v", test.name, test.outcome)
 		}
-		serialized := renderEvaluationField(outcome.subject) + " " + renderEvaluationField(outcome.expected) + " " + renderEvaluationField(outcome.observed)
+		serialized := renderEvaluationField(test.outcome.subject) + " " + renderEvaluationField(test.outcome.expected) + " " + renderEvaluationField(test.outcome.observed)
 		if !strings.Contains(serialized, "signal action endpoint") {
-			t.Fatalf("%s lost semantic relationship: %#v", name, outcome)
+			t.Fatalf("%s lost semantic relationship: %#v", test.name, test.outcome)
 		}
 		for _, id := range []uint32{uint32(policyID), uint32(endpointID)} {
 			raw := strconv.FormatUint(uint64(id), 10)
 			if strings.Contains(serialized, raw) {
-				t.Fatalf("%s exposed raw signal ID %q: %#v", name, raw, outcome)
+				t.Fatalf("%s exposed raw signal ID %q: %#v", test.name, raw, test.outcome)
 			}
 		}
 	}
-	serialized := renderEvaluationField(outcomes["property mismatch"].subject) +
-		" " + renderEvaluationField(outcomes["property mismatch"].expected) +
-		" " + renderEvaluationField(outcomes["property mismatch"].observed)
+	serialized := renderEvaluationField(propertyMismatch.subject) +
+		" " + renderEvaluationField(propertyMismatch.expected) +
+		" " + renderEvaluationField(propertyMismatch.observed)
 	if !strings.Contains(serialized, "capacity=64") || !strings.Contains(serialized, "capacity=32") {
-		t.Fatalf("capacity failure lost safe expected/observed facts: %#v", outcomes["property mismatch"])
+		t.Fatalf("capacity failure lost safe expected/observed facts: %#v", propertyMismatch)
 	}
 }
 
@@ -488,8 +563,10 @@ func TestSignalActionEndpointIdentityExpectationRemainsUnchanged(t *testing.T) {
 	schema := cli.Schema{
 		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicySchema{
 			policyID: {
-				ID:      policyID,
-				Actions: []cli.SignalAction{{EndpointID: endpointID}},
+				ID: policyID,
+				Actions: []cli.SignalAction{{
+					EndpointID: endpointID,
+				}},
 			},
 		},
 	}

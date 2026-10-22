@@ -16,10 +16,11 @@ import (
 func decodeShellAdapterJSONRequest(reader io.Reader) (shellAdapterRequest, error) {
 	data, err := io.ReadAll(io.LimitReader(reader, bridgeRequestFrameLimit+1))
 	if err != nil {
-		return shellAdapterRequest{}, failureError{
+		failure := failureError{
 			subject: "read shell completion JSON",
 			detail:  boundedFailureDetail(err.Error()),
 		}
+		return shellAdapterRequest{}, failure
 	}
 	if len(data) > bridgeRequestFrameLimit || !utf8.Valid(data) {
 		return shellAdapterRequest{}, errShellAdapter
@@ -100,7 +101,7 @@ func decodeShellAdapterJSONRequest(reader io.Reader) (shellAdapterRequest, error
 				return shellAdapterRequest{}, errShellAdapter
 			}
 			capabilitiesSeen = true
-			if err := decodeShellAdapterJSONCapabilities(decoder, &request.capabilities, false); err != nil {
+			if err := decodeShellAdapterJSONCapabilities(decoder, &request.capabilities); err != nil {
 				return shellAdapterRequest{}, err
 			}
 		case "native_capabilities":
@@ -108,7 +109,7 @@ func decodeShellAdapterJSONRequest(reader io.Reader) (shellAdapterRequest, error
 				return shellAdapterRequest{}, errShellAdapter
 			}
 			nativeCapabilitiesSeen = true
-			if err := decodeShellAdapterJSONCapabilities(decoder, &request.capabilities, true); err != nil {
+			if err := decodeShellAdapterJSONNativeCapabilities(decoder, &request.capabilities); err != nil {
 				return shellAdapterRequest{}, err
 			}
 		default:
@@ -263,7 +264,9 @@ func decodeShellAdapterJSONWords(decoder *jsontext.Decoder) ([]cli.CompletionObs
 }
 
 func decodeShellAdapterJSONWord(decoder *jsontext.Decoder) (cli.CompletionObservedWord, error) {
-	word := cli.CompletionObservedWord{Fidelity: cli.CompletionInputFidelityLexical}
+	word := cli.CompletionObservedWord{
+		Fidelity: cli.CompletionInputFidelityLexical,
+	}
 	start, err := decoder.ReadToken()
 	if err != nil || start.Kind() != jsontext.KindBeginObject {
 		return cli.CompletionObservedWord{}, errShellAdapter
@@ -309,7 +312,9 @@ func decodeShellAdapterJSONWord(decoder *jsontext.Decoder) (cli.CompletionObserv
 }
 
 func decodeShellAdapterJSONCursor(decoder *jsontext.Decoder) (cli.CompletionObservedCursor, error) {
-	cursor := cli.CompletionObservedCursor{Space: cli.CompletionCursorSpaceObservedWordBytes}
+	cursor := cli.CompletionObservedCursor{
+		Space: cli.CompletionCursorSpaceObservedWordBytes,
+	}
 	start, err := decoder.ReadToken()
 	if err != nil || start.Kind() != jsontext.KindBeginObject {
 		return cli.CompletionObservedCursor{}, errShellAdapter
@@ -363,7 +368,7 @@ func decodeShellAdapterJSONCursor(decoder *jsontext.Decoder) (cli.CompletionObse
 	return cursor, nil
 }
 
-func decodeShellAdapterJSONCapabilities(decoder *jsontext.Decoder, capabilities *cli.CompletionClientCapabilities, native bool) error {
+func decodeShellAdapterJSONCapabilities(decoder *jsontext.Decoder, capabilities *cli.CompletionClientCapabilities) error {
 	start, err := decoder.ReadToken()
 	if err != nil || start.Kind() != jsontext.KindBeginArray {
 		return errShellAdapter
@@ -373,11 +378,25 @@ func decodeShellAdapterJSONCapabilities(decoder *jsontext.Decoder, capabilities 
 		if err != nil {
 			return err
 		}
-		if native {
-			applyShellAdapterNativeCapability(capabilities, value)
-		} else {
-			applyShellAdapterCapability(capabilities, value)
+		applyShellAdapterCapability(capabilities, value)
+	}
+	if _, err := decoder.ReadToken(); err != nil {
+		return errShellAdapter
+	}
+	return nil
+}
+
+func decodeShellAdapterJSONNativeCapabilities(decoder *jsontext.Decoder, capabilities *cli.CompletionClientCapabilities) error {
+	start, err := decoder.ReadToken()
+	if err != nil || start.Kind() != jsontext.KindBeginArray {
+		return errShellAdapter
+	}
+	for decoder.PeekKind() != jsontext.KindEndArray {
+		value, err := readShellAdapterJSONString(decoder)
+		if err != nil {
+			return err
 		}
+		applyShellAdapterNativeCapability(capabilities, value)
 	}
 	if _, err := decoder.ReadToken(); err != nil {
 		return errShellAdapter
@@ -563,10 +582,11 @@ func encodeShellAdapterJSONResponse(writer io.Writer, response shellAdapterRespo
 	encoder := json.NewEncoder(writer)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(wire); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "encode shell completion JSON",
 			detail:  boundedFailureDetail(err.Error()),
 		}
+		return failure
 	}
 	return nil
 }

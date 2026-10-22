@@ -26,7 +26,9 @@ func TestCompletionObservationExpectationsPreserveSnapshotsAndIdentity(t *testin
 				Flag: 7,
 			},
 		}},
-		Groups: []cli.CompletionGroup{{ID: "group"}},
+		Groups: []cli.CompletionGroup{{
+			ID: "group",
+		}},
 		NativeRequests: []cli.CompletionNativeRequest{{
 			Kind:        cli.CompletionNativeFiles,
 			TargetIndex: 0,
@@ -78,28 +80,61 @@ func TestCompletionObservationExpectationsPreserveSnapshotsAndIdentity(t *testin
 		assertCompletionExpectation(t, expectation, complete)
 	}
 
-	for name, c := range map[string]cli.Completion{
-		"zero-zero": {Targets: []cli.CompletionTarget{{Kind: cli.CompletionTargetFlag}}},
-		"zero-nonzero": {
-			Targets: []cli.CompletionTarget{{Kind: cli.CompletionTargetFlag}},
-			Selection: cli.CommandSelection{
-				Selected: 42,
+	for _, test := range []struct {
+		name string
+		c    cli.Completion
+	}{
+		{
+			name: "zero-zero",
+			c: cli.Completion{
+				Targets: []cli.CompletionTarget{
+					{
+						Kind: cli.CompletionTargetFlag,
+					},
+				},
 			},
 		},
-		"nonzero-zero": {Targets: []cli.CompletionTarget{{
-			Kind:    cli.CompletionTargetFlag,
-			Command: 41,
-		}}},
-		"nonzero-unequal": {
-			Targets: []cli.CompletionTarget{{
-				Kind:    cli.CompletionTargetFlag,
-				Command: 41,
-			}},
-			Selection: cli.CommandSelection{
-				Selected: 42,
+		{
+			name: "zero-nonzero",
+			c: cli.Completion{
+				Targets: []cli.CompletionTarget{
+					{
+						Kind: cli.CompletionTargetFlag,
+					},
+				},
+				Selection: cli.CommandSelection{
+					Selected: 42,
+				},
+			},
+		},
+		{
+			name: "nonzero-zero",
+			c: cli.Completion{
+				Targets: []cli.CompletionTarget{
+					{
+						Kind:    cli.CompletionTargetFlag,
+						Command: 41,
+					},
+				},
+			},
+		},
+		{
+			name: "nonzero-unequal",
+			c: cli.Completion{
+				Targets: []cli.CompletionTarget{
+					{
+						Kind:    cli.CompletionTargetFlag,
+						Command: 41,
+					},
+				},
+				Selection: cli.CommandSelection{
+					Selected: 42,
+				},
 			},
 		},
 	} {
+		name := test.name
+		c := test.c
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			outcome := evaluateCompletionExpectation(t, CompletionTargetAt(0).OnSelectedCommand(), c)
@@ -211,7 +246,9 @@ func TestInspectionObservationExpectationsPreserveLexicalDiagnosticNoticeSourceA
 				Candidates:        []cli.ValueCandidateID{11},
 				DiagnosticIndexes: []int{0},
 			},
-			2: {ID: 2},
+			2: {
+				ID: 2,
+			},
 		},
 		ValueCandidates: map[cli.ValueCandidateID]cli.ValueCandidateInspection{
 			11: {
@@ -252,7 +289,9 @@ func TestInspectionObservationExpectationsPreserveLexicalDiagnosticNoticeSourceA
 			Hint:      "hint",
 			Sensitive: true,
 		}},
-		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{7: {ID: 7}},
+		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{7: {
+			ID: 7,
+		}},
 		ValueDomains: []cli.ValueDomainInspection{
 			{Uses: []cli.ValueDomainUse{{
 				Destination: 1,
@@ -599,13 +638,19 @@ func TestDeclarationSchemaExpectationsCoverStaticDeclarationFamilies(t *testing.
 			},
 		},
 		Values: map[cli.ValueID]cli.ValueSchema{
-			dependencyA: {ID: dependencyA},
-			dependencyB: {ID: dependencyB},
+			dependencyA: {
+				ID: dependencyA,
+			},
+			dependencyB: {
+				ID: dependencyB,
+			},
 			valueID: {
 				ID:           valueID,
 				Dependencies: []cli.ValueID{dependencyA, dependencyB},
 			},
-			factID: {ID: factID},
+			factID: {
+				ID: factID,
+			},
 		},
 		Facts: map[cli.ValueID]cli.FactSchema{
 			factID: {

@@ -245,10 +245,11 @@ func completeApplicationWithSignalsUnpreserved(ctx context.Context, model static
 	}
 	if err := ctx.Err(); err != nil {
 		result.Partial = true
-		return result, &completionContextError{
+		failure := &completionContextError{
 			operation: "begin completion",
 			cause:     err,
 		}
+		return result, failure
 	}
 	if len(prefix.Grammar.Issues) != 0 {
 		diagnostics := grammarDiagnostics(snapshot.invocation, prefix.Grammar, nil)
@@ -509,7 +510,9 @@ func completeApplicationWithSignalsUnpreserved(ctx context.Context, model static
 		result, staticErr = completionOp.appendStaticCompletionSyntax(
 			ctx,
 			result,
-			referenceStaticCompletionProjector{reference: reference},
+			referenceStaticCompletionProjector{
+				reference: reference,
+			},
 			syntaxPrefixes,
 			shortcutAppendCount,
 			shortcutState.candidateSensitiveResponseFiles,
@@ -622,10 +625,11 @@ func (operation *completionOperation) completeResponseFileReference(ctx context.
 	result.Replace.End = len(path) + 1
 	if err := ctx.Err(); err != nil {
 		result.Partial = true
-		return result, &completionContextError{
+		failure := &completionContextError{
 			operation: "complete response file",
 			cause:     err,
 		}
+		return result, failure
 	}
 
 	request := ResponseFileCompletionRequest{
@@ -699,10 +703,11 @@ func (operation *completionOperation) completePendingFlagValue(ctx context.Conte
 	result.Targets = append(result.Targets, target)
 	if err := ctx.Err(); err != nil {
 		result.Partial = true
-		return result, &completionContextError{
+		failure := &completionContextError{
 			operation: "complete pending flag value",
 			cause:     err,
 		}
+		return result, failure
 	}
 
 	record, ok := model.Flag(pending.Flag)
@@ -998,7 +1003,7 @@ func (operation *completionOperation) appendStaticCompletionSyntax(ctx context.C
 	seenFlagActions := make(map[ActionEntryID]struct{})
 	matcher := prepareCompletionMatcher(snapshot.input, completionMatchQuery(snapshot))
 	scratch := completionMatchScratch{}
-	var candidateErr error
+	var candidateErrors []error
 	appendCandidates := func(
 		prefix grammarPrefixResult,
 		kind CompletionTargetKind,
@@ -1034,8 +1039,8 @@ func (operation *completionOperation) appendStaticCompletionSyntax(ctx context.C
 					&responseFileLoads,
 				)
 				if branchErr != nil {
-					candidateErr = errors.Join(
-						candidateErr,
+					candidateErrors = append(
+						candidateErrors,
 						responseFileDiagnosticFailure(snapshot.invocation, branchErr),
 					)
 				}
@@ -1098,7 +1103,7 @@ func (operation *completionOperation) appendStaticCompletionSyntax(ctx context.C
 		}
 		appendCandidates(prefix, CompletionTargetFlag, flagOrder, projector.flagItem)
 	}
-	return result, candidateErr
+	return result, errors.Join(candidateErrors...)
 }
 
 func (operation *completionOperation) completionSyntaxCandidatePreservesFixedTail(ctx context.Context, candidate string, fixedTailCount int, candidateSensitiveResponseFiles bool, responseFileLoads *completionResponseFileLoadCache) (bool, error) {
@@ -1141,13 +1146,15 @@ func (operation *completionOperation) completionSyntaxCandidatePreservesFixedTai
 		)
 		if materialized, ok := materializedNamespaces[demand.Command]; ok &&
 			materialized.matchesProviderSet(providers) {
-			return grammarNamespaceMaterialization{
+			materialization := grammarNamespaceMaterialization{
 				Complete: materialized.complete,
 			}
+			return materialization
 		}
-		return grammarNamespaceMaterialization{
+		materialization := grammarNamespaceMaterialization{
 			Complete: len(providers) == 0,
 		}
+		return materialization
 	}
 	analysis := analyzeGrammarArguments(
 		ctx,
@@ -1215,6 +1222,7 @@ func (operation *completionOperation) expandCompletionShortcutCandidateTail(ctx 
 			index++
 			continue
 		}
+		recognition := grammarResponseStreamRecognition(ctx, grammarCursor)
 		expansion, err := operation.invocation.analysis.responses.StageWithStreamRecognition(
 			ctx,
 			responseFileLoads.load(snapshot.invocation.input.responseFiles),
@@ -1222,31 +1230,14 @@ func (operation *completionOperation) expandCompletionShortcutCandidateTail(ctx 
 				Path: path,
 				Base: snapshot.invocation.input.workingDirectory,
 			},
-			func(lexeme responseLexeme) (string, string, bool, error) {
-				if !grammarCursor.Ready() {
-					grammarCursor.Append(ctx, lexeme.Text)
-					return "", lexeme.Text, false, nil
-				}
-				selectedDialect, dialectOK := grammarCursor.Dialect()
-				if !dialectOK || !selectedDialect.ResponseFiles() {
-					grammarCursor.Append(ctx, lexeme.Text)
-					return "", lexeme.Text, false, nil
-				}
-				childPath, childLiteral, childInclude := recognizeResponseToken(
-					lexeme.Text,
-					lexeme.EscapedLeadingAt(),
-				)
-				if !childInclude {
-					grammarCursor.Append(ctx, childLiteral)
-				}
-				return childPath, childLiteral, childInclude, nil
-			},
+			recognition,
 		)
 		if err != nil {
-			return nil, &responseArgumentExpansionError{
+			failure := &responseArgumentExpansionError{
 				argument: index,
 				err:      err,
 			}
+			return nil, failure
 		}
 		texts := expansion.TokenTexts()
 		next := make([]string, 0, len(args)-1+len(texts))
@@ -1672,10 +1663,11 @@ func completionAnalysisInput(request CompletionRequest) ([]string, CompletionCur
 	default:
 		return nil, CompletionCursor{}, errInvalidCompletionRequest
 	}
-	return args, CompletionCursor{
+	cursor := CompletionCursor{
 		Argument: analysisWord,
 		Byte:     byteOffset,
-	}, nil
+	}
+	return args, cursor, nil
 }
 
 // staticCompletionGroupID projects the canonical static presentation classification for a

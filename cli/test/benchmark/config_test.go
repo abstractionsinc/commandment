@@ -5,6 +5,7 @@ import "github.com/abstractionsinc/commandment/cli"
 // These few config shapes intentionally bound generic instantiation cost in this large external
 // benchmark package. Reuse a shape only when its storage is truthful for the workload; do not
 // add unrelated state merely to avoid another config type.
+
 type emptyConfig struct{}
 
 type stringConfig struct {

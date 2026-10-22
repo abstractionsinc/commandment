@@ -1260,10 +1260,11 @@ func (scope analysisOperationGrammarScope) cachedFlagFrontier(parent *flagFronti
 	if !cacheable {
 		return build()
 	}
-	return scope.source.analysis.cachedFlagFrontier(flagFrontierCacheKey{
+	key := flagFrontierCacheKey{
 		lexical: lexical,
 		parent:  parent,
-	}, build)
+	}
+	return scope.source.analysis.cachedFlagFrontier(key, build)
 }
 
 type selectedPathFlagFrontier struct {

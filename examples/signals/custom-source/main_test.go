@@ -20,7 +20,10 @@ func TestCustomSignalSourceEmitsThroughTypedEndpoint(t *testing.T) {
 	)
 
 	var output bytes.Buffer
-	request := cli.RunRequest{Args: []string{"watch"}, Stdout: &output}
+	request := cli.RunRequest{
+		Args:   []string{"watch"},
+		Stdout: &output,
+	}
 	if err := app.Run(t.Context(), request); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}

@@ -192,18 +192,20 @@ func acceptStaticDeclarations(draft *declarationCandidate, identities staticIden
 	}
 	if len(rejections) != 0 {
 		combined := acceptAcceptanceDecision(acceptanceBoundaryStatic, rejections)
-		return staticProgram{}, rejectionError{
+		failure := rejectionError{
 			rejections: combined.Rejections(),
 		}
+		return staticProgram{}, failure
 	}
 
 	records := freezeStaticRecords(draft.input)
 	grammar, _, grammarRejections := draft.buildGrammar()
 	if len(grammarRejections) != 0 {
 		combined := acceptAcceptanceDecision(acceptanceBoundaryStatic, grammarRejections)
-		return staticProgram{}, rejectionError{
+		failure := rejectionError{
 			rejections: combined.Rejections(),
 		}
+		return staticProgram{}, failure
 	}
 	if err := validateAcceptedTopology(records, grammar); err != nil {
 		return staticProgram{}, err
@@ -227,10 +229,11 @@ func (draft *publicationDraft) preview(decision acceptanceDecision) (publication
 	for _, record := range draft.input.Destinations {
 		destinations[record.meta.id] = record
 	}
-	return publicationPreview{
+	preview := publicationPreview{
 		destinations: destinations,
 		grammar:      grammar,
-	}, nil
+	}
+	return preview, nil
 }
 
 // acceptPublication closes one operation-local acceptance transaction and returns only
@@ -249,10 +252,11 @@ func (draft *publicationDraft) acceptPublication(decision acceptanceDecision) (p
 	if err := validateAcceptedTopology(freezeStaticRecords(draft.input), grammar); err != nil {
 		return publicationDelta{}, err
 	}
-	return publicationDelta{
+	delta := publicationDelta{
 		declarations: draft.declarationDelta(),
 		grammar:      draft.grammarDelta(grammar),
-	}, nil
+	}
+	return delta, nil
 }
 
 func (draft *declarationCandidate) clear() {
@@ -681,11 +685,11 @@ func (draft *declarationCandidate) DestinationResolution(destination acceptanceD
 	}
 	merged, ok := mergeResolutionPolicies(definition.Resolution(), addition)
 	if !ok {
-		rejection := rejection{
+		candidateRejection := rejection{
 			Kind:  rejectionStructuralInvalidity,
 			Order: uint64(position),
 		}
-		draft.preflight = append(draft.preflight, rejection)
+		draft.preflight = append(draft.preflight, candidateRejection)
 		return
 	}
 	definition.resolution = merged
@@ -969,11 +973,11 @@ func (draft *declarationCandidate) ArgumentFormSelection(form argumentFormRef, d
 		if selection.destination != destination.ID() {
 			continue
 		}
-		rejection := rejection{
+		candidateRejection := rejection{
 			Kind:  rejectionStructuralInvalidity,
 			Order: uint64(position),
 		}
-		draft.preflight = append(draft.preflight, rejection)
+		draft.preflight = append(draft.preflight, candidateRejection)
 		return
 	}
 	formRecord.selections = append(
@@ -1434,11 +1438,11 @@ func (draft *declarationCandidate) SignalPolicyDefinition(policy signalPolicyRef
 		return
 	}
 	if _, exists := record.Definition(); exists {
-		rejection := rejection{
+		candidateRejection := rejection{
 			Kind:  rejectionStructuralInvalidity,
 			Order: uint64(position),
 		}
-		draft.preflight = append(draft.preflight, rejection)
+		draft.preflight = append(draft.preflight, candidateRejection)
 		return
 	}
 	record.definition = definition
@@ -1717,11 +1721,11 @@ func (draft *declarationCandidate) SignalEndpointBinding(endpoint signalEndpoint
 		return
 	}
 	if _, exists := record.Binding(); exists {
-		rejection := rejection{
+		candidateRejection := rejection{
 			Kind:  rejectionStructuralInvalidity,
 			Order: uint64(position),
 		}
-		draft.preflight = append(draft.preflight, rejection)
+		draft.preflight = append(draft.preflight, candidateRejection)
 		return
 	}
 	record.binding = binding
@@ -1754,11 +1758,11 @@ func (draft *declarationCandidate) SignalPolicyCounter(policy signalPolicyRef, c
 		return
 	}
 	if _, exists := record.Counter(); exists {
-		rejection := rejection{
+		candidateRejection := rejection{
 			Kind:  rejectionStructuralInvalidity,
 			Order: uint64(position),
 		}
-		draft.preflight = append(draft.preflight, rejection)
+		draft.preflight = append(draft.preflight, candidateRejection)
 		return
 	}
 	record.counter = counter.ID()
@@ -1783,9 +1787,10 @@ func (draft *declarationCandidate) DeclarationReplacement(source, target replace
 type stagingOwner struct{ token *uint64 }
 
 func allocateStagingOwner() stagingOwner {
-	return stagingOwner{
+	owner := stagingOwner{
 		token: new(uint64),
 	}
+	return owner
 }
 
 func (owner stagingOwner) Valid() bool { return owner.token != nil }
@@ -1869,10 +1874,11 @@ type replacementRef struct {
 }
 
 func issueReplacementRef(owner stagingOwner, identity declarationReplacementIdentity) replacementRef {
-	return replacementRef{
+	ref := replacementRef{
 		owner:    owner,
 		identity: identity,
 	}
+	return ref
 }
 
 func (ref replacementRef) OwnedBy(owner stagingOwner) bool {
@@ -1911,10 +1917,11 @@ type valueDomainRef struct {
 }
 
 func issueValueDomainRef(owner stagingOwner, index int) valueDomainRef {
-	return valueDomainRef{
+	ref := valueDomainRef{
 		owner: owner,
 		index: index,
 	}
+	return ref
 }
 
 func (ref valueDomainRef) OwnedBy(owner stagingOwner, count int) bool {

@@ -70,10 +70,11 @@ func stageAdvisory[C any](session *declarationSession, profile grammarProfileCas
 		}
 		ref = draft.advisories.append(draft, record)
 	})
-	return AdvisoryDeclaration[C]{
+	declaration := AdvisoryDeclaration[C]{
 		state:    session,
 		advisory: ref,
 	}
+	return declaration
 }
 
 func stageAlwaysAdvisory[C any](session *declarationSession, profile grammarProfileCaseRef, advisory Advisory) AdvisoryDeclaration[C] {
@@ -343,10 +344,11 @@ type advisoryRecord struct {
 
 func acceptAdvisoryRecord(id advisoryID, command CommandID, position declarationPosition) advisoryRecord {
 	mustCommand(command)
-	return advisoryRecord{
+	record := advisoryRecord{
 		meta:    acceptRecordMeta(id, position),
 		command: command,
 	}
+	return record
 }
 
 // AdvisoryCode is the application-defined machine classification of an Advisory.

@@ -110,14 +110,15 @@ func wrapNoticeDeliveryFailure(operation *invocation, index int, phase NoticePha
 		Code:        string(notice.Code),
 		CommandPath: append([]string(nil), notice.CommandPath...),
 	}
-	return retainDiagnosticFailure(payload{
+	failurePayload := payload{
 		Diagnostics: []diagnostic{{
 			Code:           string(DiagnosticNoticeDeliveryFailure),
 			CommandPath:    append([]string(nil), notice.CommandPath...),
 			NoticeDelivery: &detail,
 		}},
 		Presentation: operation.FrameworkPresentation(),
-	}, wrapped)
+	}
+	return retainDiagnosticFailure(failurePayload, wrapped)
 }
 
 func diagnosticNoticePhase(phase NoticePhase) analysisDiagnosticNoticePhase {

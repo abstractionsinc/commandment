@@ -23,20 +23,22 @@ func frameworkEnvironment(workspace string) ([]string, error) {
 
 	for _, directory := range []string{home, config, cache, data, state, zdotdir} {
 		if err := os.MkdirAll(directory, privateDirectoryMode); err != nil {
-			return nil, &failureError{
+			failure := &failureError{
 				subject: "create deterministic shell directory",
 				detail:  directory,
 				cause:   err,
 			}
+			return nil, failure
 		}
 	}
 	for _, file := range []string{inputrc, histfile, emptyStartup} {
 		if err := os.WriteFile(file, nil, privateFileMode); err != nil {
-			return nil, &failureError{
+			failure := &failureError{
 				subject: "create deterministic shell startup file",
 				detail:  file,
 				cause:   err,
 			}
+			return nil, failure
 		}
 	}
 

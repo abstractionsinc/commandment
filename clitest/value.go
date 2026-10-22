@@ -107,10 +107,11 @@ func (locator FactLocator) DependenciesExactly(values ...ValueLocator) Declarati
 	for index, value := range values {
 		dependencies[index] = value.state
 	}
-	return factDependenciesExactlyExpectation{
+	expectation := factDependenciesExactlyExpectation{
 		locator:      locator.state,
 		dependencies: dependencies,
 	}
+	return expectation
 }
 
 // Value follows the public fact-to-value relationship.
@@ -119,42 +120,49 @@ func (locator FactLocator) Value() ValueLocator { return factValueLocator(locato
 // Exists returns an expectation that checks the located fact exists in the relevant public
 // declaration observation.
 func (locator FactLocator) Exists() DeclarationExpectation {
-	return factExistenceExpectation{
+	expectation := factExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located fact is absent from a complete
 // relevant public declaration domain; incomplete observation cannot manufacture absence.
 func (locator FactLocator) DoesNotExist() DeclarationExpectation {
-	return factExistenceExpectation{
+	expectation := factExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // HasResolver returns an expectation that checks the declared fact has a resolver.
 func (locator FactLocator) HasResolver() DeclarationExpectation {
-	return factHasResolverExpectationValue{locator: locator.state}
+	value := factHasResolverExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Available returns an expectation that checks the located fact is effective and available in
 // the public Reference observation.
 func (locator FactLocator) Available() ReferenceExpectation {
-	return factAvailabilityExpectation{
+	expectation := factAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located fact is unavailable in the public
 // Reference observation.
 func (locator FactLocator) Unavailable() ReferenceExpectation {
-	return factAvailabilityExpectation{
+	expectation := factAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // FactAt returns a locator for the fact at index in the located command's authoritative public
@@ -173,58 +181,64 @@ func (l CommandLocator) ValueAt(index int) ValueLocator {
 // supplied locators in authoritative public order. Exactness is not inferred from an incomplete
 // observation.
 func (l CommandLocator) FactsExactly(values ...FactLocator) DeclarationExpectation {
-	return commandFactsExpectation{
+	expectation := commandFactsExpectation{
 		command: l.state,
 		items:   factLocatorStates(values),
 	}
+	return expectation
 }
 
 // ValuesExactly returns an expectation that checks the located command's values are exactly the
 // supplied locators in authoritative public order. Exactness is not inferred from an incomplete
 // observation.
 func (l CommandLocator) ValuesExactly(values ...ValueLocator) DeclarationExpectation {
-	return commandValuesExpectation{
+	expectation := commandValuesExpectation{
 		command: l.state,
 		items:   valueLocatorStates(values),
 	}
+	return expectation
 }
 
 // Kind returns a reusable declaration expectation that checks the public kind exposed by the
 // located value.
 func (locator ValueLocator) Kind(expected cli.ValueDestinationKind) DeclarationExpectation {
-	return valueCorePropertyExpectation{
+	expectation := valueCorePropertyExpectation{
 		locator:         locator.state,
 		kind:            valueCorePropertyDestinationKind,
 		destinationKind: expected,
 	}
+	return expectation
 }
 
 // Type returns a reusable declaration expectation that checks the located value exposes the
 // expected explicit ValueType. A value with HasType=false dischecks the expectation rather than
 // supplying an inferred type.
 func (locator ValueLocator) Type(expected cli.ValueType) DeclarationExpectation {
-	return valueCorePropertyExpectation{
+	expectation := valueCorePropertyExpectation{
 		locator:   locator.state,
 		kind:      valueCorePropertyType,
 		valueType: expected,
 	}
+	return expectation
 }
 
 // NoType returns a reusable declaration expectation that checks the located value explicitly
 // reports HasType=false.
 func (locator ValueLocator) NoType() DeclarationExpectation {
-	return valueCorePropertyExpectation{
+	expectation := valueCorePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCorePropertyNoType,
 	}
+	return expectation
 }
 
 // StaticDefault returns a locator that follows the public static default relationship from the
 // located value. The returned locator carries locator coordinates, not observed state.
 func (locator ValueLocator) StaticDefault() ValueStaticDefaultLocator {
-	return ValueStaticDefaultLocator{
+	valueStaticDefaultLocator := ValueStaticDefaultLocator{
 		value: locator,
 	}
+	return valueStaticDefaultLocator
 }
 
 // DependenciesExactly returns a static declaration expectation that checks the value
@@ -234,35 +248,41 @@ func (locator ValueLocator) DependenciesExactly(values ...ValueLocator) StaticDe
 	for index, value := range values {
 		dependencies[index] = value.state
 	}
-	return valueDependenciesExpectation{
+	expectation := valueDependenciesExpectation{
 		locator:      locator.state,
 		dependencies: dependencies,
 	}
+	return expectation
 }
 
 // Origin returns an expectation that checks the located value has the framework-established
 // DeclarationOrigin expected.
 func (locator ValueLocator) Origin(expected cli.DeclarationOrigin) StaticDeclarationExpectation {
-	return valueOriginStaticExpectationValue{
+	value := valueOriginStaticExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // DiagnosticsExactly returns an Inspection expectation that the diagnostics attached to the located subject are exactly
 // expected in the subject's public DiagnosticIndexes order.
 // This checks the returned attachment relationship; it does not reinterpret diagnostic identity from prose.
 func (locator ValueLocator) DiagnosticsExactly(expected ...DiagnosticLocator) InspectionExpectation {
-	return valueDiagnosticsExactlyExpectation{
+	expectation := valueDiagnosticsExactlyExpectation{
 		locator:  locator.state,
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // NoRepresentation returns an Inspection expectation that the located value has no canonical ValueRepresentation. A
 // redacted representation is still a present representation and does not satisfy this expectation.
 func (locator ValueLocator) NoRepresentation() InspectionExpectation {
-	return valueNoRepresentationExpectation{locator: locator.state}
+	expectation := valueNoRepresentationExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ProducerAt returns the producer at index in the value's authoritative producer order.
@@ -289,30 +309,38 @@ func (locator ValueLocator) Domain(kind cli.ValueDomainUseKind) ValueDomainLocat
 // Exists returns an expectation that checks the located value exists in the relevant public
 // declaration observation.
 func (locator ValueLocator) Exists() StaticDeclarationExpectation {
-	return valueExistenceExpectationValue{
+	value := valueExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located value is absent from a complete
 // relevant public declaration domain; incomplete observation cannot manufacture absence.
 func (locator ValueLocator) DoesNotExist() StaticDeclarationExpectation {
-	return valueExistenceExpectationValue{
+	value := valueExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Required returns an expectation that checks the value is statically declared required.
 func (locator ValueLocator) Required() StaticDeclarationExpectation {
-	return valueRequiredStaticExpectationValue{locator: locator.state}
+	value := valueRequiredStaticExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // DeclaredSensitive returns an expectation that checks the value is statically declared
 // sensitive.
 func (locator ValueLocator) DeclaredSensitive() StaticDeclarationExpectation {
-	return valueSensitiveStaticExpectationValue{locator: locator.state}
+	value := valueSensitiveStaticExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Observed returns an expectation that checks the value is present in the authoritative
@@ -336,37 +364,41 @@ func (locator ValueLocator) Sensitive() InspectionExpectation {
 // Available returns an expectation that checks the located value is effective and available in
 // the public Reference observation.
 func (locator ValueLocator) Available() ReferenceExpectation {
-	return valueReferenceAvailabilityExpectationValue{
+	value := valueReferenceAvailabilityExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // Unavailable returns an expectation that checks the located value is unavailable in the public
 // Reference observation.
 func (locator ValueLocator) Unavailable() ReferenceExpectation {
-	return valueReferenceAvailabilityExpectationValue{
+	value := valueReferenceAvailabilityExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Visible returns an expectation that checks the located value is visible in the public
 // Reference observation.
 func (locator ValueLocator) Visible() ReferenceExpectation {
-	return valueReferenceVisibilityExpectationValue{
+	value := valueReferenceVisibilityExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // NotVisible returns an expectation that checks the located value is not visible in the public
 // Reference observation.
 func (locator ValueLocator) NotVisible() ReferenceExpectation {
-	return valueReferenceVisibilityExpectationValue{
+	value := valueReferenceVisibilityExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // State returns an expectation that checks the inspected value has the requested
@@ -470,206 +502,227 @@ func (ValueLocator) completionTargetSubject() {}
 // Exists returns a reusable static declaration expectation that checks the located value static
 // default is present in the public observation.
 func (locator ValueStaticDefaultLocator) Exists() StaticDeclarationExpectation {
-	return staticDefaultExpectationValue{
+	value := staticDefaultExpectationValue{
 		locator:  locator,
 		property: staticDefaultExpectationExists,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns a reusable static declaration expectation that checks the located value
 // static default is absent from a complete relevant observation; incomplete evidence cannot
 // manufacture absence.
 func (locator ValueStaticDefaultLocator) DoesNotExist() StaticDeclarationExpectation {
-	return staticDefaultExpectationValue{
+	value := staticDefaultExpectationValue{
 		locator:  locator,
 		property: staticDefaultExpectationExists,
 		expected: false,
 	}
+	return value
 }
 
 // Sensitive returns a reusable static declaration expectation that checks the located value
 // static default is marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator ValueStaticDefaultLocator) Sensitive() StaticDeclarationExpectation {
-	return staticDefaultExpectationValue{
+	value := staticDefaultExpectationValue{
 		locator:  locator,
 		property: staticDefaultExpectationSensitive,
 		expected: true,
 	}
+	return value
 }
 
 // Redacted returns a reusable static declaration expectation that checks the located value
 // static default is marked redacted without exposing the protected representation.
 func (locator ValueStaticDefaultLocator) Redacted() StaticDeclarationExpectation {
-	return staticDefaultExpectationValue{
+	value := staticDefaultExpectationValue{
 		locator:  locator,
 		property: staticDefaultExpectationRedacted,
 		expected: true,
 	}
+	return value
 }
 
 // NoRepresentation returns a reusable static declaration expectation that checks the located
 // value static default explicitly has no representation.
 func (locator ValueStaticDefaultLocator) NoRepresentation() StaticDeclarationExpectation {
-	return staticDefaultExpectationValue{
+	value := staticDefaultExpectationValue{
 		locator:  locator,
 		property: staticDefaultExpectationHasRepresentation,
 		expected: false,
 	}
+	return value
 }
 
 // Scalar returns a locator for the scalar literal representation of the located static default.
 // Evaluation fails when the public default does not expose that representation.
 func (locator ValueStaticDefaultLocator) Scalar() StaticValueLiteralLocator {
-	return StaticValueLiteralLocator{
+	staticValueLiteralLocator := StaticValueLiteralLocator{
 		root: locator,
 		mode: staticValueLiteralScalar,
 	}
+	return staticValueLiteralLocator
 }
 
 // Sequence returns a locator for the ordered sequence representation of the located static
 // default. Evaluation fails when the public default does not expose that representation.
 func (locator ValueStaticDefaultLocator) Sequence() ValueSequenceLiteralLocator {
-	return ValueSequenceLiteralLocator{
+	valueSequenceLiteralLocator := ValueSequenceLiteralLocator{
 		root: locator,
 	}
+	return valueSequenceLiteralLocator
 }
 
 // Keyed returns a locator for the ordered keyed representation of the located static default.
 // Evaluation fails when the public default does not expose that representation.
 func (locator ValueStaticDefaultLocator) Keyed() ValueKeyedLiteralLocator {
-	return ValueKeyedLiteralLocator{
+	valueKeyedLiteralLocator := ValueKeyedLiteralLocator{
 		root: locator,
 	}
+	return valueKeyedLiteralLocator
 }
 
 // ElementType returns a reusable static declaration expectation that checks the public element
 // type exposed by the located static-default sequence.
 func (locator ValueSequenceLiteralLocator) ElementType(expected cli.ValueType) StaticDeclarationExpectation {
-	return sequenceExpectationValue{
+	value := sequenceExpectationValue{
 		locator:     locator,
 		property:    sequenceExpectationElementType,
 		elementType: expected,
 	}
+	return value
 }
 
 // ElementCount returns a reusable static declaration expectation that checks the element count
 // exposed by the located static-default sequence.
 func (locator ValueSequenceLiteralLocator) ElementCount(expected int) StaticDeclarationExpectation {
-	return sequenceExpectationValue{
+	value := sequenceExpectationValue{
 		locator:  locator,
 		property: sequenceExpectationElementCount,
 		count:    expected,
 	}
+	return value
 }
 
 // ElementAt returns a reusable expectation that checks the public element at exposed by the
 // located static-default sequence.
 func (locator ValueSequenceLiteralLocator) ElementAt(index int) StaticValueLiteralLocator {
-	return StaticValueLiteralLocator{
+	staticValueLiteralLocator := StaticValueLiteralLocator{
 		root:  locator.root,
 		mode:  staticValueLiteralSequenceElement,
 		index: index,
 	}
+	return staticValueLiteralLocator
 }
 
 // KeyType returns a reusable static declaration expectation that checks the public key type
 // exposed by the located keyed static default.
 func (locator ValueKeyedLiteralLocator) KeyType(expected cli.ValueType) StaticDeclarationExpectation {
-	return keyedExpectationValue{
+	value := keyedExpectationValue{
 		locator:   locator,
 		property:  keyedExpectationKeyType,
 		valueType: expected,
 	}
+	return value
 }
 
 // ValueType returns a reusable static declaration expectation that checks the public value type
 // exposed by the located keyed static default.
 func (locator ValueKeyedLiteralLocator) ValueType(expected cli.ValueType) StaticDeclarationExpectation {
-	return keyedExpectationValue{
+	value := keyedExpectationValue{
 		locator:   locator,
 		property:  keyedExpectationValueType,
 		valueType: expected,
 	}
+	return value
 }
 
 // EntryCount returns a reusable static declaration expectation that checks the entry count
 // exposed by the located keyed static default.
 func (locator ValueKeyedLiteralLocator) EntryCount(expected int) StaticDeclarationExpectation {
-	return keyedExpectationValue{
+	value := keyedExpectationValue{
 		locator:  locator,
 		property: keyedExpectationEntryCount,
 		count:    expected,
 	}
+	return value
 }
 
 // EntryAt returns a locator for the entry at the supplied public ordered index of the located
 // keyed static default. It does not search for or silently choose a first match.
 func (locator ValueKeyedLiteralLocator) EntryAt(index int) ValueKeyedEntryLocator {
-	return ValueKeyedEntryLocator{
+	valueKeyedEntryLocator := ValueKeyedEntryLocator{
 		root:  locator.root,
 		index: index,
 	}
+	return valueKeyedEntryLocator
 }
 
 // Key returns a locator that follows the public key relationship from the located keyed
 // static-default entry. The returned locator carries locator coordinates, not observed state.
 func (locator ValueKeyedEntryLocator) Key() StaticValueLiteralLocator {
-	return StaticValueLiteralLocator{
+	staticValueLiteralLocator := StaticValueLiteralLocator{
 		root:  locator.root,
 		mode:  staticValueLiteralKey,
 		index: locator.index,
 	}
+	return staticValueLiteralLocator
 }
 
 // Value returns a locator that follows the public value relationship from the located keyed
 // static-default entry. The returned locator carries locator coordinates, not observed state.
 func (locator ValueKeyedEntryLocator) Value() StaticValueLiteralLocator {
-	return StaticValueLiteralLocator{
+	staticValueLiteralLocator := StaticValueLiteralLocator{
 		root:  locator.root,
 		mode:  staticValueLiteralValue,
 		index: locator.index,
 	}
+	return staticValueLiteralLocator
 }
 
 // Type returns a reusable static declaration expectation that checks the public type exposed by
 // the located static-default literal.
 func (locator StaticValueLiteralLocator) Type(expected cli.ValueType) StaticDeclarationExpectation {
-	return staticLiteralExpectationValue{
+	value := staticLiteralExpectationValue{
 		locator:   locator,
 		property:  staticLiteralExpectationType,
 		valueType: expected,
 	}
+	return value
 }
 
 // Sensitive returns a reusable static declaration expectation that checks the located
 // static-default literal is marked sensitive. Expectation failures preserve Commandment redaction
 // boundaries.
 func (locator StaticValueLiteralLocator) Sensitive() StaticDeclarationExpectation {
-	return staticLiteralExpectationValue{
+	value := staticLiteralExpectationValue{
 		locator:  locator,
 		property: staticLiteralExpectationSensitive,
 	}
+	return value
 }
 
 // Redacted returns a reusable static declaration expectation that checks the located
 // static-default literal is marked redacted without exposing the protected representation.
 func (locator StaticValueLiteralLocator) Redacted() StaticDeclarationExpectation {
-	return staticLiteralExpectationValue{
+	value := staticLiteralExpectationValue{
 		locator:  locator,
 		property: staticLiteralExpectationRedacted,
 	}
+	return value
 }
 
 // Text returns a static declaration expectation that checks safely observable literal text in
 // the static default. Sensitive or redacted material remains governed by Commandment's public
 // representation.
 func (locator StaticValueLiteralLocator) Text(expected string) StaticDeclarationExpectation {
-	return staticLiteralExpectationValue{
+	value := staticLiteralExpectationValue{
 		locator:  locator,
 		property: staticLiteralExpectationText,
 		text:     expected,
 	}
+	return value
 }
 
 // InputText returns an Inspection expectation that the located candidate has raw input and that its text exactly equals
@@ -695,10 +748,11 @@ func (locator ValueCandidateLocator) Redacted() InspectionExpectation {
 // expected in the subject's public DiagnosticIndexes order.
 // This checks the returned attachment relationship; it does not reinterpret diagnostic identity from prose.
 func (locator ValueCandidateLocator) DiagnosticsExactly(expected ...DiagnosticLocator) InspectionExpectation {
-	return candidateDiagnosticsExactlyExpectation{
+	expectation := candidateDiagnosticsExactlyExpectation{
 		locator:  locator.state,
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // ElementAt returns the candidate element at index in its authoritative element order.
@@ -1323,25 +1377,37 @@ func valueLocatorStates(values []ValueLocator) []*valueLocatorState {
 }
 
 func commandFactAtLocator(parent CommandLocator, index int) FactLocator {
-	return FactLocator{state: &factLocatorState{
+	state := &factLocatorState{
 		mode:    factLocatorCommandIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := FactLocator{
+		state: state,
+	}
+	return locator
 }
 
 func environmentValueLocator(parent EnvironmentInputLocator) ValueLocator {
-	return ValueLocator{state: &valueLocatorState{
+	state := &valueLocatorState{
 		mode:        valueLocatorEnvironment,
 		environment: parent.state,
-	}}
+	}
+	locator := ValueLocator{
+		state: state,
+	}
+	return locator
 }
 
 func factValueLocator(parent FactLocator) ValueLocator {
-	return ValueLocator{state: &valueLocatorState{
+	state := &valueLocatorState{
 		mode: valueLocatorFact,
 		fact: parent.state,
-	}}
+	}
+	locator := ValueLocator{
+		state: state,
+	}
+	return locator
 }
 
 func cloneValueLocatorStates(values []ValueLocator) []*valueLocatorState {
@@ -2015,7 +2081,13 @@ func evaluateSequenceExpectation(expectation sequenceExpectationValue, value cli
 	}
 	switch expectation.property {
 	case sequenceExpectationElementType:
-		return equalFieldResult(evaluationText("static sequence"), evaluationText("element-type"), valueTypeField{value: expectation.elementType}, valueTypeField{value: value.ElementType}, value.ElementType == expectation.elementType)
+		field := valueTypeField{
+			value: expectation.elementType,
+		}
+		observedField := valueTypeField{
+			value: value.ElementType,
+		}
+		return equalFieldResult(evaluationText("static sequence"), evaluationText("element-type"), field, observedField, value.ElementType == expectation.elementType)
 	case sequenceExpectationElementCount:
 		return equalFieldResult(evaluationText("static sequence"), evaluationText("element-count"), evaluationText(strconv.Itoa(expectation.count)), evaluationText(strconv.Itoa(len(value.Elements))), len(value.Elements) == expectation.count)
 	default:
@@ -2029,9 +2101,21 @@ func evaluateKeyedExpectation(expectation keyedExpectationValue, value cli.Value
 	}
 	switch expectation.property {
 	case keyedExpectationKeyType:
-		return equalFieldResult(evaluationText("static keyed"), evaluationText("key-type"), valueTypeField{value: expectation.valueType}, valueTypeField{value: value.KeyType}, value.KeyType == expectation.valueType)
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		observedField := valueTypeField{
+			value: value.KeyType,
+		}
+		return equalFieldResult(evaluationText("static keyed"), evaluationText("key-type"), field, observedField, value.KeyType == expectation.valueType)
 	case keyedExpectationValueType:
-		return equalFieldResult(evaluationText("static keyed"), evaluationText("value-type"), valueTypeField{value: expectation.valueType}, valueTypeField{value: value.ValueType}, value.ValueType == expectation.valueType)
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		observedField := valueTypeField{
+			value: value.ValueType,
+		}
+		return equalFieldResult(evaluationText("static keyed"), evaluationText("value-type"), field, observedField, value.ValueType == expectation.valueType)
 	case keyedExpectationEntryCount:
 		return equalFieldResult(evaluationText("static keyed"), evaluationText("entry-count"), evaluationText(strconv.Itoa(expectation.count)), evaluationText(strconv.Itoa(len(value.Entries))), len(value.Entries) == expectation.count)
 	default:
@@ -2089,7 +2173,13 @@ func evaluateStaticLiteralExpectation(expectation staticLiteralExpectationValue,
 	}
 	switch expectation.property {
 	case staticLiteralExpectationType:
-		return equalFieldResult(evaluationText("static literal"), evaluationText("type"), valueTypeField{value: expectation.valueType}, valueTypeField{value: value.Type}, value.Type == expectation.valueType)
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		observedField := valueTypeField{
+			value: value.Type,
+		}
+		return equalFieldResult(evaluationText("static literal"), evaluationText("type"), field, observedField, value.Type == expectation.valueType)
 	case staticLiteralExpectationSensitive:
 		return equalFieldResult(evaluationText("static literal"), semanticRequirementSensitive, evaluationBool(true), evaluationBool(value.Sensitive), value.Sensitive)
 	case staticLiteralExpectationRedacted:
@@ -2113,17 +2203,25 @@ func safeStaticLiteralText(v cli.ValueLiteral, s locatorResolutionStatus, d eval
 }
 
 func factIDLocator(id cli.ValueID) FactLocator {
-	return FactLocator{state: &factLocatorState{
+	state := &factLocatorState{
 		mode: factLocatorID,
 		id:   id,
-	}}
+	}
+	locator := FactLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueIDLocator(id cli.ValueID) ValueLocator {
-	return ValueLocator{state: &valueLocatorState{
+	state := &valueLocatorState{
 		mode: valueLocatorID,
 		id:   id,
-	}}
+	}
+	locator := ValueLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveExpectedValueIDsSchema(states []*valueLocatorState, schema *cli.Schema) ([]cli.ValueID, locatorResolutionStatus, evaluationField) {
@@ -2187,41 +2285,49 @@ func expectedValueIDsInspection(states []*valueLocatorState, inspection cli.Insp
 }
 
 func valueCandidateIDLocator(id cli.ValueCandidateID) ValueCandidateLocator {
-	return ValueCandidateLocator{
-		state: &valueCandidateLocatorState{
-			mode: valueCandidateLocatorID,
-			id:   id,
-		},
+	state := &valueCandidateLocatorState{
+		mode: valueCandidateLocatorID,
+		id:   id,
 	}
+	locator := ValueCandidateLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueProducerIndexLocator(value ValueLocator, index int) ValueProducerLocator {
-	return ValueProducerLocator{
-		state: &valueProducerLocatorState{
-			value: value.state,
-			index: index,
-		},
+	state := &valueProducerLocatorState{
+		value: value.state,
+		index: index,
 	}
+	locator := ValueProducerLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueCandidateIndexLocator(value ValueLocator, index int) ValueCandidateLocator {
-	return ValueCandidateLocator{
-		state: &valueCandidateLocatorState{
-			mode:  valueCandidateLocatorCandidateIndex,
-			value: value.state,
-			index: index,
-		},
+	state := &valueCandidateLocatorState{
+		mode:  valueCandidateLocatorCandidateIndex,
+		value: value.state,
+		index: index,
 	}
+	locator := ValueCandidateLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueContributorIndexLocator(value ValueLocator, index int) ValueCandidateLocator {
-	return ValueCandidateLocator{
-		state: &valueCandidateLocatorState{
-			mode:  valueCandidateLocatorContributorIndex,
-			value: value.state,
-			index: index,
-		},
+	state := &valueCandidateLocatorState{
+		mode:  valueCandidateLocatorContributorIndex,
+		value: value.state,
+		index: index,
 	}
+	locator := ValueCandidateLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueElementIndexLocator(candidate ValueCandidateLocator, index int) ValueElementLocator {
@@ -2232,34 +2338,43 @@ func valueElementIndexLocator(candidate ValueCandidateLocator, index int) ValueE
 			index:     index,
 		},
 	}
-	return ValueElementLocator{ValueComponentLocator: component}
+	locator := ValueElementLocator{
+		ValueComponentLocator: component,
+	}
+	return locator
 }
 
 func valueEntryIndexLocator(candidate ValueCandidateLocator, index int) ValueEntryLocator {
-	return ValueEntryLocator{
-		state: &valueEntryLocatorState{
-			candidate: candidate.state,
-			index:     index,
-		},
+	state := &valueEntryLocatorState{
+		candidate: candidate.state,
+		index:     index,
 	}
+	locator := ValueEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueEntryKeyLocator(entry ValueEntryLocator) ValueComponentLocator {
-	return ValueComponentLocator{
-		state: &valueComponentLocatorState{
-			mode:  valueComponentLocatorEntryKey,
-			entry: entry.state,
-		},
+	state := &valueComponentLocatorState{
+		mode:  valueComponentLocatorEntryKey,
+		entry: entry.state,
 	}
+	locator := ValueComponentLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueEntryValueLocator(entry ValueEntryLocator) ValueComponentLocator {
-	return ValueComponentLocator{
-		state: &valueComponentLocatorState{
-			mode:  valueComponentLocatorEntryValue,
-			entry: entry.state,
-		},
+	state := &valueComponentLocatorState{
+		mode:  valueComponentLocatorEntryValue,
+		entry: entry.state,
 	}
+	locator := ValueComponentLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveValue(state *valueLocatorState, inspection cli.Inspection) valueResolution {
@@ -2647,94 +2762,106 @@ func outcomeForValueStatus(status locatorResolutionStatus, label, expect, actual
 }
 
 func valueObservationExpectation(locator ValueLocator, observed bool) InspectionExpectation {
-	return valueObservationExpectationValue{
+	value := valueObservationExpectationValue{
 		locator:  locator.state,
 		observed: observed,
 	}
+	return value
 }
 
 func valueStateExpectation(locator ValueLocator, state cli.ResolutionState) InspectionExpectation {
-	return valuePropertyExpectation{
+	expectation := valuePropertyExpectation{
 		locator: locator.state,
 		kind:    valuePropertyState,
 		state:   state,
 	}
+	return expectation
 }
 
 func valueSensitiveInspectionExpectation(locator ValueLocator) InspectionExpectation {
-	return valuePropertyExpectation{
+	expectation := valuePropertyExpectation{
 		locator: locator.state,
 		kind:    valuePropertySensitive,
 	}
+	return expectation
 }
 
 func valueTextExpectation(locator ValueLocator, text string) InspectionExpectation {
-	return valuePropertyExpectation{
+	expectation := valuePropertyExpectation{
 		locator: locator.state,
 		kind:    valuePropertyText,
 		text:    text,
 	}
+	return expectation
 }
 
 func valueTokensExpectation(locator ValueLocator, tokens []string) InspectionExpectation {
-	return valuePropertyExpectation{
+	expectation := valuePropertyExpectation{
 		locator: locator.state,
 		kind:    valuePropertyTokens,
 		tokens:  slices.Clone(tokens),
 	}
+	return expectation
 }
 
 func valueRedactedExpectation(locator ValueLocator) InspectionExpectation {
-	return valuePropertyExpectation{
+	expectation := valuePropertyExpectation{
 		locator: locator.state,
 		kind:    valuePropertyRedacted,
 	}
+	return expectation
 }
 
 func valueContributedByExpectation(locator ValueLocator, kind cli.ValueProducerKind) InspectionExpectation {
-	return valuePropertyExpectation{
+	expectation := valuePropertyExpectation{
 		locator:      locator.state,
 		kind:         valuePropertyContributedBy,
 		producerKind: kind,
 	}
+	return expectation
 }
 
 func valueBlockedByExpectation(locator, blocker ValueLocator) InspectionExpectation {
-	return valueBlockedByExpectationValue{
+	value := valueBlockedByExpectationValue{
 		value:   locator.state,
 		blocker: blocker.state,
 	}
+	return value
 }
 
 func valueProducerKindExpectation(locator ValueProducerLocator, kind cli.ValueProducerKind) InspectionExpectation {
-	return producerPropertyExpectation{
+	expectation := producerPropertyExpectation{
 		locator:      locator.state,
 		kind:         valueProducerPropertyProducerKind,
 		producerKind: kind,
 	}
+	return expectation
 }
 
 func valueProducerTierExpectation(locator ValueProducerLocator, tier cli.ResolutionTier) InspectionExpectation {
-	return producerPropertyExpectation{
+	expectation := producerPropertyExpectation{
 		locator: locator.state,
 		kind:    valueProducerPropertyTier,
 		tier:    tier,
 	}
+	return expectation
 }
 
 func valueProducerOutcomeExpectation(locator ValueProducerLocator, outcome cli.ValueProducerOutcome) InspectionExpectation {
-	return producerPropertyExpectation{
+	expectation := producerPropertyExpectation{
 		locator: locator.state,
 		kind:    valueProducerPropertyOutcome,
 		outcome: outcome,
 	}
+	return expectation
 }
 
 func valueProducerSensitiveExpectation(locator ValueProducerLocator) InspectionExpectation {
-	return producerPropertyExpectation{
+	expectation := producerPropertyExpectation{
 		locator: locator.state,
 		kind:    valueProducerPropertySensitive,
 	}
+	return expectation
 }
 
 func valueProducerBlockedByExactlyExpectation(locator ValueProducerLocator, values []ValueLocator) InspectionExpectation {
@@ -2742,11 +2869,12 @@ func valueProducerBlockedByExactlyExpectation(locator ValueProducerLocator, valu
 	for index, value := range values {
 		states[index] = value.state
 	}
-	return producerPropertyExpectation{
+	expectation := producerPropertyExpectation{
 		locator: locator.state,
 		kind:    valueProducerPropertyBlockedBy,
 		values:  states,
 	}
+	return expectation
 }
 
 func valueProducerDependenciesExactlyExpectation(locator ValueProducerLocator, values []ValueLocator) InspectionExpectation {
@@ -2754,108 +2882,121 @@ func valueProducerDependenciesExactlyExpectation(locator ValueProducerLocator, v
 	for index, value := range values {
 		states[index] = value.state
 	}
-	return producerPropertyExpectation{
+	expectation := producerPropertyExpectation{
 		locator: locator.state,
 		kind:    valueProducerPropertyDependencies,
 		values:  states,
 	}
+	return expectation
 }
 
 func valueProducerOriginsExactlyExpectation(locator ValueProducerLocator, origins []InputOriginLocator) InspectionExpectation {
 	expected, valid := locatorInputOriginIDs(origins)
-	return producerPropertyExpectation{
+	expectation := producerPropertyExpectation{
 		locator:      locator.state,
 		kind:         valueProducerPropertyOrigins,
 		origins:      expected,
 		originsValid: valid,
 	}
+	return expectation
 }
 
 func valueCandidateDispositionExpectation(locator ValueCandidateLocator, disposition cli.ValueCandidateDisposition) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator:     locator.state,
 		kind:        valueCandidatePropertyDisposition,
 		disposition: disposition,
 	}
+	return expectation
 }
 
 func valueCandidateContributionExpectation(locator ValueCandidateLocator, contribution cli.ValueCandidateContribution) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator:      locator.state,
 		kind:         valueCandidatePropertyContribution,
 		contribution: contribution,
 	}
+	return expectation
 }
 
 func valueCandidateSensitiveExpectation(locator ValueCandidateLocator) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertySensitive,
 	}
+	return expectation
 }
 
 func valueCandidateProducedByExpectation(locator ValueCandidateLocator, producer ValueProducerLocator) InspectionExpectation {
-	return valueCandidateProducedByExpectationValue{
+	value := valueCandidateProducedByExpectationValue{
 		candidate: locator.state,
 		producer:  producer.state,
 	}
+	return value
 }
 
 func valueCandidateDeclarationExpectation(locator ValueCandidateLocator, declaration DeclarationIdentityLocator) InspectionExpectation {
-	return valueCandidateDeclarationExpectationValue{
+	value := valueCandidateDeclarationExpectationValue{
 		candidate:   locator.state,
 		declaration: declaration,
 	}
+	return value
 }
 
 func valueCandidateOriginsExactlyExpectation(locator ValueCandidateLocator, origins []InputOriginLocator) InspectionExpectation {
 	expected, valid := locatorInputOriginIDs(origins)
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator:      locator.state,
 		kind:         valueCandidatePropertyOrigins,
 		origins:      expected,
 		originsValid: valid,
 	}
+	return expectation
 }
 
 func valueCandidateSuppressionExpectation(locator ValueCandidateLocator, suppression cli.ValueCandidateSuppression) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator:     locator.state,
 		kind:        valueCandidatePropertySuppression,
 		suppression: suppression,
 	}
+	return expectation
 }
 
 func valueCandidateTextExpectation(locator ValueCandidateLocator, text string) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertyText,
 		text:    text,
 	}
+	return expectation
 }
 
 func valueCandidateTokensExpectation(locator ValueCandidateLocator, tokens []string) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertyTokens,
 		tokens:  slices.Clone(tokens),
 	}
+	return expectation
 }
 
 func valueCandidateElementCountExpectation(locator ValueCandidateLocator, count int) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertyElementCount,
 		count:   count,
 	}
+	return expectation
 }
 
 func valueCandidateEntryCountExpectation(locator ValueCandidateLocator, count int) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertyEntryCount,
 		count:   count,
 	}
+	return expectation
 }
 
 func candidateLocatorID(state *valueCandidateLocatorState, inspection cli.Inspection) (cli.ValueCandidateID, bool) {
@@ -2868,11 +3009,12 @@ func valueCandidateSuppressedByExactlyExpectation(locator ValueCandidateLocator,
 	for index, expected := range expectedLocators {
 		states[index] = expected.state
 	}
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator:    locator.state,
 		kind:       valueCandidatePropertySuppressedBy,
 		candidates: states,
 	}
+	return expectation
 }
 
 func valueCandidateConflictsWithExactlyExpectation(locator ValueCandidateLocator, expectedLocators []ValueCandidateLocator) InspectionExpectation {
@@ -2880,81 +3022,91 @@ func valueCandidateConflictsWithExactlyExpectation(locator ValueCandidateLocator
 	for index, expected := range expectedLocators {
 		states[index] = expected.state
 	}
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator:    locator.state,
 		kind:       valueCandidatePropertyConflictsWith,
 		candidates: states,
 	}
+	return expectation
 }
 
 func valueCandidateInputTextExpectation(locator ValueCandidateLocator, text string) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertyInputText,
 		text:    text,
 	}
+	return expectation
 }
 
 func valueCandidateInputRedactedExpectation(locator ValueCandidateLocator) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertyInputRedacted,
 	}
+	return expectation
 }
 
 func valueCandidateRedactedExpectation(locator ValueCandidateLocator) InspectionExpectation {
-	return candidatePropertyExpectation{
+	expectation := candidatePropertyExpectation{
 		locator: locator.state,
 		kind:    valueCandidatePropertyRedacted,
 	}
+	return expectation
 }
 
 func valueComponentTextExpectation(locator ValueComponentLocator, text string) InspectionExpectation {
-	return componentPropertyExpectation{
+	expectation := componentPropertyExpectation{
 		locator: locator.state,
 		kind:    valueComponentPropertyText,
 		text:    text,
 	}
+	return expectation
 }
 
 func valueComponentTokensExpectation(locator ValueComponentLocator, tokens []string) InspectionExpectation {
-	return componentPropertyExpectation{
+	expectation := componentPropertyExpectation{
 		locator: locator.state,
 		kind:    valueComponentPropertyTokens,
 		tokens:  slices.Clone(tokens),
 	}
+	return expectation
 }
 
 func valueComponentRedactedExpectation(locator ValueComponentLocator) InspectionExpectation {
-	return componentPropertyExpectation{
+	expectation := componentPropertyExpectation{
 		locator: locator.state,
 		kind:    valueComponentPropertyRedacted,
 	}
+	return expectation
 }
 
 func valueComponentOriginsExactlyExpectation(locator ValueComponentLocator, origins []InputOriginLocator) InspectionExpectation {
 	expected, valid := locatorInputOriginIDs(origins)
-	return componentPropertyExpectation{
+	expectation := componentPropertyExpectation{
 		locator:      locator.state,
 		kind:         valueComponentPropertyOrigins,
 		origins:      expected,
 		originsValid: valid,
 	}
+	return expectation
 }
 
 func valueComponentSensitiveExpectation(locator ValueComponentLocator) InspectionExpectation {
-	return componentPropertyExpectation{
+	expectation := componentPropertyExpectation{
 		locator: locator.state,
 		kind:    valueComponentPropertySensitive,
 	}
+	return expectation
 }
 
 func valueComponentInputTextExpectation(locator ValueComponentLocator, text string) InspectionExpectation {
-	return componentPropertyExpectation{
+	expectation := componentPropertyExpectation{
 		locator: locator.state,
 		kind:    valueComponentPropertyInputText,
 		text:    text,
 	}
+	return expectation
 }
 
 func valueProducersExactlyExpectation(locator ValueLocator, producers []ValueProducerLocator) InspectionExpectation {
@@ -2962,11 +3114,12 @@ func valueProducersExactlyExpectation(locator ValueLocator, producers []ValuePro
 	for index, producer := range producers {
 		states[index] = producer.state
 	}
-	return valueCollectionExpectation{
+	expectation := valueCollectionExpectation{
 		locator:   locator.state,
 		kind:      valueCollectionProducers,
 		producers: states,
 	}
+	return expectation
 }
 
 func valueCandidatesExactlyExpectation(locator ValueLocator, candidates []ValueCandidateLocator) InspectionExpectation {
@@ -2974,11 +3127,12 @@ func valueCandidatesExactlyExpectation(locator ValueLocator, candidates []ValueC
 	for index, candidate := range candidates {
 		states[index] = candidate.state
 	}
-	return valueCollectionExpectation{
+	expectation := valueCollectionExpectation{
 		locator:    locator.state,
 		kind:       valueCollectionCandidates,
 		candidates: states,
 	}
+	return expectation
 }
 
 func valueContributorsExactlyExpectation(locator ValueLocator, candidates []ValueCandidateLocator) InspectionExpectation {
@@ -2986,11 +3140,12 @@ func valueContributorsExactlyExpectation(locator ValueLocator, candidates []Valu
 	for index, candidate := range candidates {
 		states[index] = candidate.state
 	}
-	return valueCollectionExpectation{
+	expectation := valueCollectionExpectation{
 		locator:    locator.state,
 		kind:       valueCollectionContributors,
 		candidates: states,
 	}
+	return expectation
 }
 
 func componentReferenceFromElementLocator(locator ValueElementLocator, inspection cli.Inspection) (cli.ValueElementReference, bool) {
@@ -3028,33 +3183,37 @@ func entryReferenceFromLocator(locator ValueEntryLocator, inspection cli.Inspect
 }
 
 func valueElementsExactlyExpectation(locator ValueLocator, elements []ValueElementLocator) InspectionExpectation {
-	return valueCollectionExpectation{
+	expectation := valueCollectionExpectation{
 		locator:  locator.state,
 		kind:     valueCollectionElements,
 		elements: slices.Clone(elements),
 	}
+	return expectation
 }
 
 func valueEntriesExactlyExpectation(locator ValueLocator, entries []ValueEntryLocator) InspectionExpectation {
-	return valueCollectionExpectation{
+	expectation := valueCollectionExpectation{
 		locator: locator.state,
 		kind:    valueCollectionEntries,
 		entries: slices.Clone(entries),
 	}
+	return expectation
 }
 
 func valueCandidateDomainEntryExpectation(locator ValueCandidateLocator, entry ValueDomainEntryLocator) InspectionExpectation {
-	return valueCandidateDomainEntryExpectationValue{
+	value := valueCandidateDomainEntryExpectationValue{
 		candidate: locator.state,
 		entry:     entry.state,
 	}
+	return value
 }
 
 func valueComponentDomainEntryExpectation(locator ValueComponentLocator, entry ValueDomainEntryLocator) InspectionExpectation {
-	return componentDomainEntryExpectation{
+	expectation := componentDomainEntryExpectation{
 		locator: locator.state,
 		entry:   entry.state,
 	}
+	return expectation
 }
 
 func (commandFactsExpectation) schemaExpectation() {}
@@ -3417,9 +3576,18 @@ func (expectation valueCorePropertyExpectation) evaluate(status locatorResolutio
 			return declarationResolvedComparison(status, subject, detail, evaluationText("typed value"), evaluationText(""), false)
 		}
 		if !hasType {
-			return disprovedResult(subject, property(evaluationText("type"), valueTypeField{value: expectation.valueType}), evaluationText("has-type=false"))
+			field := valueTypeField{
+				value: expectation.valueType,
+			}
+			return disprovedResult(subject, property(evaluationText("type"), field), evaluationText("has-type=false"))
 		}
-		return equalFieldResult(subject, evaluationText("type"), valueTypeField{value: expectation.valueType}, valueTypeField{value: valueType}, valueType == expectation.valueType)
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		observedField := valueTypeField{
+			value: valueType,
+		}
+		return equalFieldResult(subject, evaluationText("type"), field, observedField, valueType == expectation.valueType)
 	case valueCorePropertyNoType:
 		return declarationResolvedComparison(status, subject, detail, evaluationText("has-type"), evaluationText(strconv.FormatBool(hasType)), !hasType)
 	default:
@@ -3604,7 +3772,9 @@ func (expectation valueStateIfObservedExpectationValue) evaluateInspection(inspe
 		return disprovedResult(evaluationText("value state if observed"), evaluationText("at least one allowed resolution state"), evaluationText("no allowed states"))
 	}
 	resolved := resolveValue(expectation.locator, inspection)
-	expected := property(evaluationText("state if observed in"), resolutionStateCollectionField{values: expectation.states})
+	expected := property(evaluationText("state if observed in"), resolutionStateCollectionField{
+		values: expectation.states,
+	})
 	switch resolved.status {
 	case locatorResolutionAbsent:
 		return provedResult()
@@ -3642,13 +3812,14 @@ func (expectation valueBlockedByExpectationValue) evaluateInspection(inspection 
 	if slices.Contains(value.value.BlockedBy, blockerID) {
 		return provedResult()
 	}
+	field := collectionCardinalityField{
+		name:  "blocked-by IDs",
+		count: len(value.value.BlockedBy),
+	}
 	return disprovedResult(
 		value.label,
 		evaluationText(fmt.Sprintf("blocked by value ID %d", blockerID)),
-		collectionCardinalityField{
-			name:  "blocked-by IDs",
-			count: len(value.value.BlockedBy),
-		},
+		field,
 	)
 }
 
@@ -3953,10 +4124,16 @@ func (expectation valueCandidateDeclarationExpectationValue) evaluateInspection(
 	if candidate.value.Declaration == expected {
 		return provedResult()
 	}
+	field := declarationIdentityField{
+		value: expected,
+	}
+	declarationIdentityField := declarationIdentityField{
+		value: candidate.value.Declaration,
+	}
 	return disprovedResult(
 		candidate.label,
-		declarationIdentityField{value: expected},
-		declarationIdentityField{value: candidate.value.Declaration},
+		field,
+		declarationIdentityField,
 	)
 }
 

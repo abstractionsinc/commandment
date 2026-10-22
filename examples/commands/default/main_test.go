@@ -16,12 +16,16 @@ func TestFleetSelectsStatusByDefault(t *testing.T) {
 	status := fleet.Command("status")
 	launch := fleet.Command("launch")
 
-	defaultRequest := cli.InspectionRequest{Args: []string{"fleet"}}
+	defaultRequest := cli.InspectionRequest{
+		Args: []string{"fleet"},
+	}
 	clitest.Inspect(t.Context(), app, defaultRequest).Require(t,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(root, fleet, status),
 	)
-	launchRequest := cli.InspectionRequest{Args: []string{"fleet", "launch", "scout-7"}}
+	launchRequest := cli.InspectionRequest{
+		Args: []string{"fleet", "launch", "scout-7"},
+	}
 	clitest.Inspect(t.Context(), app, launchRequest).Require(t,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(root, fleet, launch),

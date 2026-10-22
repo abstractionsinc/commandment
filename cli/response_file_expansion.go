@@ -246,10 +246,11 @@ func recognizeResponseArgument(text string) (string, string, bool) {
 
 func decodeResponseFile(content []byte) ([]responseLexeme, error) {
 	if !utf8.Valid(content) {
-		return nil, &responseFileError{
+		failure := &responseFileError{
 			Kind: responseFileErrorText,
 			Err:  errResponseFileInvalidUTF8,
 		}
+		return nil, failure
 	}
 	startOffset := 0
 	if bytes.HasPrefix(content, []byte{0xef, 0xbb, 0xbf}) {
@@ -281,17 +282,19 @@ func decodeResponseFile(content []byte) ([]responseLexeme, error) {
 
 	for i := startOffset; i < len(content); {
 		if i != 0 && i+3 <= len(content) && bytes.Equal(content[i:i+3], []byte{0xef, 0xbb, 0xbf}) {
-			return nil, &responseFileError{
+			failure := &responseFileError{
 				Kind: responseFileErrorText,
 				Err:  errResponseFileBOMOutsideStart,
 			}
+			return nil, failure
 		}
 		r, size := utf8.DecodeRune(content[i:])
 		if r == 0 {
-			return nil, &responseFileError{
+			failure := &responseFileError{
 				Kind: responseFileErrorText,
 				Err:  errResponseFileNUL,
 			}
+			return nil, failure
 		}
 
 		switch {
@@ -323,10 +326,11 @@ func decodeResponseFile(content []byte) ([]responseLexeme, error) {
 			}
 			next := i + size
 			if next >= len(content) {
-				return nil, &responseFileError{
+				failure := &responseFileError{
 					Kind: responseFileErrorText,
 					Err:  errResponseFileTerminalBackslash,
 				}
+				return nil, failure
 			}
 			nextRune, nextSize := utf8.DecodeRune(content[next:])
 			if nextRune == '\r' || nextRune == '\n' {
@@ -423,10 +427,11 @@ func decodeResponseFile(content []byte) ([]responseLexeme, error) {
 		}
 	}
 	if quote != 0 {
-		return nil, &responseFileError{
+		failure := &responseFileError{
 			Kind: responseFileErrorText,
 			Err:  errResponseFileUnterminatedQuote,
 		}
+		return nil, failure
 	}
 	finish(len(content))
 	return lexemes, nil
@@ -525,10 +530,11 @@ func prepareResponseFileSession(limits analysisResponseFileLimits) (*responseFil
 	if err != nil {
 		return nil, err
 	}
-	return &responseFileSession{
+	session := &responseFileSession{
 		limits:      normalized,
 		sourceByKey: make(map[string]responseFileSnapshot),
-	}, nil
+	}
+	return session, nil
 }
 
 // Stage expands one speculative top-level response frame against the session's
@@ -551,28 +557,32 @@ func (session *responseFileSession) StageWithStreamRecognition(ctx context.Conte
 
 func (session *responseFileSession) stageWithRecognizers(ctx context.Context, load analysisResponseFileLoad, reference responseReference, recognize responseRecognition, streamRecognize responseStreamRecognition) (responseExpansion, error) {
 	if session == nil {
-		return responseExpansion{}, &responseFileError{
+		failure := &responseFileError{
 			Kind: responseFileErrorInvalid,
 			Err:  errResponseFileNilExpansionSession,
 		}
+		return responseExpansion{}, failure
 	}
 	if ctx == nil {
-		return responseExpansion{}, &responseFileError{
+		failure := &responseFileError{
 			Kind: responseFileErrorCancellation,
 			Err:  context.Canceled,
 		}
+		return responseExpansion{}, failure
 	}
 	if reference.Path == "" {
-		return responseExpansion{}, &responseFileError{
+		failure := &responseFileError{
 			Kind: responseFileErrorInvalid,
 			Err:  errResponseFileEmptyPath,
 		}
+		return responseExpansion{}, failure
 	}
 	if load == nil {
-		return responseExpansion{}, &responseFileError{
+		failure := &responseFileError{
 			Kind: responseFileErrorAccessUnavailable,
 			Path: reference.Path,
 		}
+		return responseExpansion{}, failure
 	}
 	state := &responseExpansionState{
 		load:            load,
@@ -911,25 +921,28 @@ func validateResponseExpansion(expansion responseExpansion) error {
 	}
 	for index, source := range expansion.sources {
 		if source.snapshot.Key == "" || source.revision == "" {
-			return responseExpansionValidationError{
+			failure := responseExpansionValidationError{
 				kind:  responseExpansionInvalidSource,
 				index: index,
 			}
+			return failure
 		}
 	}
 	for index, entry := range expansion.entries {
 		if entry.sourceIndex < 0 || entry.sourceIndex >= len(expansion.sources) {
-			return responseExpansionValidationError{
+			failure := responseExpansionValidationError{
 				kind:  responseExpansionInvalidSourceIndex,
 				index: entry.sourceIndex,
 			}
+			return failure
 		}
 		if entry.start < 0 || entry.end < entry.start ||
 			entry.end > len(expansion.sources[entry.sourceIndex].snapshot.Content) {
-			return responseExpansionValidationError{
+			failure := responseExpansionValidationError{
 				kind:  responseExpansionInvalidSpan,
 				index: index,
 			}
+			return failure
 		}
 		if entry.parentInclude >= 0 {
 			if entry.parentInclude >= index || !expansion.entries[entry.parentInclude].include {
@@ -1131,10 +1144,11 @@ func settleResponseRange(ctx context.Context, operation *invocation, analysis *a
 		if !include {
 			if literal != argument {
 				if err := analysis.rewriteArgument(index, literal); err != nil {
-					return cursor, &responseArgumentExpansionError{
+					failure := &responseArgumentExpansionError{
 						argument: index,
 						err:      err,
 					}
+					return cursor, failure
 				}
 			}
 			grammarCursor.Append(ctx, literal)
@@ -1151,17 +1165,19 @@ func settleResponseRange(ctx context.Context, operation *invocation, analysis *a
 		if !authoritative {
 			expansion, err := stageResponseExpansion(ctx, operation, analysis, grammarCursor, path)
 			if err != nil {
-				return cursor, &responseArgumentExpansionError{
+				failure := &responseArgumentExpansionError{
 					argument: index,
 					err:      err,
 				}
+				return cursor, failure
 			}
 			produced, err := analysis.commitResponseExpansion(operation, index, argument, expansion, parent, analysis.responses)
 			if err != nil {
-				return cursor, &responseArgumentExpansionError{
+				failure := &responseArgumentExpansionError{
 					argument: index,
 					err:      err,
 				}
+				return cursor, failure
 			}
 			grammarCursor.RefreshCommittedOrigins()
 			if cursor >= 0 {
@@ -1185,12 +1201,13 @@ func settleResponseRange(ctx context.Context, operation *invocation, analysis *a
 		)
 		expansion, err := stageResponseExpansion(ctx, operation, child, childCursor, path)
 		if err != nil {
-			return cursor, &responseArgumentExpansionError{
+			failure := &responseArgumentExpansionError{
 				argument:  index,
 				prefix:    prefix,
 				hasPrefix: true,
 				err:       err,
 			}
+			return cursor, failure
 		}
 		childParent, ok := child.argumentOrigin(index)
 		if !ok {
@@ -1198,12 +1215,13 @@ func settleResponseRange(ctx context.Context, operation *invocation, analysis *a
 		}
 		produced, err := child.commitResponseExpansion(operation, index, argument, expansion, childParent, child.responses)
 		if err != nil {
-			return cursor, &responseArgumentExpansionError{
+			failure := &responseArgumentExpansionError{
 				argument:  index,
 				prefix:    prefix,
 				hasPrefix: true,
 				err:       err,
 			}
+			return cursor, failure
 		}
 		operation.publishResponse(prepareResponseCommit(analysis, child))
 
@@ -1225,29 +1243,35 @@ func settleResponseRange(ctx context.Context, operation *invocation, analysis *a
 	}
 }
 
+func grammarResponseStreamRecognition(ctx context.Context, grammarCursor *grammarPrefixCursor) responseStreamRecognition {
+	return func(lexeme responseLexeme) (string, string, bool, error) {
+		if !grammarCursor.Ready() {
+			grammarCursor.Append(ctx, lexeme.Text)
+			return "", lexeme.Text, false, nil
+		}
+		selectedDialect, dialectOK := grammarCursor.Dialect()
+		if !dialectOK || !selectedDialect.ResponseFiles() {
+			grammarCursor.Append(ctx, lexeme.Text)
+			return "", lexeme.Text, false, nil
+		}
+		childPath, childLiteral, childInclude := recognizeResponseToken(lexeme.Text, lexeme.EscapedLeadingAt())
+		if !childInclude {
+			grammarCursor.Append(ctx, childLiteral)
+		}
+		return childPath, childLiteral, childInclude, nil
+	}
+}
+
 func stageResponseExpansion(ctx context.Context, operation *invocation, analysis *analysisState, grammarCursor *grammarPrefixCursor, path string) (responseExpansion, error) {
+	reference := responseReference{
+		Path: path,
+		Base: operation.input.workingDirectory,
+	}
+	recognition := grammarResponseStreamRecognition(ctx, grammarCursor)
 	return analysis.responses.StageWithStreamRecognition(
 		ctx,
 		responseFileLoad(operation.input.responseFiles),
-		responseReference{
-			Path: path,
-			Base: operation.input.workingDirectory,
-		},
-		func(lexeme responseLexeme) (string, string, bool, error) {
-			if !grammarCursor.Ready() {
-				grammarCursor.Append(ctx, lexeme.Text)
-				return "", lexeme.Text, false, nil
-			}
-			selectedDialect, dialectOK := grammarCursor.Dialect()
-			if !dialectOK || !selectedDialect.ResponseFiles() {
-				grammarCursor.Append(ctx, lexeme.Text)
-				return "", lexeme.Text, false, nil
-			}
-			childPath, childLiteral, childInclude := recognizeResponseToken(lexeme.Text, lexeme.EscapedLeadingAt())
-			if !childInclude {
-				grammarCursor.Append(ctx, childLiteral)
-			}
-			return childPath, childLiteral, childInclude, nil
-		},
+		reference,
+		recognition,
 	)
 }

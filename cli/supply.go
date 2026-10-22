@@ -30,17 +30,19 @@ func (typedFactProvider[C]) factProvider() {}
 // DefaultsFor creates a typed DefaultProvider whose callback receives the matching
 // command configuration and selection for the current.
 func DefaultsFor[C any](provide func(context.Context, *DefaultSupply[C]) error) DefaultProvider {
-	return typedDefaultProvider[C]{
+	provider := typedDefaultProvider[C]{
 		provide: provide,
 	}
+	return provider
 }
 
 // FactsFor creates a typed FactProvider whose callback receives the matching
 // command configuration for the current.
 func FactsFor[C any](provide func(context.Context, *FactSupply[C]) error) FactProvider {
-	return typedFactProvider[C]{
+	provider := typedFactProvider[C]{
 		provide: provide,
 	}
+	return provider
 }
 
 // DefaultSupply is the callback-local surface for contributing invocation defaults.
@@ -516,10 +518,11 @@ func (declaration resolvedFactDeclaration[C, T]) Destination() Destination[C, T]
 }
 
 func (declaration resolvedFactDeclaration[C, T]) OptionalDependency() Dependency {
-	return destinationDependency{
+	dependency := destinationDependency{
 		handle:   declaration.destination.destinationHandle(),
 		optional: true,
 	}
+	return dependency
 }
 
 func (declaration resolvedFactDeclaration[C, T]) Sensitive() resolvedFactDeclaration[C, T] {
@@ -576,7 +579,10 @@ func (facts *Facts[C]) Require[T any](storage *T) Destination[C, T] {
 		facts.profile,
 		destinationValue,
 	)
-	return Destination[C, T]{handle: state}
+	destination := Destination[C, T]{
+		handle: state,
+	}
+	return destination
 }
 
 func (facts *Facts[C]) Resolve[T any](storage *T, resolver FactResolver[C, T], options ...SourceOption) resolvedFactDeclaration[C, T] {
@@ -601,9 +607,11 @@ func (facts *Facts[C]) Resolve[T any](storage *T, resolver FactResolver[C, T], o
 		destinationValue,
 	)
 	result := resolvedFactDeclaration[C, T]{
-		state:       facts.session,
-		destination: Destination[C, T]{handle: state},
-		resolution:  resolution,
+		state: facts.session,
+		destination: Destination[C, T]{
+			handle: state,
+		},
+		resolution: resolution,
 	}
 
 	return result

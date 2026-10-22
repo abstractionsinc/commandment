@@ -105,7 +105,9 @@ func TestComputationOptionalDependenciesAndGetAffectObservedValues(t *testing.T)
 	type config = authoringComputationSourceFromDestinationFromFlagFromArgumentArgumentConfig
 	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			source := root.Values.String(&root.Config.Source)
 			flag := root.Flags.ValueFor(source)
@@ -938,14 +940,17 @@ func TestArgumentsDirectImplicitFormAndCustomValue(t *testing.T) {
 	environment := cli.Value.Domain(cli.Value.Assign[string](), func(values *cli.ValueDomainBuilder[string]) {
 		values.Value("prod", "production")
 	})
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "direct-arguments",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Arguments.Value(&root.Config.Environment, "environment", environment)
 			root.Arguments.Int(&root.Config.Port, "port")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	form := clitest.RootCommand().ArgumentFormAt(0)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().ArgumentFormsExactly(form),
@@ -971,15 +976,18 @@ func TestArgumentScalarValueSplitSupportsExplicitFormAndExistingDestination(t *t
 
 	t.Run("explicit form direct value", func(t *testing.T) {
 		t.Parallel()
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "explicit-value",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
 					form.Value(&form.Config.Mode, "mode", modeLanguage)
 				})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"fast"},
 		}).Require(t,
@@ -990,14 +998,17 @@ func TestArgumentScalarValueSplitSupportsExplicitFormAndExistingDestination(t *t
 
 	t.Run("implicit form existing destination", func(t *testing.T) {
 		t.Parallel()
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "implicit-value-for",
-			Help: cli.HelpConfig{Disabled: true},
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				mode := root.Values.Value(&root.Config.Mode, modeLanguage)
 				root.Arguments.ValueFor(mode, "mode")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"safe"},
 		}).Require(t,
@@ -1037,9 +1048,11 @@ func TestRootCommandDialectInitialUsesAuthoritativeBaseValues(t *testing.T) {
 func TestAuthoringAcceptanceRetainsExecutableAndFiniteDomainValue(t *testing.T) {
 	t.Parallel()
 	type config = valueBaseDerivedDomainConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "domain",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			base := root.Values.String(&root.Config.Base)
 			root.Values.Default(base, "base")
@@ -1057,7 +1070,8 @@ func TestAuthoringAcceptanceRetainsExecutableAndFiniteDomainValue(t *testing.T) 
 			d := root.Values.Value(&root.Config.Domain, domain)
 			root.Flags.ValueFor(d).Long("domain")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--domain").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Schema(app).Require(t,
 		domain.EntriesExactly(domain.Entry("canonical"), domain.Entry("alias")),
@@ -1084,18 +1098,54 @@ func TestCountRangeConstructionPreservesNormalizedBounds(t *testing.T) {
 		bounded  bool
 	}{
 		{
-			"exact",
-			cli.Count.Exactly(2),
-			2,
-			2,
-			true,
+			name:    "exact",
+			count:   cli.Count.Exactly(2),
+			min:     2,
+			max:     2,
+			bounded: true,
 		},
-		{"between", cli.Count.Between(1, 3), 1, 3, true},
-		{"at least", cli.Count.AtLeast(2), 2, 0, false},
-		{"at most", cli.Count.AtMost(4), 0, 4, true},
-		{"optional", cli.Count.Optional(), 0, 1, true},
-		{"one or more", cli.Count.OneOrMore(), 1, 0, false},
-		{"zero or more", cli.Count.ZeroOrMore(), 0, 0, false},
+		{
+			name:    "between",
+			count:   cli.Count.Between(1, 3),
+			min:     1,
+			max:     3,
+			bounded: true,
+		},
+		{
+			name:    "at least",
+			count:   cli.Count.AtLeast(2),
+			min:     2,
+			max:     0,
+			bounded: false,
+		},
+		{
+			name:    "at most",
+			count:   cli.Count.AtMost(4),
+			min:     0,
+			max:     4,
+			bounded: true,
+		},
+		{
+			name:    "optional",
+			count:   cli.Count.Optional(),
+			min:     0,
+			max:     1,
+			bounded: true,
+		},
+		{
+			name:    "one or more",
+			count:   cli.Count.OneOrMore(),
+			min:     1,
+			max:     0,
+			bounded: false,
+		},
+		{
+			name:    "zero or more",
+			count:   cli.Count.ZeroOrMore(),
+			min:     0,
+			max:     0,
+			bounded: false,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1133,9 +1183,11 @@ func TestCountRangeConstructionPreservesNormalizedBounds(t *testing.T) {
 func TestEnvironmentDelimiterOptionsRetainContributionGranularity(t *testing.T) {
 	t.Parallel()
 	type config = valueElementsWholeEntriesWholeMapConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "env-granularity",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			e := root.Values.Sequence(&root.Config.Elements, cli.Value.String())
 			w := root.Values.Sequence(&root.Config.Whole, cli.Value.String())
@@ -1146,7 +1198,8 @@ func TestEnvironmentDelimiterOptionsRetainContributionGranularity(t *testing.T) 
 			root.Values.Environment(ke, "ENTRIES").KeyedEntries(";")
 			root.Values.Environment(kw, "WHOLE_MAP").WholeKeyed(";")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	request := cli.InspectionRequest{
 		Env: cli.Env{
 			{
@@ -1178,14 +1231,17 @@ func TestEnvironmentDelimiterOptionsRetainContributionGranularity(t *testing.T) 
 		clitest.RootCommand().Environment("ENTRIES").Value().CandidateAt(1).EntryCount(1),
 		clitest.RootCommand().Environment("WHOLE_MAP").Value().CandidateAt(0).EntryCount(2),
 	)
-	clitest.CompileFails(t, cli.Definition[struct{ V []string }]{
+	definitionUnderTest := cli.Definition[struct{ V []string }]{
 		Name: "bad-delimiter",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[struct{ V []string }]) {
 			d := root.Values.Sequence(&root.Config.V, cli.Value.String())
 			root.Values.Environment(d, "V").Elements("")
 		},
-	}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
+	}
+	clitest.CompileFails(t, definitionUnderTest).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 }
 
 func TestSourceOptionsRetainExactDeclaredMetadata(t *testing.T) {
@@ -1197,16 +1253,19 @@ func TestSourceOptionsRetainExactDeclaredMetadata(t *testing.T) {
 		cli.Source.Text("--mode=fast"),
 		cli.Source.Sensitive(),
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "sources",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Mode).Long("mode").FixedValue("fast", sources...).Sensitive()
 			sources[0] = cli.Source.Key("mutated")
 			sources[1] = cli.Source.Location("mutated")
 			sources[2] = cli.Source.Text("mutated")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	fixed := clitest.RootCommand().Flag("--mode").Spelling("--mode").FixedValue()
 	clitest.Schema(app).Require(t,
 		fixed.Sensitive(),
@@ -1340,9 +1399,11 @@ func TestValueDomainPropagatesCallbackPanicAndStillExpiresRetainedBuilder(t *tes
 func TestAuthoringTransactionStagesDestinationsInCallOrder(t *testing.T) {
 	t.Parallel()
 	type config = valueABCConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "value-order",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			a := root.Values.String(&root.Config.A)
 			root.Values.Default(a, "first")
@@ -1354,7 +1415,8 @@ func TestAuthoringTransactionStagesDestinationsInCallOrder(t *testing.T) {
 			root.Values.Default(c, true)
 			root.Flags.ValueFor(c).Long("c")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	text := root.Flag("--a").Value()
 	integer := root.Flag("--b").Value()
@@ -1469,9 +1531,11 @@ func TestContributionPreservesValueOmissionAndMalformedZeroAsDistinctStates(t *t
 	t.Parallel()
 	type config = valueValueConfig
 
-	contributed := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "contributed",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Values.OptionalDerive(
 				&root.Config.Value,
@@ -1482,14 +1546,17 @@ func TestContributionPreservesValueOmissionAndMalformedZeroAsDistinctStates(t *t
 				),
 			)
 		},
-	})
+	}
+	contributed := clitest.Compile(t, definition)
 	clitest.Inspect(t.Context(), contributed, cli.InspectionRequest{}).Require(t,
 		clitest.RootCommand().ValueAt(0).State(cli.ResolutionStateResolved),
 	)
 
-	omitted := clitest.Compile(t, cli.Definition[config]{
+	definitionUnderTest := cli.Definition[config]{
 		Name: "omitted",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Values.OptionalDerive(
 				&root.Config.Value,
@@ -1500,14 +1567,17 @@ func TestContributionPreservesValueOmissionAndMalformedZeroAsDistinctStates(t *t
 				),
 			)
 		},
-	})
+	}
+	omitted := clitest.Compile(t, definitionUnderTest)
 	clitest.Inspect(t.Context(), omitted, cli.InspectionRequest{}).Require(t,
 		clitest.RootCommand().ValueAt(0).State(cli.ResolutionStateAbsent),
 	)
 
-	malformed := clitest.Compile(t, cli.Definition[config]{
+	definitionUnderTest2 := cli.Definition[config]{
 		Name: "malformed",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Values.OptionalDerive(
 				&root.Config.Value,
@@ -1518,7 +1588,8 @@ func TestContributionPreservesValueOmissionAndMalformedZeroAsDistinctStates(t *t
 				),
 			)
 		},
-	})
+	}
+	malformed := clitest.Compile(t, definitionUnderTest2)
 	clitest.Inspect(t.Context(), malformed, cli.InspectionRequest{}).Require(t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticValueComputationFailure).Present()),
 	)
@@ -1622,13 +1693,16 @@ func TestFlagsDirectCustomValueCreatesCanonicalDestination(t *testing.T) {
 		values.Value("safe", "safe")
 		values.Value("fast", "fast")
 	})
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "direct-flag",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Value(&root.Config.Mode, mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	flag := clitest.RootCommand().Flag("--mode")
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().FlagsExactly(flag),
@@ -1651,18 +1725,23 @@ func TestKeyedBatchRejectsNonReflexiveComparableKey(t *testing.T) {
 		Format:   func(value float64) string { return strconv.FormatFloat(value, 'g', -1, 64) },
 		Snapshot: cli.Value.Assign[float64](),
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(nanCodec, cli.Value.String()))
 			root.Flags.Keyed(labels).Long("label")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().Flag("--label").Value()
 	candidate := value.CandidateAt(0)
 	diagnostic := clitest.Diagnostic(cli.DiagnosticInputParserFailure)
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: []string{"--label", "nan=x"}}).Require(t,
+	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: []string{"--label", "nan=x"},
+	}).Require(t,
 		clitest.InspectionRejected(),
 		clitest.FailsWith(diagnostic.Present()),
 		value.Failed(),
@@ -1695,13 +1774,17 @@ func TestDerivedValuePropagatesSensitivityFromEffectiveDependency(t *testing.T) 
 		root.Rule.Require(derived)
 	}
 	definition := cli.Definition[config]{
-		Name:    "alienctl",
-		Help:    cli.HelpConfig{Disabled: true},
+		Name: "alienctl",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: declare,
 	}
 	app := clitest.Compile(t, definition)
 	derived := clitest.RootCommand().ValueAt(1)
-	request := cli.InspectionRequest{Args: []string{"--secret", "classified"}}
+	request := cli.InspectionRequest{
+		Args: []string{"--secret", "classified"},
+	}
 
 	clitest.Inspect(t.Context(), app, request).Require(t,
 		derived.Resolved(),
@@ -1729,13 +1812,17 @@ func TestDerivedValueDoesNotInventSensitivityForNonsensitiveDependency(t *testin
 		root.Rule.Require(derived)
 	}
 	definition := cli.Definition[config]{
-		Name:    "alienctl",
-		Help:    cli.HelpConfig{Disabled: true},
+		Name: "alienctl",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: declare,
 	}
 	app := clitest.Compile(t, definition)
 	derived := clitest.RootCommand().ValueAt(1)
-	request := cli.InspectionRequest{Args: []string{"--input", "ordinary"}}
+	request := cli.InspectionRequest{
+		Args: []string{"--input", "ordinary"},
+	}
 
 	proof := clitest.Inspect(t.Context(), app, request)
 	proof.Require(t,
@@ -1800,8 +1887,12 @@ func TestShortcutFixedInputAndFallbackDefaultKeepDistinctProvenance(t *testing.T
 	name := command.Flag("--name").Value()
 	shortcutDefaultProducer := name.ProducerAt(1)
 	shortcutDefault := name.CandidateAt(1)
-	inspectionRequest := cli.InspectionRequest{Args: []string{"quick", "--name", "explicit"}}
-	runRequest := cli.RunRequest{Args: inspectionRequest.Args}
+	inspectionRequest := cli.InspectionRequest{
+		Args: []string{"quick", "--name", "explicit"},
+	}
+	runRequest := cli.RunRequest{
+		Args: inspectionRequest.Args,
+	}
 
 	clitest.Inspect(t.Context(), app, inspectionRequest).Require(t,
 		clitest.InspectionReady(),

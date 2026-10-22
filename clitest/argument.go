@@ -59,83 +59,92 @@ func (locator ArgumentFormLocator) TermAt(index int) ArgumentTermLocator {
 // Exists returns an expectation that checks the located argument form exists. Positive existence
 // may be satisfied by truthful partial output when the subject is present.
 func (locator ArgumentFormLocator) Exists() DeclarationExpectation {
-	return argumentFormExistenceExpectation{
+	expectation := argumentFormExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located argument form does not exist; an
 // incomplete observation cannot establish absence.
 func (locator ArgumentFormLocator) DoesNotExist() DeclarationExpectation {
-	return argumentFormExistenceExpectation{
+	expectation := argumentFormExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Lifecycle returns an expectation that checks the located argument form has the expected
 // effective lifecycle state; this is distinct from release-lifecycle metadata.
 func (locator ArgumentFormLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return argumentFormLifecycleExpectationValue{
+	value := argumentFormLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the located argument form replacement points to
 // the exact declaration identified by v, using public declaration identity rather than
 // presentation text.
 func (locator ArgumentFormLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return argumentFormReplacementExpectationValue{
+	value := argumentFormReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the located argument form has the expected
 // public reachability state.
 func (locator ArgumentFormLocator) Reachability(v cli.Reachability) DeclarationExpectation {
-	return argumentFormReachabilityExpectationValue{
+	value := argumentFormReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located argument form is available in the
 // applicable public observation.
 func (locator ArgumentFormLocator) Available() EffectiveDeclarationExpectation {
-	return argumentFormAvailabilityExpectation{
+	expectation := argumentFormAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located argument form is unavailable in the
 // applicable public observation.
 func (locator ArgumentFormLocator) Unavailable() EffectiveDeclarationExpectation {
-	return argumentFormAvailabilityExpectation{
+	expectation := argumentFormAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Visible returns an expectation that checks the located argument form is visible in the
 // applicable public observation.
 func (locator ArgumentFormLocator) Visible() EffectiveDeclarationExpectation {
-	return argumentFormVisibilityExpectation{
+	expectation := argumentFormVisibilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // NotVisible returns an expectation that checks the located argument form is not visible in the
 // applicable public observation.
 func (locator ArgumentFormLocator) NotVisible() EffectiveDeclarationExpectation {
-	return argumentFormVisibilityExpectation{
+	expectation := argumentFormVisibilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // TermsExactly returns an expectation that checks the located argument form's argument terms are
@@ -146,62 +155,71 @@ func (locator ArgumentFormLocator) TermsExactly(v ...ArgumentTermLocator) Declar
 	for index, locator := range v {
 		expected[index] = locator.state
 	}
-	return argumentFormTermsExpectationValue{
+	value := argumentFormTermsExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // GrammarProfile returns a static declaration expectation that checks the argument form refers
 // to the same public grammar-profile identity as the expected locator.
 func (locator ArgumentFormLocator) GrammarProfile(expected GrammarProfileLocator) StaticDeclarationExpectation {
-	return argumentFormGrammarProfileExpectation{
+	expectation := argumentFormGrammarProfileExpectation{
 		form:    locator.state,
 		profile: expected.state,
 	}
+	return expectation
 }
 
 // Origin returns an expectation that checks the located argument form has the
 // framework-established DeclarationOrigin expected.
 func (locator ArgumentFormLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return argumentFormOriginExpectation{
+	expectation := argumentFormOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located argument form has the exact
 // public release-lifecycle metadata expected.
 func (locator ArgumentFormLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return argumentFormReleaseLifecycleExpectation{
+	expectation := argumentFormReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located argument form has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator ArgumentFormLocator) NotReplaced() DeclarationExpectation {
-	return argumentFormReplacementAbsenceExpectation{locator: locator.state}
+	expectation := argumentFormReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located argument form replacement
 // carries the expected public presentation text.
 func (locator ArgumentFormLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return argumentFormReplacementPresentationExpectation{
+	expectation := argumentFormReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located
 // argument form replacement carries the expected migration-deprecation marker.
 func (locator ArgumentFormLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return argumentFormReplacementTargetDeprecatedExpectation{
+	expectation := argumentFormReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 func (ArgumentTermLocator) declarationIdentityLocator() {}
@@ -220,230 +238,265 @@ func (locator ArgumentTermLocator) Value() ValueLocator { return argumentTermVal
 // Exists returns an expectation that checks the located argument term exists. Positive existence
 // may be satisfied by truthful partial output when the subject is present.
 func (locator ArgumentTermLocator) Exists() DeclarationExpectation {
-	return argumentTermExistenceExpectation{
+	expectation := argumentTermExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located argument term does not exist; an
 // incomplete observation cannot establish absence.
 func (locator ArgumentTermLocator) DoesNotExist() DeclarationExpectation {
-	return argumentTermExistenceExpectation{
+	expectation := argumentTermExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Kind returns an expectation that checks the located argument term has the expected public kind.
 func (locator ArgumentTermLocator) Kind(v cli.ArgumentTermKind) DeclarationExpectation {
-	return argumentTermKindExpectationValue{
+	value := argumentTermKindExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Hidden returns an expectation that checks the located argument term is marked hidden by the
 // public Commandment observation.
 func (locator ArgumentTermLocator) Hidden() DeclarationExpectation {
-	return argumentTermHiddenExpectationValue{locator: locator.state}
+	value := argumentTermHiddenExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Sensitive returns an expectation that checks the located argument term is marked sensitive.
 // Expectation failure preserves Commandment redaction and does not expose secret material.
 func (locator ArgumentTermLocator) Sensitive() DeclarationExpectation {
-	return argumentTermSensitiveExpectationValue{locator: locator.state}
+	value := argumentTermSensitiveExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Lifecycle returns an expectation that checks the located argument term has the expected
 // effective lifecycle state; this is distinct from release-lifecycle metadata.
 func (locator ArgumentTermLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return argumentTermLifecycleExpectationValue{
+	value := argumentTermLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the located argument term replacement points to
 // the exact declaration identified by v, using public declaration identity rather than
 // presentation text.
 func (locator ArgumentTermLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return argumentTermReplacementExpectationValue{
+	value := argumentTermReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located argument term is available in the
 // applicable public observation.
 func (locator ArgumentTermLocator) Available() EffectiveDeclarationExpectation {
-	return argumentTermAvailabilityExpectation{
+	expectation := argumentTermAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located argument term is unavailable in the
 // applicable public observation.
 func (locator ArgumentTermLocator) Unavailable() EffectiveDeclarationExpectation {
-	return argumentTermAvailabilityExpectation{
+	expectation := argumentTermAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Visible returns an expectation that checks the located argument term is visible in the
 // applicable public observation.
 func (locator ArgumentTermLocator) Visible() EffectiveDeclarationExpectation {
-	return argumentTermVisibilityExpectation{
+	expectation := argumentTermVisibilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // NotVisible returns an expectation that checks the located argument term is not visible in the
 // applicable public observation.
 func (locator ArgumentTermLocator) NotVisible() EffectiveDeclarationExpectation {
-	return argumentTermVisibilityExpectation{
+	expectation := argumentTermVisibilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Present returns an expectation that checks the located argument term is present in the analyzed
 // invocation, independently of whether its declaration merely exists.
 func (locator ArgumentTermLocator) Present() InspectionExpectation {
-	return argumentTermPresenceExpectationValue{
+	value := argumentTermPresenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // Absent returns an expectation that checks the located argument term is absent from the analyzed
 // invocation; incomplete invocation evidence cannot be treated as fabricated absence.
 func (locator ArgumentTermLocator) Absent() InspectionExpectation {
-	return argumentTermPresenceExpectationValue{
+	value := argumentTermPresenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // HyphenValues returns a reusable declaration expectation that checks the public hyphen-value
 // mode exposed by the located argument term.
 func (locator ArgumentTermLocator) HyphenValues(expected cli.HyphenValueMode) DeclarationExpectation {
-	return argumentTermCorePropertyExpectation{
+	expectation := argumentTermCorePropertyExpectation{
 		locator:      locator.state,
 		kind:         argumentTermCorePropertyHyphenValues,
 		hyphenValues: expected,
 	}
+	return expectation
 }
 
 // Description returns a reusable declaration expectation that checks the public description
 // exposed by the located argument term.
 func (locator ArgumentTermLocator) Description(expected string) DeclarationExpectation {
-	return argumentTermCorePropertyExpectation{
+	expectation := argumentTermCorePropertyExpectation{
 		locator: locator.state,
 		kind:    argumentTermCorePropertyDescription,
 		text:    expected,
 	}
+	return expectation
 }
 
 // Minimal returns a reusable declaration expectation that checks the public minimal-form state
 // exposed by the located argument term.
 func (locator ArgumentTermLocator) Minimal() DeclarationExpectation {
-	return argumentTermCorePropertyExpectation{
+	expectation := argumentTermCorePropertyExpectation{
 		locator: locator.state,
 		kind:    argumentTermCorePropertyMinimal,
 	}
+	return expectation
 }
 
 // EndOfOptions returns a reusable declaration expectation that checks the public end-of-options
 // state exposed by the located argument term.
 func (locator ArgumentTermLocator) EndOfOptions() DeclarationExpectation {
-	return argumentTermCorePropertyExpectation{
+	expectation := argumentTermCorePropertyExpectation{
 		locator: locator.state,
 		kind:    argumentTermCorePropertyEndOfOptions,
 	}
+	return expectation
 }
 
 // SourceSensitive returns a reusable declaration expectation that checks the public
 // source-sensitive state exposed by the located argument term.
 func (locator ArgumentTermLocator) SourceSensitive() DeclarationExpectation {
-	return argumentTermCorePropertyExpectation{
+	expectation := argumentTermCorePropertyExpectation{
 		locator: locator.state,
 		kind:    argumentTermCorePropertySourceSensitive,
 	}
+	return expectation
 }
 
 // HasTokenLanguage returns a reusable declaration expectation that checks the public
 // token-language presence exposed by the located argument term.
 func (locator ArgumentTermLocator) HasTokenLanguage() DeclarationExpectation {
-	return argumentTermCorePropertyExpectation{
+	expectation := argumentTermCorePropertyExpectation{
 		locator: locator.state,
 		kind:    argumentTermCorePropertyHasTokenLanguage,
 	}
+	return expectation
 }
 
 // TokenLanguageFragmentsExactly returns a reusable declaration expectation that checks the
 // complete token-language fragment sequence exactly in authoritative public order.
 func (locator ArgumentTermLocator) TokenLanguageFragmentsExactly(expected ...string) DeclarationExpectation {
-	return argumentTermCorePropertyExpectation{
+	expectation := argumentTermCorePropertyExpectation{
 		locator:   locator.state,
 		kind:      argumentTermCorePropertyTokenLanguageFragments,
 		fragments: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // Completion returns a locator that follows the public completion relationship from the located
 // argument term. The returned locator carries locator coordinates, not observed state.
 func (locator ArgumentTermLocator) Completion() CompletionDeclarationLocator {
-	return CompletionDeclarationLocator{state: &completionDeclarationLocatorState{
+	state := &completionDeclarationLocatorState{
 		mode: completionDeclarationLocatorArgumentTerm,
 		term: locator.state,
-	}}
+	}
+	completionDeclarationLocator := CompletionDeclarationLocator{
+		state: state,
+	}
+	return completionDeclarationLocator
 }
 
 // Origin returns an expectation that checks the located argument term has the
 // framework-established DeclarationOrigin expected.
 func (locator ArgumentTermLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return argumentTermOriginExpectation{
+	expectation := argumentTermOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located argument term has the exact
 // public release-lifecycle metadata expected.
 func (locator ArgumentTermLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return argumentTermReleaseLifecycleExpectation{
+	expectation := argumentTermReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located argument term has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator ArgumentTermLocator) NotReplaced() DeclarationExpectation {
-	return argumentTermReplacementAbsenceExpectation{locator: locator.state}
+	expectation := argumentTermReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located argument term replacement
 // carries the expected public presentation text.
 func (locator ArgumentTermLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return argumentTermReplacementPresentationExpectation{
+	expectation := argumentTermReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located
 // argument term replacement carries the expected migration-deprecation marker.
 func (locator ArgumentTermLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return argumentTermReplacementTargetDeprecatedExpectation{
+	expectation := argumentTermReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // Argument returns a locator for the uniquely resolved named argument term under the located
@@ -468,10 +521,11 @@ func (l CommandLocator) ArgumentFormAt(index int) ArgumentFormLocator {
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (l CommandLocator) ArgumentFormsExactly(values ...ArgumentFormLocator) DeclarationExpectation {
-	return commandArgumentFormsExpectation{
+	expectation := commandArgumentFormsExpectation{
 		command: l.state,
 		items:   argumentFormLocatorStates(values),
 	}
+	return expectation
 }
 
 type commandArgumentFormsExpectation struct {
@@ -665,42 +719,62 @@ func argumentFormLocatorStates(values []ArgumentFormLocator) []*argumentFormLoca
 }
 
 func commandArgumentFormAtLocator(parent CommandLocator, index int) ArgumentFormLocator {
-	return ArgumentFormLocator{state: &argumentFormLocatorState{
+	state := &argumentFormLocatorState{
 		mode:    argumentFormLocatorCommandIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := ArgumentFormLocator{
+		state: state,
+	}
+	return locator
 }
 
 func argumentTermNameLocator(parent ArgumentFormLocator, name string) ArgumentTermLocator {
-	return ArgumentTermLocator{state: &argumentTermLocatorState{
+	state := &argumentTermLocatorState{
 		mode: argumentTermLocatorFormName,
 		form: parent.state,
 		text: name,
-	}}
+	}
+	locator := ArgumentTermLocator{
+		state: state,
+	}
+	return locator
 }
 
 func argumentTermLiteralLocator(parent ArgumentFormLocator, literal string) ArgumentTermLocator {
-	return ArgumentTermLocator{state: &argumentTermLocatorState{
+	state := &argumentTermLocatorState{
 		mode: argumentTermLocatorFormLiteral,
 		form: parent.state,
 		text: literal,
-	}}
+	}
+	locator := ArgumentTermLocator{
+		state: state,
+	}
+	return locator
 }
 
 func argumentTermAtLocator(parent ArgumentFormLocator, index int) ArgumentTermLocator {
-	return ArgumentTermLocator{state: &argumentTermLocatorState{
+	state := &argumentTermLocatorState{
 		mode:  argumentTermLocatorFormIndex,
 		form:  parent.state,
 		index: index,
-	}}
+	}
+	locator := ArgumentTermLocator{
+		state: state,
+	}
+	return locator
 }
 
 func argumentTermValueLocator(parent ArgumentTermLocator) ValueLocator {
-	return ValueLocator{state: &valueLocatorState{
+	state := &valueLocatorState{
 		mode:     valueLocatorArgumentTerm,
 		argument: parent.state,
-	}}
+	}
+	locator := ValueLocator{
+		state: state,
+	}
+	return locator
 }
 
 func argumentFormLocatorLabel(state *argumentFormLocatorState) evaluationField {
@@ -1282,10 +1356,11 @@ func selectSchemaArgumentTerm(state *argumentTermLocatorState, ids []cli.Argumen
 		return matches[0], locatorResolutionFound, evaluationText("")
 	}
 	if len(matches) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  argumentTermAmbiguityDetail,
 			count: len(matches),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if missingDetail || !complete {
 		return 0, locatorResolutionNotProvable, evaluationText("argument-term lookup domain is incomplete")
@@ -1328,10 +1403,11 @@ func selectReferenceArgumentTerm(state *argumentTermLocatorState, ids []cli.Argu
 		return matches[0], locatorResolutionFound, evaluationText("")
 	}
 	if len(matches) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  argumentTermAmbiguityDetail,
 			count: len(matches),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if missingDetail || !complete {
 		return 0, locatorResolutionNotProvable, evaluationText("argument-term lookup domain is incomplete")
@@ -1374,10 +1450,11 @@ func selectInspectionArgumentTerm(state *argumentTermLocatorState, ids []cli.Arg
 		return matches[0], locatorResolutionFound, evaluationText("")
 	}
 	if len(matches) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  argumentTermAmbiguityDetail,
 			count: len(matches),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if missingDetail || !complete {
 		return 0, locatorResolutionNotProvable, evaluationText("argument-term lookup domain is incomplete")
@@ -1458,17 +1535,25 @@ func evaluateArgumentTermReplacementPresentationInspection(expectation argumentT
 }
 
 func argumentFormIDLocator(id cli.ArgumentFormID) ArgumentFormLocator {
-	return ArgumentFormLocator{state: &argumentFormLocatorState{
+	state := &argumentFormLocatorState{
 		mode: argumentFormLocatorID,
 		id:   id,
-	}}
+	}
+	locator := ArgumentFormLocator{
+		state: state,
+	}
+	return locator
 }
 
 func argumentTermIDLocator(id cli.ArgumentTermID) ArgumentTermLocator {
-	return ArgumentTermLocator{state: &argumentTermLocatorState{
+	state := &argumentTermLocatorState{
 		mode: argumentTermLocatorID,
 		id:   id,
-	}}
+	}
+	locator := ArgumentTermLocator{
+		state: state,
+	}
+	return locator
 }
 
 func (commandArgumentFormsExpectation) schemaExpectation() {}
@@ -1652,19 +1737,37 @@ func (argumentFormReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation argumentFormReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaArgumentFormLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation argumentFormReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceArgumentFormLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation argumentFormReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionArgumentFormLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (argumentFormReplacementAbsenceExpectation) schemaExpectation() {}
@@ -1763,19 +1866,37 @@ func (argumentTermReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation argumentTermReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaArgumentTermLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation argumentTermReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceArgumentTermLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation argumentTermReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionArgumentTermLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (argumentTermReplacementAbsenceExpectation) schemaExpectation() {}
@@ -2233,12 +2354,24 @@ func (expectation helpArgumentTermExpectation) evaluateHelp(page cli.HelpPage) e
 		if term.Type == expectation.valueType {
 			return provedResult()
 		}
-		return helpPropertyMismatch(subject, "type", valueTypeField{value: expectation.valueType}, valueTypeField{value: term.Type})
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		observedField := valueTypeField{
+			value: term.Type,
+		}
+		return helpPropertyMismatch(subject, "type", field, observedField)
 	case helpArgumentTermCount:
 		if term.Count == expectation.countRange {
 			return provedResult()
 		}
-		return helpPropertyMismatch(subject, "count", countRangeField{value: expectation.countRange}, countRangeField{value: term.Count})
+		field := countRangeField{
+			value: expectation.countRange,
+		}
+		observedField := countRangeField{
+			value: term.Count,
+		}
+		return helpPropertyMismatch(subject, "count", field, observedField)
 	case helpArgumentTermHidden:
 		if term.Hidden == expectation.boolean {
 			return provedResult()
@@ -2278,9 +2411,15 @@ func (expectation helpArgumentTermExpectation) argumentTermExpected() evaluation
 	case helpArgumentTermLiteral:
 		return property(evaluationText("literal"), evaluationText(expectation.text))
 	case helpArgumentTermType:
-		return property(evaluationText("type"), valueTypeField{value: expectation.valueType})
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		return property(evaluationText("type"), field)
 	case helpArgumentTermCount:
-		return property(evaluationText("count"), countRangeField{value: expectation.countRange})
+		field := countRangeField{
+			value: expectation.countRange,
+		}
+		return property(evaluationText("count"), field)
 	case helpArgumentTermHidden:
 		return property(evaluationText("hidden"), evaluationText(strconv.FormatBool(expectation.boolean)))
 	case helpArgumentTermSensitive:

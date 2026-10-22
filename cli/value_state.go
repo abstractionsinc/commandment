@@ -283,9 +283,10 @@ func contextWithValueStates(ctx context.Context, states map[uint32]ValueState) c
 	}
 	copyStates := make(map[uint32]ValueState, len(states))
 	maps.Copy(copyStates, states)
-	return context.WithValue(ctx, valueStateContextKey{}, valueStateContext{
+	stateContext := valueStateContext{
 		states: copyStates,
-	})
+	}
+	return context.WithValue(ctx, valueStateContextKey{}, stateContext)
 }
 
 func contextWithValueStateKeyAliases(ctx context.Context, aliases map[destinationRef]ValueID) context.Context {
@@ -383,11 +384,13 @@ func prepareValueState(model *effectiveModel, analysis valueAnalysis, destinatio
 		suppressedBy:     suppressedBy,
 		conflictsWith:    conflictsWith,
 	}
-	return ValueState{
-		data: valueStateData{
-			snapshot: snapshot,
-		},
-	}, true
+	data := valueStateData{
+		snapshot: snapshot,
+	}
+	state := ValueState{
+		data: data,
+	}
+	return state, true
 }
 
 func (data valueStateData) state() ResolutionState {

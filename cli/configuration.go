@@ -31,44 +31,42 @@ func bindConfigurationStorage[C, T any](configuration *C, storage *T) (configura
 	}
 	var zero T
 	acceptNil := any(zero) == nil
-	binding := acceptLocatedConfigurationBinding(
-		func(raw any) (any, bool) {
-			config, ok := raw.(*C)
-			if !ok || config == nil {
-				return nil, false
-			}
-			field := (*T)(unsafe.Add(unsafe.Pointer(config), offset))
-			return *field, true
-		},
-		func(raw, value any) bool {
-			config, ok := raw.(*C)
-			if !ok || config == nil {
-				return false
-			}
-			if value == nil && acceptNil {
-				return true
-			}
-			_, valueOK := value.(T)
-			return valueOK
-		},
-		func(raw, value any) bool {
-			config, ok := raw.(*C)
-			if !ok || config == nil {
-				return false
-			}
-			typed, valueOK := value.(T)
-			if !valueOK {
-				if value != nil || !acceptNil {
-					return false
-				}
-				typed = zero
-			}
-			field := (*T)(unsafe.Add(unsafe.Pointer(config), offset))
-			*field = typed
+	read := func(raw any) (any, bool) {
+		config, ok := raw.(*C)
+		if !ok || config == nil {
+			return nil, false
+		}
+		field := (*T)(unsafe.Add(unsafe.Pointer(config), offset))
+		return *field, true
+	}
+	accept := func(raw, value any) bool {
+		config, ok := raw.(*C)
+		if !ok || config == nil {
+			return false
+		}
+		if value == nil && acceptNil {
 			return true
-		},
-		offset, valueSize,
-	)
+		}
+		_, valueOK := value.(T)
+		return valueOK
+	}
+	write := func(raw, value any) bool {
+		config, ok := raw.(*C)
+		if !ok || config == nil {
+			return false
+		}
+		typed, valueOK := value.(T)
+		if !valueOK {
+			if value != nil || !acceptNil {
+				return false
+			}
+			typed = zero
+		}
+		field := (*T)(unsafe.Add(unsafe.Pointer(config), offset))
+		*field = typed
+		return true
+	}
+	binding := acceptLocatedConfigurationBinding(read, accept, write, offset, valueSize)
 	return binding, true
 }
 
@@ -146,9 +144,10 @@ func acceptCommandConfiguration(newConfiguration func() any) semanticCommandConf
 	if newConfiguration == nil {
 		panic("semantic: invalid command configuration")
 	}
-	return semanticCommandConfiguration{
+	configuration := semanticCommandConfiguration{
 		new: newConfiguration,
 	}
+	return configuration
 }
 
 func (configuration semanticCommandConfiguration) Valid() bool { return configuration.new != nil }

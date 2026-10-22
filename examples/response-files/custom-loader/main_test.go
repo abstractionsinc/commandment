@@ -12,8 +12,10 @@ func TestCustomResponseFileLoaderSuppliesArgument(t *testing.T) {
 
 	app := clitest.Compile(t, definition)
 	request := cli.InspectionRequest{
-		Args:          []string{"hail", "@crew"},
-		ResponseFiles: cli.ResponseFileAccess{Load: loadCrew},
+		Args: []string{"hail", "@crew"},
+		ResponseFiles: cli.ResponseFileAccess{
+			Load: loadCrew,
+		},
 	}
 	clitest.Inspect(t.Context(), app, request).Require(t,
 		clitest.InspectionReady(),

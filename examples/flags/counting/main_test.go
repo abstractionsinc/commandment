@@ -12,7 +12,9 @@ func TestRepeatedVerboseFlagsResolveToTheCount(t *testing.T) {
 
 	app := clitest.Compile(t, definition)
 	verbosity := clitest.Command("scan").Flag("-v").Value()
-	request := cli.InspectionRequest{Args: []string{"scan", "-v", "-v", "-v", "mars"}}
+	request := cli.InspectionRequest{
+		Args: []string{"scan", "-v", "-v", "-v", "mars"},
+	}
 	clitest.Inspect(t.Context(), app, request).Require(t,
 		clitest.InspectionReady(),
 		verbosity.Text("3"),

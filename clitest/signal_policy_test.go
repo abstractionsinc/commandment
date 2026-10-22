@@ -70,7 +70,9 @@ func TestSignalPolicyStaticExpectationUsesOwnedRecordsAcrossArtifacts(t *testing
 			},
 		},
 		SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpointInspection{
-			endpointID: {SignalEndpoint: endpoint},
+			endpointID: {
+				SignalEndpoint: endpoint,
+			},
 		},
 	}
 
@@ -84,15 +86,32 @@ func TestSignalPolicyStaticExpectationUsesOwnedRecordsAcrossArtifacts(t *testing
 		SignalEndpointByID(endpointID).Exists(),
 	}
 	for _, expectation := range declarations {
-		(SchemaResult{state: &schemaResultState{observation: schema}}).Require(t, expectation)
-		(ReferenceResult{state: &referenceResultState{observation: reference, err: nil}}).Require(t, expectation)
-		(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t, expectation)
+		(SchemaResult{
+			state: &schemaResultState{
+				observation: schema,
+			},
+		}).Require(t, expectation)
+		(ReferenceResult{
+			state: &referenceResultState{
+				observation: reference,
+				err:         nil,
+			},
+		}).Require(t, expectation)
+		(InspectionResult{
+			state: &inspectionResultState{
+				observation: inspection,
+				err:         nil,
+			},
+		}).Require(t, expectation)
 	}
 	(ReferenceResult{
 		// Availability and visibility are represented by Reference only. Inspection
 		// does not carry those booleans, so neither true nor false may be inferred
 		// from signal-policy existence there.
-		state: &referenceResultState{observation: reference, err: nil},
+		state: &referenceResultState{
+			observation: reference,
+			err:         nil,
+		},
 	}).Require(t,
 
 		policy.Available(), policy.Visible())
@@ -105,16 +124,38 @@ func TestSignalPolicyStaticExpectationUsesOwnedRecordsAcrossArtifacts(t *testing
 			Visible:            false,
 		},
 	}
-	(ReferenceResult{state: &referenceResultState{observation: falseReference, err: nil}}).Require(t,
+	(ReferenceResult{
+		state: &referenceResultState{
+			observation: falseReference,
+			err:         nil,
+		},
+	}).Require(t,
 
 		policy.Unavailable(), policy.NotVisible())
 
-	for name, expectation := range map[string]ReferenceExpectation{
-		"available":   policy.Available(),
-		"unavailable": policy.Unavailable(),
-		"visible":     policy.Visible(),
-		"not-visible": policy.NotVisible(),
+	for _, test := range []struct {
+		name        string
+		expectation ReferenceExpectation
+	}{
+		{
+			name:        "available",
+			expectation: policy.Available(),
+		},
+		{
+			name:        "unavailable",
+			expectation: policy.Unavailable(),
+		},
+		{
+			name:        "visible",
+			expectation: policy.Visible(),
+		},
+		{
+			name:        "not-visible",
+			expectation: policy.NotVisible(),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if _, ok := expectation.(InspectionExpectation); ok {
 			t.Fatalf("signal policy %s expectation unexpectedly applies to Inspection", name)
 		}
@@ -160,7 +201,9 @@ func TestSignalNegativeExistenceAndBlockedPolicyPublicSurface(t *testing.T) {
 
 	inspection := cli.Inspection{
 		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyInspection{
-			policyID: {ID: policyID},
+			policyID: {
+				ID: policyID,
+			},
 		},
 		SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpointInspection{
 			endpointID: {
@@ -193,10 +236,21 @@ func TestSignalReferenceAvailabilityVisibilityNegativeLaws(t *testing.T) {
 	policyID := cli.SignalPolicyID(7)
 	policy := SignalPolicyByID(policyID)
 	missing := cli.Reference{}
-	for name, expectation := range map[string]ReferenceExpectation{
-		"availability": policy.Available(),
-		"visibility":   policy.Visible(),
+	for _, test := range []struct {
+		name        string
+		expectation ReferenceExpectation
+	}{
+		{
+			name:        "availability",
+			expectation: policy.Available(),
+		},
+		{
+			name:        "visibility",
+			expectation: policy.Visible(),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := referenceExpectationOutcome(t, expectation, missing); got.status != evaluationDisproved {
 			t.Fatalf("missing %s = %#v", name, got)
 		}
@@ -213,10 +267,21 @@ func TestSignalReferenceAvailabilityVisibilityNegativeLaws(t *testing.T) {
 			},
 		},
 	}
-	for name, expectation := range map[string]ReferenceExpectation{
-		"availability": policy.Available(),
-		"visibility":   policy.Visible(),
+	for _, test := range []struct {
+		name        string
+		expectation ReferenceExpectation
+	}{
+		{
+			name:        "availability",
+			expectation: policy.Available(),
+		},
+		{
+			name:        "visibility",
+			expectation: policy.Visible(),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		if got := referenceExpectationOutcome(t, expectation, reference); got.status != evaluationDisproved {
 			t.Fatalf("mismatched %s = %#v", name, got)
 		}

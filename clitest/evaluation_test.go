@@ -65,7 +65,9 @@ func TestDiagnosticsPreservesRedaction(t *testing.T) {
 				t.Fatal("nil diagnostics state did not panic")
 			}
 		}()
-		(DiagnosticsResult{state: nil}).Require(t)
+		(DiagnosticsResult{
+			state: nil,
+		}).Require(t)
 	})
 	t.Run("valid expectation: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
@@ -73,7 +75,9 @@ func TestDiagnosticsPreservesRedaction(t *testing.T) {
 			// Error-emitting nil/unsupported expectation branches are exercised by
 			// the subprocess failure-reporting family; the normal evaluator path is
 			// kept here to check direct dispatch without inventing a fake testing.TB.
-			state: &diagnosticsResultState{observation: cli.DiagnosticReport{}},
+			state: &diagnosticsResultState{
+				observation: cli.DiagnosticReport{},
+			},
 		}).Require(t,
 
 			Diagnostic(cli.DiagnosticInvalidValue).Absent())
@@ -90,18 +94,30 @@ func TestExpectationReportingInspectionPreservesRedaction(t *testing.T) {
 				t.Fatal("nil inspection state did not panic")
 			}
 		}()
-		(InspectionResult{state: nil}).Require(t)
+		(InspectionResult{
+			state: nil,
+		}).Require(t)
 	})
 	t.Run("inspection: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
 		err := invalidDeclarationFailure(t)
-		(InspectionResult{state: &inspectionResultState{observation: cli.Inspection{}, err: err}}).Require(t,
+		(InspectionResult{
+			state: &inspectionResultState{
+				observation: cli.Inspection{},
+				err:         err,
+			},
+		}).Require(t,
 
 			FailsWith(Diagnostic(cli.DiagnosticInvalidDeclaration).Present()))
 	})
 	t.Run("inspection: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
-		(InspectionResult{state: &inspectionResultState{observation: cli.Inspection{}, err: nil}}).Require(t,
+		(InspectionResult{
+			state: &inspectionResultState{
+				observation: cli.Inspection{},
+				err:         nil,
+			},
+		}).Require(t,
 
 			inspectionStatusExpectation{
 				status: cli.InspectionStatusUnknown,
@@ -119,18 +135,30 @@ func TestCompletionRequirementPreservesRedaction(t *testing.T) {
 				t.Fatal("nil completion state did not panic")
 			}
 		}()
-		(CompletionResult{state: nil}).Require(t)
+		(CompletionResult{
+			state: nil,
+		}).Require(t)
 	})
 	t.Run("operation success: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
 		err := invalidDeclarationFailure(t)
-		(CompletionResult{state: &completionResultState{observation: cli.Completion{}, err: err}}).Require(t,
+		(CompletionResult{
+			state: &completionResultState{
+				observation: cli.Completion{},
+				err:         err,
+			},
+		}).Require(t,
 
 			FailsWith(Diagnostic(cli.DiagnosticInvalidDeclaration).Present()))
 	})
 	t.Run("implemented expectation: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
-		result := CompletionResult{state: &completionResultState{observation: cli.Completion{}, err: nil}}
+		result := CompletionResult{
+			state: &completionResultState{
+				observation: cli.Completion{},
+				err:         nil,
+			},
+		}
 		expectation := completionBooleanExpectation{
 			field:   completionBooleanPartial,
 			want:    false,
@@ -150,11 +178,17 @@ func TestExpectationReportingSchemaPreservesRedaction(t *testing.T) {
 				t.Fatal("nil schema state did not panic")
 			}
 		}()
-		(SchemaResult{state: nil}).Require(t)
+		(SchemaResult{
+			state: nil,
+		}).Require(t)
 	})
 	t.Run("schema: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
-		(SchemaResult{state: &schemaResultState{observation: cli.Schema{}}}).Require(t, releaseExpectationValue{
+		(SchemaResult{
+			state: &schemaResultState{
+				observation: cli.Schema{},
+			},
+		}).Require(t, releaseExpectationValue{
 			release: "",
 		})
 	})
@@ -170,18 +204,30 @@ func TestExpectationReportingReferencePreservesRedaction(t *testing.T) {
 				t.Fatal("nil reference state did not panic")
 			}
 		}()
-		(ReferenceResult{state: nil}).Require(t)
+		(ReferenceResult{
+			state: nil,
+		}).Require(t)
 	})
 	t.Run("reference: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
 		err := invalidDeclarationFailure(t)
-		(ReferenceResult{state: &referenceResultState{observation: cli.Reference{}, err: err}}).Require(t,
+		(ReferenceResult{
+			state: &referenceResultState{
+				observation: cli.Reference{},
+				err:         err,
+			},
+		}).Require(t,
 
 			FailsWith(Diagnostic(cli.DiagnosticInvalidDeclaration).Present()))
 	})
 	t.Run("reference: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
-		(ReferenceResult{state: &referenceResultState{observation: cli.Reference{}, err: nil}}).Require(t,
+		(ReferenceResult{
+			state: &referenceResultState{
+				observation: cli.Reference{},
+				err:         nil,
+			},
+		}).Require(t,
 
 			releaseExpectationValue{
 				release: "",
@@ -259,7 +305,9 @@ func TestDiagnosticRefinementsPreserveSemanticMatching(t *testing.T) {
 		AdvisoryCode: "warn",
 		Command:      1,
 	}
-	report := cli.DiagnosticReport{Diagnostics: []cli.Diagnostic{matching}}
+	report := cli.DiagnosticReport{
+		Diagnostics: []cli.Diagnostic{matching},
+	}
 	resolved := resolveDiagnosticStateForReport(locator.state, report)
 	if resolved.status != locatorResolutionFound || resolved.value.index != 0 {
 		t.Fatalf("matching diagnostic = %#v", resolved)
@@ -267,25 +315,33 @@ func TestDiagnosticRefinementsPreserveSemanticMatching(t *testing.T) {
 
 	for _, diagnostic := range []cli.Diagnostic{
 		{
-			Code:         cli.DiagnosticInvalidValue,
-			Rule:         &cli.RuleFailure{RuleCode: "other"},
+			Code: cli.DiagnosticInvalidValue,
+			Rule: &cli.RuleFailure{
+				RuleCode: "other",
+			},
 			AdvisoryCode: "warn",
 			Command:      1,
 		},
 		{
-			Code:         cli.DiagnosticInvalidValue,
-			Rule:         &cli.RuleFailure{RuleCode: "required"},
+			Code: cli.DiagnosticInvalidValue,
+			Rule: &cli.RuleFailure{
+				RuleCode: "required",
+			},
 			AdvisoryCode: "other",
 			Command:      1,
 		},
 		{
-			Code:         cli.DiagnosticInvalidValue,
-			Rule:         &cli.RuleFailure{RuleCode: "required"},
+			Code: cli.DiagnosticInvalidValue,
+			Rule: &cli.RuleFailure{
+				RuleCode: "required",
+			},
 			AdvisoryCode: "warn",
 			Command:      2,
 		},
 	} {
-		report := cli.DiagnosticReport{Diagnostics: []cli.Diagnostic{diagnostic}}
+		report := cli.DiagnosticReport{
+			Diagnostics: []cli.Diagnostic{diagnostic},
+		}
 		resolved := resolveDiagnosticStateForReport(locator.state, report)
 		if resolved.status != locatorResolutionAbsent {
 			t.Fatalf("mismatching diagnostic resolved: %#v", resolved)
@@ -311,12 +367,36 @@ func TestDiagnosticSubjectMatchingUsesTypedCoordinates(t *testing.T) {
 		subject DiagnosticSubject
 		match   bool
 	}{
-		{name: "command", subject: CommandByID(1), match: true},
-		{name: "command path", subject: Command("serve"), match: true},
-		{name: "different command path", subject: Command("other"), match: false},
-		{name: "declaration", subject: FlagByID(2), match: true},
-		{name: "default", subject: CommandDefaultByID(3), match: true},
-		{name: "provider", subject: CommandProviderByID(4), match: true},
+		{
+			name:    "command",
+			subject: CommandByID(1),
+			match:   true,
+		},
+		{
+			name:    "command path",
+			subject: Command("serve"),
+			match:   true,
+		},
+		{
+			name:    "different command path",
+			subject: Command("other"),
+			match:   false,
+		},
+		{
+			name:    "declaration",
+			subject: FlagByID(2),
+			match:   true,
+		},
+		{
+			name:    "default",
+			subject: CommandDefaultByID(3),
+			match:   true,
+		},
+		{
+			name:    "provider",
+			subject: CommandProviderByID(4),
+			match:   true,
+		},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -346,7 +426,9 @@ func TestDiagnosticPropertyPreservesPropertyTruth(t *testing.T) {
 		t.Fatal("diagnosticCodeExpectation must return diagnosticExpectation")
 	}
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticInvalidValue,
+		}},
 	}
 	outcome := expectation.evaluateDiagnosticReport(report)
 	if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) == "" {
@@ -365,7 +447,9 @@ func TestDiagnosticViolationPreservesRedaction(t *testing.T) {
 		t.Fatal("diagnosticViolationExpectation must return diagnosticExpectation")
 	}
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticInvalidValue,
+		}},
 	}
 	outcome := expectation.evaluateDiagnosticReport(report)
 	if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) != "diagnostic has no Rule failure" {
@@ -384,7 +468,9 @@ func TestDiagnosticSpanPreservesRedaction(t *testing.T) {
 		t.Fatal("diagnosticSpanExpectation must return diagnosticExpectation")
 	}
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticInvalidValue,
+		}},
 	}
 	outcome := expectation.evaluateDiagnosticReport(report)
 	if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) != "diagnostic span is absent" {
@@ -403,7 +489,9 @@ func TestDiagnosticSignalActionFailurePreservesRedaction(t *testing.T) {
 		t.Fatal("diagnosticSignalActionFailureExpectation must return diagnosticExpectation")
 	}
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticSignalActionFailure}},
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticSignalActionFailure,
+		}},
 	}
 	outcome := expectation.evaluateDiagnosticReport(report)
 	if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) != "structured failure detail is absent" {
@@ -427,7 +515,9 @@ func TestDiagnosticSignalOverflowFailurePreservesRedaction(t *testing.T) {
 	t.Run("structured failure detail is absent: semantic absence", func(t *testing.T) {
 		t.Parallel()
 		report := cli.DiagnosticReport{
-			Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticSignalOverflow}},
+			Diagnostics: []cli.Diagnostic{{
+				Code: cli.DiagnosticSignalOverflow,
+			}},
 		}
 		outcome := expectation.evaluateDiagnosticReport(report)
 		if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) != "structured failure detail is absent" {
@@ -463,7 +553,9 @@ func TestDiagnosticNoticeDeliveryFailurePreservesRedaction(t *testing.T) {
 		t.Fatal("diagnosticNoticeDeliveryFailureExpectation must return diagnosticExpectation")
 	}
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticNoticeDeliveryFailure}},
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticNoticeDeliveryFailure,
+		}},
 	}
 	outcome := expectation.evaluateDiagnosticReport(report)
 	if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) != "structured failure detail is absent" {
@@ -490,7 +582,9 @@ func TestDiagnosticPreservesSemanticStatus(t *testing.T) {
 			t.Fatal("diagnosticAbsentExpectation must return diagnosticExpectation")
 		}
 		report := cli.DiagnosticReport{
-			Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
+			Diagnostics: []cli.Diagnostic{{
+				Code: cli.DiagnosticInvalidValue,
+			}},
 		}
 		outcome := expectation.evaluateDiagnosticReport(report)
 		if outcome.status != evaluationDisproved {
@@ -524,8 +618,10 @@ func TestDiagnosticPreservesSemanticStatus(t *testing.T) {
 				t.Fatal("diagnosticCodeExpectation must return diagnosticExpectation")
 			}
 			report := cli.DiagnosticReport{
-				Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
-				Truncated:   true,
+				Diagnostics: []cli.Diagnostic{{
+					Code: cli.DiagnosticInvalidValue,
+				}},
+				Truncated: true,
 			}
 			outcome := expectation.evaluateDiagnosticReport(report)
 			if outcome.status != evaluationProved {
@@ -613,7 +709,9 @@ func TestDiagnosticsExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 
 	t.Run("semantic mismatch", func(t *testing.T) {
 		t.Parallel()
-		expectation := diagnosticsExactlyExpectationValue{locators: []*diagnosticLocatorState{Diagnostic(cli.DiagnosticInvalidValue).state}}
+		expectation := diagnosticsExactlyExpectationValue{
+			locators: []*diagnosticLocatorState{Diagnostic(cli.DiagnosticInvalidValue).state},
+		}
 		outcome := expectation.evaluateDiagnosticReport(cli.DiagnosticReport{})
 		if outcome.status != evaluationDisproved {
 			t.Fatalf("diagnostic cardinality mismatch = %#v", outcome)
@@ -621,8 +719,12 @@ func TestDiagnosticsExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	})
 	t.Run("invalid coordinates", func(t *testing.T) {
 		t.Parallel()
-		expectation := diagnosticsExactlyExpectationValue{locators: []*diagnosticLocatorState{nil}}
-		report := cli.DiagnosticReport{Diagnostics: []cli.Diagnostic{{}}}
+		expectation := diagnosticsExactlyExpectationValue{
+			locators: []*diagnosticLocatorState{nil},
+		}
+		report := cli.DiagnosticReport{
+			Diagnostics: []cli.Diagnostic{{}},
+		}
 		outcome := expectation.evaluateDiagnosticReport(report)
 		if outcome.status != evaluationDisproved {
 			t.Fatalf("nil exact diagnostic locator = %#v", outcome)
@@ -630,8 +732,14 @@ func TestDiagnosticsExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	})
 	t.Run("diagnostic index: semantic result", func(t *testing.T) {
 		t.Parallel()
-		expectation := diagnosticsExactlyExpectationValue{locators: []*diagnosticLocatorState{DiagnosticAt(0).state}}
-		report := cli.DiagnosticReport{Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}}}
+		expectation := diagnosticsExactlyExpectationValue{
+			locators: []*diagnosticLocatorState{DiagnosticAt(0).state},
+		}
+		report := cli.DiagnosticReport{
+			Diagnostics: []cli.Diagnostic{{
+				Code: cli.DiagnosticInvalidValue,
+			}},
+		}
 		outcome := expectation.evaluateDiagnosticReport(report)
 		if outcome.status != evaluationProved {
 			t.Fatalf("diagnostic index exactness = %#v", outcome)
@@ -640,14 +748,20 @@ func TestDiagnosticsExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	t.Run("refined semantic result", func(t *testing.T) {
 		t.Parallel()
 		diagnostic := cli.Diagnostic{
-			Code:         cli.DiagnosticInvalidValue,
-			Rule:         &cli.RuleFailure{RuleCode: "rule"},
+			Code: cli.DiagnosticInvalidValue,
+			Rule: &cli.RuleFailure{
+				RuleCode: "rule",
+			},
 			AdvisoryCode: "advisory",
 			Command:      1,
 		}
 		locator := Diagnostic(cli.DiagnosticInvalidValue).Rule("rule").Advisory("advisory").On(CommandByID(1))
-		report := cli.DiagnosticReport{Diagnostics: []cli.Diagnostic{diagnostic}}
-		outcome := (diagnosticsExactlyExpectationValue{locators: []*diagnosticLocatorState{locator.state}}).evaluateDiagnosticReport(report)
+		report := cli.DiagnosticReport{
+			Diagnostics: []cli.Diagnostic{diagnostic},
+		}
+		outcome := (diagnosticsExactlyExpectationValue{
+			locators: []*diagnosticLocatorState{locator.state},
+		}).evaluateDiagnosticReport(report)
 		if outcome.status != evaluationProved {
 			t.Fatalf("refined exact diagnostic = %#v", outcome)
 		}
@@ -655,8 +769,14 @@ func TestDiagnosticsExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	t.Run("refined semantic mismatch", func(t *testing.T) {
 		t.Parallel()
 		locator := Diagnostic(cli.DiagnosticInvalidValue).Rule("other")
-		report := cli.DiagnosticReport{Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue, Rule: &cli.RuleFailure{RuleCode: "rule"}}}}
-		outcome := (diagnosticsExactlyExpectationValue{locators: []*diagnosticLocatorState{locator.state}}).evaluateDiagnosticReport(report)
+		report := cli.DiagnosticReport{
+			Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue, Rule: &cli.RuleFailure{
+				RuleCode: "rule",
+			}}},
+		}
+		outcome := (diagnosticsExactlyExpectationValue{
+			locators: []*diagnosticLocatorState{locator.state},
+		}).evaluateDiagnosticReport(report)
 		if outcome.status != evaluationDisproved {
 			t.Fatalf("refined exact diagnostic mismatch = %#v", outcome)
 		}

@@ -50,9 +50,10 @@ func openSignalEndpoint[T any](capacity int) (*runSignalEndpoint[T], error) {
 	if capacity <= 0 {
 		return nil, errSignalEndpointInvalidCapacity
 	}
-	return &runSignalEndpoint[T]{
+	endpoint := &runSignalEndpoint[T]{
 		channel: make(chan T, capacity),
-	}, nil
+	}
+	return endpoint, nil
 }
 
 func (endpoint *runSignalEndpoint[T]) Receive() <-chan T {
@@ -78,10 +79,11 @@ func (endpoint *runSignalEndpoint[T]) Deliver(value T) error {
 	case endpoint.channel <- value:
 		return nil
 	default:
-		return &signalEndpointOverflowError{
+		failure := &signalEndpointOverflowError{
 			Capacity: cap(endpoint.channel),
 			Buffered: len(endpoint.channel),
 		}
+		return failure
 	}
 }
 
@@ -366,15 +368,24 @@ func prepareRunSignals(ctx context.Context, snapshot *runState, sources []compil
 		return runSignalPreparation{}, nil, nil, nil
 	}
 	if len(base.activePolicyIDs()) == 0 {
-		return runSignalPreparation{supported: true}, nil, nil, nil
+		preparation := runSignalPreparation{
+			supported: true,
+		}
+		return preparation, nil, nil, nil
 	}
 	description := snapshot.invocation.signalDescription
 	resolved, err := resolveSignalPlan(description, base, availableSignalHostCapabilities(snapshot))
 	if err != nil {
-		return runSignalPreparation{supported: true}, nil, nil, signalRunAdmissionFailure(snapshot.invocation, DiagnosticSignalSourceFailure, err)
+		preparation := runSignalPreparation{
+			supported: true,
+		}
+		return preparation, nil, nil, signalRunAdmissionFailure(snapshot.invocation, DiagnosticSignalSourceFailure, err)
 	}
 	if !resolved.compatibility.compatible() {
-		return runSignalPreparation{supported: true}, nil, nil, signalRunAdmissionFailure(snapshot.invocation, DiagnosticIncompatibleSignalSource, nil)
+		preparation := runSignalPreparation{
+			supported: true,
+		}
+		return preparation, nil, nil, signalRunAdmissionFailure(snapshot.invocation, DiagnosticIncompatibleSignalSource, nil)
 	}
 
 	acceptance, err := acceptSignalAcceptanceSnapshot(
@@ -391,7 +402,10 @@ func prepareRunSignals(ctx context.Context, snapshot *runState, sources []compil
 		adaptSignalSources(sources),
 	)
 	if err != nil {
-		return runSignalPreparation{supported: true}, nil, nil, signalRunAdmissionFailure(snapshot.invocation, DiagnosticSignalSourceFailure, err)
+		preparation := runSignalPreparation{
+			supported: true,
+		}
+		return preparation, nil, nil, signalRunAdmissionFailure(snapshot.invocation, DiagnosticSignalSourceFailure, err)
 	}
 	intake, err := prepareSignalIntake(watch, SignalBacklogCapacity)
 	if err != nil {
@@ -430,10 +444,11 @@ func prepareRunSignals(ctx context.Context, snapshot *runState, sources []compil
 		return runSignalPreparation{}, nil, nil, err
 	}
 	state.runtime = runtime
-	return runSignalPreparation{
+	preparation := runSignalPreparation{
 		state:     state,
 		supported: true,
-	}, primaryCtx, signalCallbackCtx, nil
+	}
+	return preparation, primaryCtx, signalCallbackCtx, nil
 }
 
 func (state *runSignals) buildSignalDispatchPolicies(snapshot *runState) []signalDispatchPolicy[struct{}] {
@@ -588,10 +603,11 @@ func (state *runSignals) buildResolvedSignalDispatchAction(snapshot *runState, a
 		case signalActionKindHandle:
 			return action.Handler()(ctx, configuration, event)
 		case signalActionKindForward:
-			return action.Target().Deliver()(ctx, configuration, SignalDelivery{
+			delivery := SignalDelivery{
 				Event:  event,
 				Signal: event.Signal,
-			})
+			}
+			return action.Target().Deliver()(ctx, configuration, delivery)
 		case signalActionKindSend:
 			signal := fixedSignal
 			if !signal.valid() {
@@ -601,10 +617,11 @@ func (state *runSignals) buildResolvedSignalDispatchAction(snapshot *runState, a
 					panic("cli: accepted Signal send action has unresolved signal")
 				}
 			}
-			return action.Target().Deliver()(ctx, configuration, SignalDelivery{
+			delivery := SignalDelivery{
 				Event:  event,
 				Signal: signal,
-			})
+			}
+			return action.Target().Deliver()(ctx, configuration, delivery)
 		case signalActionKindEmit:
 			endpointID, present := action.Endpoint()
 			endpoint := state.endpointProducers[endpointID]
@@ -1022,9 +1039,10 @@ func (state *runSignals) terminalError(terminal signalTerminalOutcome) error {
 		action := actions[terminal.ActionIndex]
 		switch terminal.Kind {
 		case signalDispatchActionAbort:
-			return abortError{
+			failure := abortError{
 				code: action.ExitCode(),
 			}
+			return failure
 		case signalDispatchActionReraise:
 			event, ok := projectSignalDeliveryEvent(terminal.Batch)
 			if !ok {
@@ -1039,7 +1057,9 @@ func (state *runSignals) terminalError(terminal signalTerminalOutcome) error {
 
 func signalRunAdmissionFailure(operation *invocation, code DiagnosticCode, cause error) error {
 	payload := operationDiagnosticPayload(operation, false)
-	payload.Diagnostics = []diagnostic{{Code: string(code)}}
+	payload.Diagnostics = []diagnostic{{
+		Code: string(code),
+	}}
 	return retainDiagnosticFailure(payload, cause)
 }
 

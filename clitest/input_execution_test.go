@@ -48,7 +48,9 @@ func TestTokenPropertyPreservesPropertyTruth(t *testing.T) {
 	t.Run("semantic mismatch", func(t *testing.T) {
 		t.Parallel()
 		inspection := cli.Inspection{
-			Tokens: []cli.TokenInspection{{Role: cli.TokenRole(1)}},
+			Tokens: []cli.TokenInspection{{
+				Role: cli.TokenRole(1),
+			}},
 		}
 		got := inspectionExpectationOutcome(t, TokenAt(0).Role(cli.TokenRole(2)), inspection)
 		if got.status != evaluationDisproved || strings.Contains(renderEvaluationField(got.expected), "redacted") {
@@ -195,7 +197,9 @@ func TestTokenOwnerPreservesSemanticStatus(t *testing.T) {
 			t.Fatalf("outcome = %#v", got)
 		}
 		firstInspection := cli.Inspection{
-			Tokens: []cli.TokenInspection{{Destination: 1}},
+			Tokens: []cli.TokenInspection{{
+				Destination: 1,
+			}},
 		}
 		got = inspectionExpectationOutcome(t, TokenAt(0).OwnedBy(ValueByID(2)), firstInspection)
 		if got.status != evaluationDisproved || strings.Contains(renderEvaluationField(got.expected), "redacted") {
@@ -269,7 +273,9 @@ func TestMiddlewarePropertyPreservesPropertyTruth(t *testing.T) {
 		t.Parallel()
 		inspection := cli.Inspection{
 			ExecutionAdmission: cli.ExecutionAdmissionInspection{
-				Middleware: []cli.MiddlewareInspection{{Scope: cli.MiddlewareScope(1)}},
+				Middleware: []cli.MiddlewareInspection{{
+					Scope: cli.MiddlewareScope(1),
+				}},
 			},
 		}
 		got := inspectionExpectationOutcome(
@@ -361,7 +367,9 @@ func TestMiddlewareCommandPreservesSemanticStatus(t *testing.T) {
 		t.Parallel()
 		inspection := cli.Inspection{
 			ExecutionAdmission: cli.ExecutionAdmissionInspection{
-				Middleware: []cli.MiddlewareInspection{{Command: 1}},
+				Middleware: []cli.MiddlewareInspection{{
+					Command: 1,
+				}},
 			},
 		}
 		got := inspectionExpectationOutcome(t, ExecutionAdmission().MiddlewareAt(0).Command(CommandByID(2)), inspection)
@@ -504,7 +512,11 @@ func requireExecutionAdmissionExactMembershipMismatch(t *testing.T, subject stri
 
 func TestExecutionAdmissionSignalPoliciesExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	t.Parallel()
-	inspection := cli.Inspection{ExecutionAdmission: cli.ExecutionAdmissionInspection{SignalPolicies: []cli.SignalPolicyID{1}}}
+	inspection := cli.Inspection{
+		ExecutionAdmission: cli.ExecutionAdmissionInspection{
+			SignalPolicies: []cli.SignalPolicyID{1},
+		},
+	}
 	requireExecutionAdmissionExactMembershipMismatch(
 		t,
 		"execution admission signal policies",
@@ -516,7 +528,11 @@ func TestExecutionAdmissionSignalPoliciesExactlyPreservesExactMembershipAndOrder
 
 func TestExecutionAdmissionSignalEndpointsExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 	t.Parallel()
-	inspection := cli.Inspection{ExecutionAdmission: cli.ExecutionAdmissionInspection{SignalEndpoints: []cli.SignalEndpointID{1}}}
+	inspection := cli.Inspection{
+		ExecutionAdmission: cli.ExecutionAdmissionInspection{
+			SignalEndpoints: []cli.SignalEndpointID{1},
+		},
+	}
 	requireExecutionAdmissionExactMembershipMismatch(
 		t,
 		"execution admission signal endpoints",
@@ -663,7 +679,9 @@ func TestSignalEndpointInspectionPreservesSemanticStatus(t *testing.T) {
 		t.Parallel()
 		inspection := cli.Inspection{
 			SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpointInspection{
-				1: {Status: cli.SignalEndpointStatus(1)},
+				1: {
+					Status: cli.SignalEndpointStatus(1),
+				},
 			},
 		}
 		got := inspectionExpectationOutcome(t, SignalEndpointByID(1).Status(cli.SignalEndpointStatus(2)), inspection)
@@ -697,7 +715,9 @@ func TestSignalEndpointPoliciesExactPreservesExactMembershipAndOrder(t *testing.
 		}
 		inspection := cli.Inspection{
 			SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpointInspection{
-				1: {EffectivePolicies: []cli.SignalPolicyID{1}},
+				1: {
+					EffectivePolicies: []cli.SignalPolicyID{1},
+				},
 			},
 			SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyInspection{},
 		}

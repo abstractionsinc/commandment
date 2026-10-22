@@ -11,12 +11,16 @@ var definition = cli.Definition[struct{}]{
 	Name: "alienctl",
 	Declare: func(cb *cli.CommandBuilder[struct{}]) {
 		scanCmd := cli.Command[struct{}]{
-			Name:        "scan",
-			Description: cli.Description{Short: "scan nearby worlds"},
+			Name: "scan",
+			Description: cli.Description{
+				Short: "scan nearby worlds",
+			},
 		}
 		statusCmd := cli.Command[struct{}]{
-			Name:        "status",
-			Description: cli.Description{Short: "show fleet status"},
+			Name: "status",
+			Description: cli.Description{
+				Short: "show fleet status",
+			},
 		}
 		cb.Subcommands.Command(scanCmd)
 		cb.Subcommands.Command(statusCmd)

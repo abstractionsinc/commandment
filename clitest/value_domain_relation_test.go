@@ -79,10 +79,13 @@ func TestValueDomainRelationalLocatorsCanonicalizeAcrossArtifacts(t *testing.T) 
 	}
 
 	reference := cli.Reference{
-		Commands:           map[cli.CommandID]cli.CommandReference{},
-		Flags:              map[cli.FlagID]cli.FlagReference{},
-		FlagSpellings:      map[cli.FlagSpellingID]cli.FlagSpellingReference{},
-		ValueDomains:       []cli.ValueDomainReference{{Uses: []cli.ValueDomainUse{use}, Entries: []cli.ValueDomainEntryID{referenceID, modernID}}},
+		Commands:      map[cli.CommandID]cli.CommandReference{},
+		Flags:         map[cli.FlagID]cli.FlagReference{},
+		FlagSpellings: map[cli.FlagSpellingID]cli.FlagSpellingReference{},
+		ValueDomains: []cli.ValueDomainReference{{
+			Uses:    []cli.ValueDomainUse{use},
+			Entries: []cli.ValueDomainEntryID{referenceID, modernID},
+		}},
 		ValueDomainEntries: map[cli.ValueDomainEntryID]cli.ValueDomainEntryReference{},
 	}
 	schemaCommand := schema.Commands[rootID]
@@ -141,7 +144,9 @@ func TestValueDomainRelationalLocatorsCanonicalizeAcrossArtifacts(t *testing.T) 
 			},
 		},
 		Values: map[cli.ValueID]cli.ValueInspection{
-			valueID: {ID: valueID},
+			valueID: {
+				ID: valueID,
+			},
 		},
 		ValueDomains: []cli.ValueDomainInspection{
 			{
@@ -195,26 +200,59 @@ func TestValueDomainRelationalLocatorsCanonicalizeAcrossArtifacts(t *testing.T) 
 		t.Fatalf("inspection relational domain = %#v, want found with two entries", inspectionDomain)
 	}
 
-	for name, resolution := range map[string]locatorResolution[cli.ValueDomainEntrySchema]{
-		"schema name":  resolveSchemaValueDomainEntryLocator(relationalEntry.state, &schema),
-		"schema index": resolveSchemaValueDomainEntryLocator(relationalEntryAt.state, &schema),
+	for _, test := range []struct {
+		name       string
+		resolution locatorResolution[cli.ValueDomainEntrySchema]
+	}{
+		{
+			name:       "schema name",
+			resolution: resolveSchemaValueDomainEntryLocator(relationalEntry.state, &schema),
+		},
+		{
+			name:       "schema index",
+			resolution: resolveSchemaValueDomainEntryLocator(relationalEntryAt.state, &schema),
+		},
 	} {
+		name := test.name
+		resolution := test.resolution
 		if resolution.status != locatorResolutionFound || resolution.value.ID != referenceID {
 			t.Fatalf("%s = %#v, want entry %d", name, resolution, referenceID)
 		}
 	}
-	for name, resolution := range map[string]locatorResolution[cli.ValueDomainEntryReference]{
-		"reference name":  resolveReferenceValueDomainEntryLocator(relationalEntry.state, reference),
-		"reference index": resolveReferenceValueDomainEntryLocator(relationalEntryAt.state, reference),
+	for _, test := range []struct {
+		name       string
+		resolution locatorResolution[cli.ValueDomainEntryReference]
+	}{
+		{
+			name:       "reference name",
+			resolution: resolveReferenceValueDomainEntryLocator(relationalEntry.state, reference),
+		},
+		{
+			name:       "reference index",
+			resolution: resolveReferenceValueDomainEntryLocator(relationalEntryAt.state, reference),
+		},
 	} {
+		name := test.name
+		resolution := test.resolution
 		if resolution.status != locatorResolutionFound || resolution.value.ID != referenceID {
 			t.Fatalf("%s = %#v, want entry %d", name, resolution, referenceID)
 		}
 	}
-	for name, resolution := range map[string]locatorResolution[cli.ValueDomainEntryInspection]{
-		"inspection name":  resolveInspectionValueDomainEntryLocator(relationalEntry.state, inspection),
-		"inspection index": resolveInspectionValueDomainEntryLocator(relationalEntryAt.state, inspection),
+	for _, test := range []struct {
+		name       string
+		resolution locatorResolution[cli.ValueDomainEntryInspection]
+	}{
+		{
+			name:       "inspection name",
+			resolution: resolveInspectionValueDomainEntryLocator(relationalEntry.state, inspection),
+		},
+		{
+			name:       "inspection index",
+			resolution: resolveInspectionValueDomainEntryLocator(relationalEntryAt.state, inspection),
+		},
 	} {
+		name := test.name
+		resolution := test.resolution
 		if resolution.status != locatorResolutionFound || resolution.value.ID != referenceID {
 			t.Fatalf("%s = %#v, want entry %d", name, resolution, referenceID)
 		}
@@ -224,11 +262,26 @@ func TestValueDomainRelationalLocatorsCanonicalizeAcrossArtifacts(t *testing.T) 
 		name        string
 		expectation DeclarationExpectation
 	}{
-		{"domain exists", relationalDomain.Exists()},
-		{"domain entries", relationalDomain.EntriesExactly(directEntry, modernEntry)},
-		{"entry exists", relationalEntry.Exists()},
-		{"entry index exists", relationalEntryAt.Exists()},
-		{"entry replacement", relationalEntry.ReplacedBy(modernEntry)},
+		{
+			name:        "domain exists",
+			expectation: relationalDomain.Exists(),
+		},
+		{
+			name:        "domain entries",
+			expectation: relationalDomain.EntriesExactly(directEntry, modernEntry),
+		},
+		{
+			name:        "entry exists",
+			expectation: relationalEntry.Exists(),
+		},
+		{
+			name:        "entry index exists",
+			expectation: relationalEntryAt.Exists(),
+		},
+		{
+			name:        "entry replacement",
+			expectation: relationalEntry.ReplacedBy(modernEntry),
+		},
 	} {
 		if got := schemaExpectationOutcome(t, test.expectation, &schema); got.status != evaluationProved {
 			t.Fatalf("schema %s = %#v, want satisfied", test.name, got)
@@ -539,13 +592,25 @@ func TestValueDomainNegativeExistenceRejectsAmbiguousDomainTopology(t *testing.T
 	entry := domain.Entry("legacy")
 
 	schema := cli.Schema{
-		ValueDomains: []cli.ValueDomainSchema{{Uses: []cli.ValueDomainUse{use}}, {Uses: []cli.ValueDomainUse{use}}},
+		ValueDomains: []cli.ValueDomainSchema{{
+			Uses: []cli.ValueDomainUse{use},
+		}, {
+			Uses: []cli.ValueDomainUse{use},
+		}},
 	}
 	reference := cli.Reference{
-		ValueDomains: []cli.ValueDomainReference{{Uses: []cli.ValueDomainUse{use}}, {Uses: []cli.ValueDomainUse{use}}},
+		ValueDomains: []cli.ValueDomainReference{{
+			Uses: []cli.ValueDomainUse{use},
+		}, {
+			Uses: []cli.ValueDomainUse{use},
+		}},
 	}
 	inspection := cli.Inspection{
-		ValueDomains: []cli.ValueDomainInspection{{Uses: []cli.ValueDomainUse{use}}, {Uses: []cli.ValueDomainUse{use}}},
+		ValueDomains: []cli.ValueDomainInspection{{
+			Uses: []cli.ValueDomainUse{use},
+		}, {
+			Uses: []cli.ValueDomainUse{use},
+		}},
 	}
 
 	for _, expectation := range []DeclarationExpectation{domain.DoesNotExist(), entry.DoesNotExist()} {

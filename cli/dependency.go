@@ -36,28 +36,31 @@ func analyzeDependenciesAt(ctx context.Context, operation *invocation, state *an
 	defer release()
 
 	if len(requirements) == 0 {
-		return dependencyAnalysis{
+		analysis := dependencyAnalysis{
 			Values: operationDependencySeed(state),
 			Ready:  true,
 		}
+		return analysis
 	}
 	if len(grammar.Issues) != 0 {
 		analysis := operationDependencySeed(state)
 		analysis.Unsupported = true
-		return dependencyAnalysis{
+		result := dependencyAnalysis{
 			Values:    analysis,
 			BlockedBy: dependencyRequirementIDs(requirements),
 		}
+		return result
 	}
 	view := state.effectiveModel
 	model, ok := view.EffectiveGrammar()
 	if !ok {
 		analysis := operationDependencySeed(state)
 		analysis.Unsupported = true
-		return dependencyAnalysis{
+		result := dependencyAnalysis{
 			Values:    analysis,
 			BlockedBy: dependencyRequirementIDs(requirements),
 		}
+		return result
 	}
 
 	// The dependency seed is operation-private acceleration. Mutate it under one
@@ -711,26 +714,29 @@ func (declaration ArgumentDeclaration[C, T]) dependencyTarget() (*destinationHan
 
 // OptionalDependency returns a dependency that tolerates resolved absence of this destination.
 func (destination Destination[C, T]) OptionalDependency() Dependency {
-	return destinationDependency{
+	dependency := destinationDependency{
 		handle:   destination.destinationHandle(),
 		optional: true,
 	}
+	return dependency
 }
 
 // OptionalDependency returns a dependency that tolerates resolved absence of the flag destination.
 func (declaration FlagDeclaration[C, T]) OptionalDependency() Dependency {
-	return destinationDependency{
+	dependency := destinationDependency{
 		handle:   declaration.destination.destinationHandle(),
 		optional: true,
 	}
+	return dependency
 }
 
 // OptionalDependency returns a dependency that tolerates resolved absence of the argument destination.
 func (declaration ArgumentDeclaration[C, T]) OptionalDependency() Dependency {
-	return destinationDependency{
+	dependency := destinationDependency{
 		handle:   declaration.destination.destinationHandle(),
 		optional: true,
 	}
+	return dependency
 }
 
 type destinationDependency struct {
@@ -935,10 +941,12 @@ func dependenciesFromValueAnalysis(scope identityScope, model *effectiveModel, r
 			ready = false
 		}
 	}
-	view := Dependencies{values: &dependencyValues{
-		scope:         scope,
-		byDestination: byDestination,
-	}}
+	view := Dependencies{
+		values: &dependencyValues{
+			scope:         scope,
+			byDestination: byDestination,
+		},
+	}
 	return view, ready
 }
 
@@ -969,8 +977,12 @@ func dependenciesFromAuthorizedValueAnalysis(scope identityScope, model *effecti
 		}
 		byDestination[id] = detached
 	}
-	return Dependencies{values: &dependencyValues{
+	snapshot := &dependencyValues{
 		scope:         scope,
 		byDestination: byDestination,
-	}}
+	}
+	dependencies := Dependencies{
+		values: snapshot,
+	}
+	return dependencies
 }

@@ -32,7 +32,9 @@ var definition = cli.Definition[struct{}]{
 					Message:  "reckless approach enabled",
 				}
 				cb.Advisory.When(cb.When.Equal(reckless, true), advisory).Subject(reckless)
-				cb.Notice.SuppressWhen(cb.When.Equal(quiet, true), cli.NoticeMatch{AdvisoryCode: advisory.Code})
+				cb.Notice.SuppressWhen(cb.When.Equal(quiet, true), cli.NoticeMatch{
+					AdvisoryCode: advisory.Code,
+				})
 			},
 			Run: func(_ context.Context, cfg *approachConfig) error {
 				fmt.Printf("approaching %s\n", cfg.Target)
@@ -55,7 +57,10 @@ func main() {
 		}
 		return nil
 	}
-	request := cli.RunRequest{Args: os.Args[1:], Notify: notify}
+	request := cli.RunRequest{
+		Args:   os.Args[1:],
+		Notify: notify,
+	}
 	if err := app.Run(context.Background(), request); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(cli.ExitCode(err))

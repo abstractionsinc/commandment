@@ -398,9 +398,14 @@ func (conditions Conditions) Not(condition Condition) Condition {
 }
 
 func stageConditionLeaf[C, T any](owner *declarationSession, kind conditionKind, destination destinationLike[C, T], operands ...T) Condition {
-	state := &conditionState{kind: kind}
+	state := &conditionState{
+		kind: kind,
+	}
 	if owner == nil || destination == nil {
-		return Condition{state: state}
+		condition := Condition{
+			state: state,
+		}
+		return condition
 	}
 	rawDestination := destination.destinationHandle()
 	owner.useCondition(func(draft *declarationDraft) {
@@ -411,7 +416,10 @@ func stageConditionLeaf[C, T any](owner *declarationSession, kind conditionKind,
 	for index := range operands {
 		state.operands[index] = operands[index]
 	}
-	return Condition{state: state}
+	condition := Condition{
+		state: state,
+	}
+	return condition
 }
 
 func conditionWithPredicate[T any](condition Condition, predicate func(T) bool) Condition {
@@ -425,7 +433,9 @@ func conditionWithPredicate[T any](condition Condition, predicate func(T) bool) 
 }
 
 func stageConditionGroup(owner *declarationSession, kind conditionKind, first Condition, rest ...Condition) Condition {
-	state := &conditionState{kind: kind}
+	state := &conditionState{
+		kind: kind,
+	}
 	if owner != nil {
 		owner.useCondition(func(draft *declarationDraft) {
 			state.owner = draft.identity
@@ -445,9 +455,10 @@ func stageConditionGroup(owner *declarationSession, kind conditionKind, first Co
 			state.valid = false
 		}
 	}
-	return Condition{
+	returnedCondition := Condition{
 		state: state,
 	}
+	return returnedCondition
 }
 
 type authoringConditionTarget interface {
@@ -875,40 +886,44 @@ type conditionTarget struct {
 
 func commandConditionTarget(id CommandID) conditionTarget {
 	mustCommand(id)
-	return conditionTarget{
+	target := conditionTarget{
 		kind:    conditionTargetCommand,
 		command: id,
 	}
+	return target
 }
 
 func flagConditionTarget(id FlagID) conditionTarget {
 	if !id.present() {
 		panic("semantic: invalid flag condition target")
 	}
-	return conditionTarget{
+	target := conditionTarget{
 		kind: conditionTargetFlag,
 		flag: id,
 	}
+	return target
 }
 
 func argumentFormConditionTarget(id ArgumentFormID) conditionTarget {
 	if !id.present() {
 		panic("semantic: invalid argument-form condition target")
 	}
-	return conditionTarget{
+	target := conditionTarget{
 		kind: conditionTargetArgumentForm,
 		form: id,
 	}
+	return target
 }
 
 func argumentTermConditionTarget(id ArgumentTermID) conditionTarget {
 	if !id.present() {
 		panic("semantic: invalid argument-term condition target")
 	}
-	return conditionTarget{
+	target := conditionTarget{
 		kind: conditionTargetArgumentTerm,
 		term: id,
 	}
+	return target
 }
 
 func (target conditionTarget) Valid() bool {

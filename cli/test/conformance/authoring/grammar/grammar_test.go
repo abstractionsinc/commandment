@@ -47,9 +47,11 @@ func TestLanguageAuthoringProjectsDeclaredSemantics(t *testing.T) {
 		Parse:  func(context.Context, []string) (string, error) { return "pair", nil },
 		Format: func(string) []string { return []string{"a", "b"} },
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Values.Sequence(&root.Config.Items, domain)
@@ -59,7 +61,8 @@ func TestLanguageAuthoringProjectsDeclaredSemantics(t *testing.T) {
 			pair := root.Values.String(&root.Config.Pair)
 			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) { form.Tokens(pair, "pair", language) })
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	modeDomain := root.ValueAt(0).Domain(cli.ValueDomainUseDestination)
 	form := root.ArgumentFormAt(0)
@@ -89,7 +92,49 @@ func TestLanguageAuthoringProjectsExactLanguageSemantics(t *testing.T) {
 		max     int
 		bounded bool
 	}{
-		{"exact", cli.Count.Exactly(2), 2, 2, true}, {"between", cli.Count.Between(1, 3), 1, 3, true}, {"at-least", cli.Count.AtLeast(2), 2, 0, false}, {"at-most", cli.Count.AtMost(3), 0, 3, true}, {"optional", cli.Count.Optional(), 0, 1, true}, {"one-or-more", cli.Count.OneOrMore(), 1, 0, false}, {"zero-or-more", cli.Count.ZeroOrMore(), 0, 0, false},
+		{
+			name:    "exact",
+			count:   cli.Count.Exactly(2),
+			min:     2,
+			max:     2,
+			bounded: true,
+		}, {
+			name:    "between",
+			count:   cli.Count.Between(1, 3),
+			min:     1,
+			max:     3,
+			bounded: true,
+		}, {
+			name:    "at-least",
+			count:   cli.Count.AtLeast(2),
+			min:     2,
+			max:     0,
+			bounded: false,
+		}, {
+			name:    "at-most",
+			count:   cli.Count.AtMost(3),
+			min:     0,
+			max:     3,
+			bounded: true,
+		}, {
+			name:    "optional",
+			count:   cli.Count.Optional(),
+			min:     0,
+			max:     1,
+			bounded: true,
+		}, {
+			name:    "one-or-more",
+			count:   cli.Count.OneOrMore(),
+			min:     1,
+			max:     0,
+			bounded: false,
+		}, {
+			name:    "zero-or-more",
+			count:   cli.Count.ZeroOrMore(),
+			min:     0,
+			max:     0,
+			bounded: false,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -125,9 +170,11 @@ func TestLanguageAuthoringProjectsExactLanguageSemantics(t *testing.T) {
 		Parse:  func(context.Context, []string) (string, error) { return "pair", nil },
 		Format: func(string) []string { return []string{"a", "b"} },
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Values.Sequence(&root.Config.Items, domain)
@@ -142,7 +189,8 @@ func TestLanguageAuthoringProjectsExactLanguageSemantics(t *testing.T) {
 			pair := root.Values.String(&root.Config.Pair)
 			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) { form.Tokens(pair, "pair", tokens) })
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	mode := root.Flag("--mode").Value()
 	items := root.ValueAt(1)
@@ -322,8 +370,12 @@ func TestGrammarDiagnosticRetainsAmbiguityContext(t *testing.T) {
 	t.Parallel()
 	declareParent := func(parent *cli.CommandBuilder[struct{}]) {
 		parent.Dialect.CommandMatching(cli.NameMatchingUniquePrefix)
-		parent.Subcommands.Command(cli.Command[struct{}]{Name: "serve"})
-		parent.Subcommands.Command(cli.Command[struct{}]{Name: "service"})
+		parent.Subcommands.Command(cli.Command[struct{}]{
+			Name: "serve",
+		})
+		parent.Subcommands.Command(cli.Command[struct{}]{
+			Name: "service",
+		})
 	}
 	parent := cli.Command[struct{}]{
 		Name:    "parent",
@@ -337,7 +389,9 @@ func TestGrammarDiagnosticRetainsAmbiguityContext(t *testing.T) {
 		Declare: declareRoot,
 	}
 	app := clitest.Compile(t, definition)
-	request := cli.InspectionRequest{Args: []string{"parent", "ser"}}
+	request := cli.InspectionRequest{
+		Args: []string{"parent", "ser"},
+	}
 	diagnosticLocator := clitest.Diagnostic(cli.DiagnosticAmbiguousCommand)
 
 	proof := clitest.Inspect(t.Context(), app, request)
@@ -374,7 +428,9 @@ func TestActionCommandSettlesPotentialProviderCollision(t *testing.T) {
 	var calls atomic.Int32
 	provide := func(_ context.Context, batch *cli.CommandBatch[struct{}]) error {
 		calls.Add(1)
-		batch.Command(cli.Command[struct{}]{Name: "help"})
+		batch.Command(cli.Command[struct{}]{
+			Name: "help",
+		})
 		return nil
 	}
 	declare := func(root *cli.CommandBuilder[struct{}]) {
@@ -385,7 +441,9 @@ func TestActionCommandSettlesPotentialProviderCollision(t *testing.T) {
 		Declare: declare,
 	}
 	app := clitest.Compile(t, definition)
-	request := cli.InspectionRequest{Args: []string{"help"}}
+	request := cli.InspectionRequest{
+		Args: []string{"help"},
+	}
 	diagnostic := clitest.Diagnostic(cli.DiagnosticInvalidCommandBatch)
 
 	clitest.Inspect(t.Context(), app, request).Require(t,

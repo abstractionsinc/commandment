@@ -76,7 +76,10 @@ func RepairsExactly(expected ...RepairLocator) DiagnosticReportExpectation {
 	for index, locator := range expected {
 		states[index] = locator.state
 	}
-	return repairsExactlyExpectation{states: states}
+	expectation := repairsExactlyExpectation{
+		states: states,
+	}
+	return expectation
 }
 
 // DiagnosticsTruncated checks that structured diagnostics are truncated on an
@@ -105,63 +108,70 @@ func TokenAt(index int) TokenLocator { return tokenIndexLocator(index) }
 // nonzero structured Rule identity. The Rule's classification code is not substituted for that
 // identity.
 func (locator DiagnosticLocator) RuleIdentityPresent() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyRuleIdentityPresent,
 	}
+	return expectation
 }
 
 // RuleKind returns a reusable outcome expectation that checks the public Rule kind exposed by
 // the located Diagnostic.
 func (locator DiagnosticLocator) RuleKind(expected cli.RuleKind) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyRuleKind,
 		ruleKind: expected,
 	}
+	return expectation
 }
 
 // RuleOperandCount returns a reusable outcome expectation that checks the Rule operand count
 // exposed by the located Diagnostic.
 func (locator DiagnosticLocator) RuleOperandCount(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyRuleOperandCount,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // RuleOperandAt returns a locator for the rule operand at the supplied public ordered index of
 // the located Diagnostic. It does not search for or silently choose a first match.
 func (locator DiagnosticLocator) RuleOperandAt(index int) DiagnosticRuleOperandLocator {
-	return DiagnosticRuleOperandLocator{
+	diagnosticRuleOperandLocator := DiagnosticRuleOperandLocator{
 		diagnostic: locator,
 		index:      index,
 	}
+	return diagnosticRuleOperandLocator
 }
 
 // SignalAction returns a locator that follows the public signal action relationship from the
 // located Diagnostic. The returned locator carries locator coordinates, not observed state.
 func (locator DiagnosticLocator) SignalAction() DiagnosticSignalActionFailureLocator {
-	return DiagnosticSignalActionFailureLocator{
+	diagnosticSignalActionFailureLocator := DiagnosticSignalActionFailureLocator{
 		diagnostic: locator,
 	}
+	return diagnosticSignalActionFailureLocator
 }
 
 // SignalOverflow returns a locator that follows the public signal overflow relationship from
 // the located Diagnostic. The returned locator carries locator coordinates, not observed state.
 func (locator DiagnosticLocator) SignalOverflow() DiagnosticSignalOverflowFailureLocator {
-	return DiagnosticSignalOverflowFailureLocator{
+	diagnosticSignalOverflowFailureLocator := DiagnosticSignalOverflowFailureLocator{
 		diagnostic: locator,
 	}
+	return diagnosticSignalOverflowFailureLocator
 }
 
 // NoticeDelivery returns a locator that follows the public notice delivery relationship from
 // the located Diagnostic. The returned locator carries locator coordinates, not observed state.
 func (locator DiagnosticLocator) NoticeDelivery() DiagnosticNoticeDeliveryFailureLocator {
-	return DiagnosticNoticeDeliveryFailureLocator{
+	diagnosticNoticeDeliveryFailureLocator := DiagnosticNoticeDeliveryFailureLocator{
 		diagnostic: locator,
 	}
+	return diagnosticNoticeDeliveryFailureLocator
 }
 
 // SpanSource returns an InputSourceLocator for the public source referenced by the located Diagnostic span.
@@ -172,19 +182,21 @@ func (locator DiagnosticLocator) SpanSource() InputSourceLocator {
 // SpanPositioned returns an outcome expectation that the located Diagnostic has a span whose start line and column are
 // both positive.
 func (locator DiagnosticLocator) SpanPositioned() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertySpanPositioned,
 	}
+	return expectation
 }
 
 // Reason returns an outcome expectation that the located Diagnostic Reason exactly equals reason.
 func (locator DiagnosticLocator) Reason(reason string) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyReason,
 		text:     reason,
 	}
+	return expectation
 }
 
 // On refines a Diagnostic coordinate by the structured public subject identity carried by the diagnostic observation.
@@ -322,112 +334,123 @@ func (locator DiagnosticLocator) NoticeDeliveryFailure(failure cli.NoticeDeliver
 // Sensitive returns a reusable outcome expectation that checks the located Diagnostic Rule
 // operand is marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator DiagnosticRuleOperandLocator) Sensitive() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertyRuleOperandSensitive,
 		operand:  locator.index,
 	}
+	return expectation
 }
 
 // Literal returns a locator that follows the public literal relationship from the located
 // Diagnostic Rule operand. The returned locator carries locator coordinates, not observed state.
 func (locator DiagnosticRuleOperandLocator) Literal() DiagnosticValueLiteralLocator {
-	return DiagnosticValueLiteralLocator{
+	diagnosticValueLiteralLocator := DiagnosticValueLiteralLocator{
 		diagnostic: locator.diagnostic,
 		operand:    locator.index,
 	}
+	return diagnosticValueLiteralLocator
 }
 
 // NoLiteral returns a reusable outcome expectation that checks the located Diagnostic Rule
 // operand explicitly has no literal.
 func (locator DiagnosticRuleOperandLocator) NoLiteral() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertyRuleOperandNoLiteral,
 		operand:  locator.index,
 	}
+	return expectation
 }
 
 // Type returns a reusable outcome expectation that checks the public type exposed by the
 // located Diagnostic Rule literal.
 func (locator DiagnosticValueLiteralLocator) Type(expected cli.ValueType) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:   locator.diagnostic.state,
 		property:  diagnosticPropertyLiteralType,
 		operand:   locator.operand,
 		valueType: expected,
 	}
+	return expectation
 }
 
 // Text returns an outcome expectation that checks the Diagnostic literal text when safely
 // observable. A mismatch reports redacted context instead of revealing sensitive or redacted
 // literal material.
 func (locator DiagnosticValueLiteralLocator) Text(expected string) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertyLiteralText,
 		operand:  locator.operand,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Sensitive returns a reusable outcome expectation that checks the located Diagnostic Rule
 // literal is marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator DiagnosticValueLiteralLocator) Sensitive() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertyLiteralSensitive,
 		operand:  locator.operand,
 	}
+	return expectation
 }
 
 // Redacted returns a reusable outcome expectation that checks the located Diagnostic Rule
 // literal is marked redacted without exposing the protected representation.
 func (locator DiagnosticValueLiteralLocator) Redacted() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertyLiteralRedacted,
 		operand:  locator.operand,
 	}
+	return expectation
 }
 
 // PolicyIdentityPresent returns an outcome expectation that checks the signal-action failure
 // carries a nonzero public signal-policy identity.
 func (locator DiagnosticSignalActionFailureLocator) PolicyIdentityPresent() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalActionPolicyIdentityPresent,
 	}
+	return expectation
 }
 
 // Index returns a reusable outcome expectation that checks the public index exposed by the
 // located signal-action failure.
 func (locator DiagnosticSignalActionFailureLocator) Index(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalActionIndex,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // Phase returns a reusable outcome expectation that checks the public phase exposed by the
 // located signal-action failure.
 func (locator DiagnosticSignalActionFailureLocator) Phase(expected cli.SignalPhase) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:     locator.diagnostic.state,
 		property:    diagnosticPropertySignalActionPhase,
 		signalPhase: expected,
 	}
+	return expectation
 }
 
 // CommandPathExactly returns a reusable outcome expectation that checks the complete command
 // path exactly in authoritative public order.
 func (locator DiagnosticSignalActionFailureLocator) CommandPathExactly(expected ...string) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalActionCommandPath,
 		strings:  slices.Clone(expected),
 	}
+	return expectation
 }
 
 // Action returns a locator that follows the public action relationship from the located
@@ -445,228 +468,251 @@ func (locator DiagnosticSignalActionFailureLocator) Event() DiagnosticSignalEven
 // Kind returns a reusable outcome expectation that checks the public kind exposed by the
 // located failed signal action.
 func (locator DiagnosticSignalActionLocator) Kind(expected cli.SignalActionKind) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:          locator.diagnostic.state,
 		property:         diagnosticPropertySignalActionKind,
 		signalActionKind: expected,
 	}
+	return expectation
 }
 
 // Name returns a reusable outcome expectation that checks the public name exposed by the
 // located failed signal action.
 func (locator DiagnosticSignalActionLocator) Name(expected string) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalActionName,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Signal returns a reusable outcome expectation that checks the public signal exposed by the
 // located signal event.
 func (locator DiagnosticSignalEventLocator) Signal(expected cli.Signal) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventSignal,
 		signal:   expected,
 	}
+	return expectation
 }
 
 // Origin returns a reusable outcome expectation that checks the public origin exposed by the
 // located signal event.
 func (locator DiagnosticSignalEventLocator) Origin(expected cli.SignalOrigin) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:      locator.diagnostic.state,
 		property:     diagnosticPropertySignalEventOrigin,
 		signalOrigin: expected,
 	}
+	return expectation
 }
 
 // Sender returns a reusable outcome expectation that checks the public sender exposed by the
 // located signal event.
 func (locator DiagnosticSignalEventLocator) Sender(expected cli.SignalSender) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:      locator.diagnostic.state,
 		property:     diagnosticPropertySignalEventSender,
 		signalSender: expected,
 	}
+	return expectation
 }
 
 // NoSender returns a reusable outcome expectation that checks the located signal event
 // explicitly has no sender.
 func (locator DiagnosticSignalEventLocator) NoSender() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventNoSender,
 	}
+	return expectation
 }
 
 // Phase returns a reusable outcome expectation that checks the public phase exposed by the
 // located signal event.
 func (locator DiagnosticSignalEventLocator) Phase(expected cli.SignalPhase) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:     locator.diagnostic.state,
 		property:    diagnosticPropertySignalEventPhase,
 		signalPhase: expected,
 	}
+	return expectation
 }
 
 // ObservedAt returns a reusable outcome expectation that checks the public observed time
 // exposed by the located signal event.
 func (locator DiagnosticSignalEventLocator) ObservedAt(expected time.Time) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventObservedAt,
 		at:       expected,
 	}
+	return expectation
 }
 
 // FirstObservedAt returns a reusable outcome expectation that checks the public first-observed
 // time exposed by the located signal event.
 func (locator DiagnosticSignalEventLocator) FirstObservedAt(expected time.Time) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventFirstObservedAt,
 		at:       expected,
 	}
+	return expectation
 }
 
 // LastObservedAt returns a reusable outcome expectation that checks the public last-observed
 // time exposed by the located signal event.
 func (locator DiagnosticSignalEventLocator) LastObservedAt(expected time.Time) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventLastObservedAt,
 		at:       expected,
 	}
+	return expectation
 }
 
 // FirstOccurrence returns a reusable outcome expectation that checks the public first
 // occurrence exposed by the located signal event.
 func (locator DiagnosticSignalEventLocator) FirstOccurrence(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventFirstOccurrence,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // LastOccurrence returns a reusable outcome expectation that checks the public last occurrence
 // exposed by the located signal event.
 func (locator DiagnosticSignalEventLocator) LastOccurrence(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventLastOccurrence,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // BatchSize returns a reusable outcome expectation that checks the public batch size exposed by
 // the located signal event.
 func (locator DiagnosticSignalEventLocator) BatchSize(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalEventBatchSize,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // Boundary returns a reusable outcome expectation that checks the public overflow boundary
 // exposed by the located signal-overflow failure.
 func (locator DiagnosticSignalOverflowFailureLocator) Boundary(expected cli.SignalOverflowBoundary) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:          locator.diagnostic.state,
 		property:         diagnosticPropertySignalOverflowBoundary,
 		overflowBoundary: expected,
 	}
+	return expectation
 }
 
 // EndpointIdentityPresent returns an outcome expectation that checks the overflow failure
 // carries a nonzero public signal-endpoint identity.
 func (locator DiagnosticSignalOverflowFailureLocator) EndpointIdentityPresent() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalOverflowEndpointPresent,
 	}
+	return expectation
 }
 
 // NoEndpoint returns an outcome expectation that checks the overflow failure explicitly carries
 // no endpoint identity; it does not infer absence from unrelated Diagnostic state.
 func (locator DiagnosticSignalOverflowFailureLocator) NoEndpoint() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalOverflowNoEndpoint,
 	}
+	return expectation
 }
 
 // Capacity returns a reusable outcome expectation that checks the public capacity exposed by
 // the located signal-overflow failure.
 func (locator DiagnosticSignalOverflowFailureLocator) Capacity(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalOverflowCapacity,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // Buffered returns a reusable outcome expectation that checks the public buffered count exposed
 // by the located signal-overflow failure.
 func (locator DiagnosticSignalOverflowFailureLocator) Buffered(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalOverflowBuffered,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an outcome expectation that the located Diagnostic has no structured SignalOverflow failure
 // payload.
 // It tests absence of that diagnostic detail, not absence of the Diagnostic itself.
 func (locator DiagnosticSignalOverflowFailureLocator) DoesNotExist() OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertySignalOverflowAbsent,
 	}
+	return expectation
 }
 
 // Index returns a reusable outcome expectation that checks the public index exposed by the
 // located Notice-delivery failure.
 func (locator DiagnosticNoticeDeliveryFailureLocator) Index(expected int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertyNoticeIndex,
 		integer:  expected,
 	}
+	return expectation
 }
 
 // Phase returns a reusable outcome expectation that checks the public phase exposed by the
 // located Notice-delivery failure.
 func (locator DiagnosticNoticeDeliveryFailureLocator) Phase(expected cli.NoticePhase) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:     locator.diagnostic.state,
 		property:    diagnosticPropertyNoticePhase,
 		noticePhase: expected,
 	}
+	return expectation
 }
 
 // Code returns a reusable outcome expectation that checks the public Notice code exposed by the
 // located Notice-delivery failure.
 func (locator DiagnosticNoticeDeliveryFailureLocator) Code(expected cli.NoticeCode) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:    locator.diagnostic.state,
 		property:   diagnosticPropertyNoticeCode,
 		noticeCode: expected,
 	}
+	return expectation
 }
 
 // CommandPathExactly returns a reusable outcome expectation that checks the complete command
 // path exactly in authoritative public order.
 func (locator DiagnosticNoticeDeliveryFailureLocator) CommandPathExactly(expected ...string) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.diagnostic.state,
 		property: diagnosticPropertyNoticeCommandPath,
 		strings:  slices.Clone(expected),
 	}
+	return expectation
 }
 
 type diagnosticInputGraphClosedExpectation struct{}
@@ -983,18 +1029,20 @@ func diagnosticReportFromInspection(inspection cli.Inspection) cli.DiagnosticRep
 }
 
 func diagnosticInputSourceExpectation(locator DiagnosticLocator, source InputSourceLocator) OutcomeExpectation {
-	return diagnosticInputSourceExpectationValue{
+	value := diagnosticInputSourceExpectationValue{
 		diagnostic: locator.state,
 		source:     source.state,
 	}
+	return value
 }
 
 func diagnosticProviderOutputExpectation(locator DiagnosticLocator, output cli.CommandProviderOutputLocator) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:        locator.state,
 		property:       diagnosticPropertyProviderOutput,
 		providerOutput: output,
 	}
+	return expectation
 }
 
 func diagnosticOriginsExactlyExpectation(locator DiagnosticLocator, origins []InputOriginLocator) OutcomeExpectation {
@@ -1002,17 +1050,19 @@ func diagnosticOriginsExactlyExpectation(locator DiagnosticLocator, origins []In
 	for i, origin := range origins {
 		states[i] = origin.state
 	}
-	return diagnosticOriginsExpectationValue{
+	value := diagnosticOriginsExpectationValue{
 		diagnostic: locator.state,
 		origins:    states,
 	}
+	return value
 }
 
 func diagnosticReplacementExpectation(locator DiagnosticLocator, replacement DeclarationIdentityLocator) OutcomeExpectation {
-	return diagnosticReplacementExpectationValue{
+	value := diagnosticReplacementExpectationValue{
 		diagnostic:  locator.state,
 		replacement: replacement,
 	}
+	return value
 }
 
 func evaluateDiagnosticIndexesExactly(subject evaluationField, indexes []int, expected []DiagnosticLocator, inspection cli.Inspection) evaluationResult {
@@ -1036,12 +1086,14 @@ func evaluateDiagnosticIndexesExactly(subject evaluationField, indexes []int, ex
 }
 
 func diagnosticSpanSourceLocator(diagnostic DiagnosticLocator) InputSourceLocator {
-	return InputSourceLocator{
-		state: &inputSourceLocatorState{
-			mode:       inputSourceLocatorDiagnosticSpan,
-			diagnostic: diagnostic.state,
-		},
+	state := &inputSourceLocatorState{
+		mode:       inputSourceLocatorDiagnosticSpan,
+		diagnostic: diagnostic.state,
 	}
+	locator := InputSourceLocator{
+		state: state,
+	}
+	return locator
 }
 
 func diagnosticSubjectForReport(subject DiagnosticSubject) (resolvedDiagnosticSubject, locatorResolutionStatus, evaluationField) {
@@ -1328,12 +1380,14 @@ func resolveDiagnosticStateForInspection(state *diagnosticLocatorState, inspecti
 }
 
 func tokenOriginLocator(parent TokenLocator) InputOriginLocator {
-	return InputOriginLocator{
-		state: &inputOriginLocatorState{
-			mode:  inputOriginLocatorToken,
-			token: parent.state,
-		},
+	state := &inputOriginLocatorState{
+		mode:  inputOriginLocatorToken,
+		token: parent.state,
 	}
+	locator := InputOriginLocator{
+		state: state,
+	}
+	return locator
 }
 
 func (diagnosticInputGraphClosedExpectation) diagnosticReportExpectation() {}
@@ -1429,7 +1483,10 @@ func (expectation diagnosticExpectation) expected() evaluationField {
 	case diagnosticPropertyInputRedacted:
 		return comparison(evaluationText("input redacted"), evaluationText("true"))
 	case diagnosticPropertySpan:
-		return property(evaluationText("span"), inputSpanField{value: expectation.span})
+		field := inputSpanField{
+			value: expectation.span,
+		}
+		return property(evaluationText("span"), field)
 	case diagnosticPropertySpanPositioned:
 		return evaluationText("positioned span")
 	case diagnosticPropertyReason:
@@ -1455,7 +1512,10 @@ func (expectation diagnosticExpectation) expected() evaluationField {
 	case diagnosticPropertyRuleOperandNoLiteral:
 		return evaluationText(fmt.Sprintf("rule operand %d literal absent", expectation.operand))
 	case diagnosticPropertyLiteralType:
-		return qualifySubject(evaluationText(fmt.Sprintf("rule operand %d literal", expectation.operand)), property(evaluationText("type"), valueTypeField{value: expectation.valueType}))
+		field := valueTypeField{
+			value: expectation.valueType,
+		}
+		return qualifySubject(evaluationText(fmt.Sprintf("rule operand %d literal", expectation.operand)), property(evaluationText("type"), field))
 	case diagnosticPropertyLiteralText:
 		return evaluationText(fmt.Sprintf("rule operand %d literal text", expectation.operand))
 	case diagnosticPropertyLiteralSensitive:
@@ -1469,7 +1529,10 @@ func (expectation diagnosticExpectation) expected() evaluationField {
 	case diagnosticPropertySignalActionPhase:
 		return evaluationText(fmt.Sprintf("signal-action phase=%v", expectation.signalPhase))
 	case diagnosticPropertySignalActionCommandPath:
-		return property(evaluationText("signal-action command-path"), stringCollectionField{values: expectation.strings})
+		field := stringCollectionField{
+			values: expectation.strings,
+		}
+		return property(evaluationText("signal-action command-path"), field)
 	case diagnosticPropertySignalActionKind:
 		return evaluationText(fmt.Sprintf("signal action kind=%v", expectation.signalActionKind))
 	case diagnosticPropertySignalActionName:
@@ -1479,17 +1542,29 @@ func (expectation diagnosticExpectation) expected() evaluationField {
 	case diagnosticPropertySignalEventOrigin:
 		return evaluationText(fmt.Sprintf("origin=%v", expectation.signalOrigin))
 	case diagnosticPropertySignalEventSender:
-		return property(evaluationText("sender"), signalSenderField{value: expectation.signalSender})
+		field := signalSenderField{
+			value: expectation.signalSender,
+		}
+		return property(evaluationText("sender"), field)
 	case diagnosticPropertySignalEventNoSender:
 		return evaluationText("sender absent")
 	case diagnosticPropertySignalEventPhase:
 		return evaluationText(fmt.Sprintf("phase=%v", expectation.signalPhase))
 	case diagnosticPropertySignalEventObservedAt:
-		return property(evaluationText("observed-at"), timeField{value: expectation.at})
+		field := timeField{
+			value: expectation.at,
+		}
+		return property(evaluationText("observed-at"), field)
 	case diagnosticPropertySignalEventFirstObservedAt:
-		return property(evaluationText("first-observed-at"), timeField{value: expectation.at})
+		field := timeField{
+			value: expectation.at,
+		}
+		return property(evaluationText("first-observed-at"), field)
 	case diagnosticPropertySignalEventLastObservedAt:
-		return property(evaluationText("last-observed-at"), timeField{value: expectation.at})
+		field := timeField{
+			value: expectation.at,
+		}
+		return property(evaluationText("last-observed-at"), field)
 	case diagnosticPropertySignalEventFirstOccurrence:
 		return evaluationText(fmt.Sprintf("first-occurrence=%d", expectation.integer))
 	case diagnosticPropertySignalEventLastOccurrence:
@@ -1515,7 +1590,10 @@ func (expectation diagnosticExpectation) expected() evaluationField {
 	case diagnosticPropertyNoticeCode:
 		return property(evaluationText("notice code"), quotedTextField(string(expectation.noticeCode)))
 	case diagnosticPropertyNoticeCommandPath:
-		return property(evaluationText("notice command-path"), stringCollectionField{values: expectation.strings})
+		field := stringCollectionField{
+			values: expectation.strings,
+		}
+		return property(evaluationText("notice command-path"), field)
 	default:
 		panic("clitest: invalid diagnostic property")
 	}
@@ -1629,7 +1707,10 @@ func (expectation diagnosticExpectation) match(diagnostic cli.Diagnostic) (bool,
 		}
 		switch expectation.property {
 		case diagnosticPropertyLiteralType:
-			return literal.Type == expectation.valueType, property(evaluationText("type"), valueTypeField{value: literal.Type})
+			field := valueTypeField{
+				value: literal.Type,
+			}
+			return literal.Type == expectation.valueType, property(evaluationText("type"), field)
 		case diagnosticPropertyLiteralText:
 			if literal.Text == expectation.text {
 				return true, evaluationText("")
@@ -1659,7 +1740,10 @@ func (expectation diagnosticExpectation) match(diagnostic cli.Diagnostic) (bool,
 		case diagnosticPropertySignalActionPhase:
 			return failure.Phase == expectation.signalPhase, evaluationText(fmt.Sprintf("phase=%v", failure.Phase))
 		case diagnosticPropertySignalActionCommandPath:
-			return slices.Equal(failure.CommandPath, expectation.strings), property(evaluationText("command-path"), stringCollectionField{values: failure.CommandPath})
+			field := stringCollectionField{
+				values: failure.CommandPath,
+			}
+			return slices.Equal(failure.CommandPath, expectation.strings), property(evaluationText("command-path"), field)
 		case diagnosticPropertySignalActionKind:
 			return failure.Action.Kind == expectation.signalActionKind, evaluationText(fmt.Sprintf("kind=%v", failure.Action.Kind))
 		case diagnosticPropertySignalActionName:
@@ -1676,7 +1760,10 @@ func (expectation diagnosticExpectation) match(diagnostic cli.Diagnostic) (bool,
 			if event.Sender == nil {
 				return false, evaluationText("sender is absent")
 			}
-			return *event.Sender == expectation.signalSender, property(evaluationText("sender"), signalSenderField{value: *event.Sender})
+			field := signalSenderField{
+				value: *event.Sender,
+			}
+			return *event.Sender == expectation.signalSender, property(evaluationText("sender"), field)
 		case diagnosticPropertySignalEventNoSender:
 			if event.Sender == nil {
 				return true, evaluationText("")
@@ -1685,11 +1772,20 @@ func (expectation diagnosticExpectation) match(diagnostic cli.Diagnostic) (bool,
 		case diagnosticPropertySignalEventPhase:
 			return event.Phase == expectation.signalPhase, evaluationText(fmt.Sprintf("phase=%v", event.Phase))
 		case diagnosticPropertySignalEventObservedAt:
-			return event.ObservedAt.Equal(expectation.at), property(evaluationText("observed-at"), timeField{value: event.ObservedAt})
+			field := timeField{
+				value: event.ObservedAt,
+			}
+			return event.ObservedAt.Equal(expectation.at), property(evaluationText("observed-at"), field)
 		case diagnosticPropertySignalEventFirstObservedAt:
-			return event.FirstObservedAt.Equal(expectation.at), property(evaluationText("first-observed-at"), timeField{value: event.FirstObservedAt})
+			field := timeField{
+				value: event.FirstObservedAt,
+			}
+			return event.FirstObservedAt.Equal(expectation.at), property(evaluationText("first-observed-at"), field)
 		case diagnosticPropertySignalEventLastObservedAt:
-			return event.LastObservedAt.Equal(expectation.at), property(evaluationText("last-observed-at"), timeField{value: event.LastObservedAt})
+			field := timeField{
+				value: event.LastObservedAt,
+			}
+			return event.LastObservedAt.Equal(expectation.at), property(evaluationText("last-observed-at"), field)
 		case diagnosticPropertySignalEventFirstOccurrence:
 			return event.FirstOccurrence == expectation.integer, evaluationText(fmt.Sprintf("first-occurrence=%d", event.FirstOccurrence))
 		case diagnosticPropertySignalEventLastOccurrence:
@@ -1738,7 +1834,10 @@ func (expectation diagnosticExpectation) match(diagnostic cli.Diagnostic) (bool,
 		case diagnosticPropertyNoticeCode:
 			return notice.Code == expectation.noticeCode, property(evaluationText("code"), quotedTextField(string(notice.Code)))
 		default:
-			return slices.Equal(notice.CommandPath, expectation.strings), property(evaluationText("command-path"), stringCollectionField{values: notice.CommandPath})
+			field := stringCollectionField{
+				values: notice.CommandPath,
+			}
+			return slices.Equal(notice.CommandPath, expectation.strings), property(evaluationText("command-path"), field)
 		}
 	default:
 		panic("clitest: invalid diagnostic property")

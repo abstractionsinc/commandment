@@ -31,7 +31,10 @@ func InspectionObservedValueDomainsExactly(domains ...ValueDomainLocator) Inspec
 	for index, domain := range domains {
 		states[index] = domain.state
 	}
-	return observedValueDomainsExpectation{domains: states}
+	expectation := observedValueDomainsExpectation{
+		domains: states,
+	}
+	return expectation
 }
 
 // InspectionObservedValueDomainEntriesExactly returns an Inspection expectation that the returned ValueDomainEntries
@@ -43,7 +46,10 @@ func InspectionObservedValueDomainEntriesExactly(entries ...ValueDomainEntryLoca
 	for index, entry := range entries {
 		states[index] = entry.state
 	}
-	return observedValueDomainEntriesExpectation{entries: states}
+	expectation := observedValueDomainEntriesExpectation{
+		entries: states,
+	}
+	return expectation
 }
 
 // ValueDomainEntryByID returns a locator for the exact public ValueDomainEntryID in the
@@ -55,158 +61,180 @@ func ValueDomainEntryByID(id cli.ValueDomainEntryID) ValueDomainEntryLocator {
 // Origin returns an expectation that checks the located value-domain entry has the
 // framework-established DeclarationOrigin expected.
 func (locator ValueDomainEntryLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return valueDomainEntryOriginExpectation{
+	expectation := valueDomainEntryOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located value-domain entry has the exact
 // public release-lifecycle metadata expected.
 func (locator ValueDomainEntryLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return valueDomainEntryReleaseLifecycleExpectation{
+	expectation := valueDomainEntryReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located value-domain entry has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator ValueDomainEntryLocator) NotReplaced() DeclarationExpectation {
-	return valueDomainEntryReplacementAbsenceExpectation{locator: locator.state}
+	expectation := valueDomainEntryReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located value-domain entry
 // replacement carries the expected public presentation text.
 func (locator ValueDomainEntryLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return valueDomainEntryReplacementPresentationExpectation{
+	expectation := valueDomainEntryReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located
 // value-domain entry replacement carries the expected migration-deprecation marker.
 func (locator ValueDomainEntryLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return valueDomainEntryReplacementTargetDeprecatedExpectation{
+	expectation := valueDomainEntryReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // Exists returns an expectation that checks the located value-domain entry exists in the
 // relevant public declaration observation.
 func (locator ValueDomainEntryLocator) Exists() DeclarationExpectation {
-	return valueDomainEntryExistenceExpectationValue{
+	value := valueDomainEntryExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located value-domain entry is absent
 // from a complete relevant public declaration domain; incomplete observation cannot
 // manufacture absence.
 func (locator ValueDomainEntryLocator) DoesNotExist() DeclarationExpectation {
-	return valueDomainEntryExistenceExpectationValue{
+	value := valueDomainEntryExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Kind returns an expectation that checks the value-domain entry has the requested
 // ValueDomainEntryKind.
 func (locator ValueDomainEntryLocator) Kind(v cli.ValueDomainEntryKind) DeclarationExpectation {
-	return valueDomainEntryKindExpectationValue{
+	value := valueDomainEntryKindExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Hidden returns an expectation that checks the value-domain entry is declared hidden.
 func (locator ValueDomainEntryLocator) Hidden() DeclarationExpectation {
-	return valueDomainEntryHiddenExpectationValue{locator: locator.state}
+	value := valueDomainEntryHiddenExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Lifecycle returns an expectation that checks the value-domain entry has the requested
 // declared lifecycle state.
 func (locator ValueDomainEntryLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return valueDomainEntryLifecycleExpectationValue{
+	value := valueDomainEntryLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the value-domain entry's replacement targets
 // the exact heterogeneous declaration identity identified by the supplied locator.
 func (locator ValueDomainEntryLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return valueDomainEntryReplacementExpectationValue{
+	value := valueDomainEntryReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located value-domain entry is available in
 // the effective public declaration observation (Reference or Inspection).
 func (locator ValueDomainEntryLocator) Available() EffectiveDeclarationExpectation {
-	return valueDomainEntryAvailabilityExpectationValue{
+	value := valueDomainEntryAvailabilityExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // Unavailable returns an expectation that checks the located value-domain entry is unavailable
 // in the effective public declaration observation (Reference or Inspection).
 func (locator ValueDomainEntryLocator) Unavailable() EffectiveDeclarationExpectation {
-	return valueDomainEntryAvailabilityExpectationValue{
+	value := valueDomainEntryAvailabilityExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Visible returns an expectation that checks the located value-domain entry is visible in the
 // effective public declaration observation (Reference or Inspection).
 func (locator ValueDomainEntryLocator) Visible() EffectiveDeclarationExpectation {
-	return valueDomainEntryVisibilityExpectationValue{
+	value := valueDomainEntryVisibilityExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // NotVisible returns an expectation that checks the located value-domain entry is not visible
 // in the effective public declaration observation (Reference or Inspection).
 func (locator ValueDomainEntryLocator) NotVisible() EffectiveDeclarationExpectation {
-	return valueDomainEntryVisibilityExpectationValue{
+	value := valueDomainEntryVisibilityExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Canonical returns an expectation that checks the value-domain entry's canonical-entry
 // relationship points to the requested exact entry identity.
 func (locator ValueDomainEntryLocator) Canonical(v ValueDomainEntryLocator) DeclarationExpectation {
-	return valueDomainEntryCanonicalExpectationValue{
+	value := valueDomainEntryCanonicalExpectationValue{
 		locator: locator.state,
 		target:  v.state,
 	}
+	return value
 }
 
 // SourceDescription returns a reusable Schema expectation that checks the public source
 // description exposed by the located value-domain entry.
 func (locator ValueDomainEntryLocator) SourceDescription(expected cli.Description) SchemaExpectation {
-	return valueDomainEntrySourceDescriptionExpectationValue{
+	value := valueDomainEntrySourceDescriptionExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // PresentedDescription returns a reusable declaration expectation that checks the public
 // presented description exposed by the located value-domain entry.
 func (locator ValueDomainEntryLocator) PresentedDescription(expected cli.Description) PresentedDeclarationExpectation {
-	return valueDomainEntryPresentedDescriptionExpectationValue{
+	value := valueDomainEntryPresentedDescriptionExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 func (ValueDomainEntryLocator) declarationIdentityLocator() {}
@@ -231,20 +259,22 @@ func (l ValueDomainLocator) EntryAt(index int) ValueDomainEntryLocator {
 // Exists returns an expectation that checks the located value domain exists in the relevant
 // public declaration observation.
 func (l ValueDomainLocator) Exists() DeclarationExpectation {
-	return valueDomainExistenceExpectationValue{
+	value := valueDomainExistenceExpectationValue{
 		locator:  l.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located value domain is absent from a
 // complete relevant public declaration domain; incomplete observation cannot manufacture
 // absence.
 func (l ValueDomainLocator) DoesNotExist() DeclarationExpectation {
-	return valueDomainExistenceExpectationValue{
+	value := valueDomainExistenceExpectationValue{
 		locator:  l.state,
 		expected: false,
 	}
+	return value
 }
 
 // Outcome returns an expectation that checks the inspected value domain has the requested
@@ -272,10 +302,11 @@ func (l ValueDomainLocator) EntriesExactly(values ...ValueDomainEntryLocator) De
 	for i, value := range values {
 		states[i] = value.state
 	}
-	return valueDomainEntriesExpectationValue{
+	expectation := valueDomainEntriesExpectationValue{
 		locator: l.state,
 		entries: states,
 	}
+	return expectation
 }
 
 // UsesExactly returns a declaration expectation that checks the value domain's complete uses
@@ -285,10 +316,11 @@ func (l ValueDomainLocator) UsesExactly(uses ...ValueDomainLocator) DeclarationE
 	for index, use := range uses {
 		states[index] = use.state
 	}
-	return valueDomainUsesExpectationValue{
+	value := valueDomainUsesExpectationValue{
 		locator: l.state,
 		uses:    states,
 	}
+	return value
 }
 
 type valueDomainEntryAvailabilityExpectationValue struct {
@@ -819,10 +851,11 @@ func selectSchemaValueDomainEntry(state *valueDomainEntryLocatorState, ids []cli
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  commandEntryAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("value-domain entry lookup domain is incomplete")
@@ -864,10 +897,11 @@ func selectReferenceValueDomainEntry(state *valueDomainEntryLocatorState, ids []
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  commandEntryAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("value-domain entry lookup domain is incomplete")
@@ -909,10 +943,11 @@ func selectInspectionValueDomainEntry(state *valueDomainEntryLocatorState, ids [
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  commandEntryAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("value-domain entry lookup domain is incomplete")
@@ -1015,10 +1050,14 @@ func evaluateValueDomainEntryReplacementPresentationInspection(expectation value
 }
 
 func valueDomainEntryIDLocator(id cli.ValueDomainEntryID) ValueDomainEntryLocator {
-	return ValueDomainEntryLocator{state: &valueDomainEntryLocatorState{
+	state := &valueDomainEntryLocatorState{
 		mode: valueDomainEntryLocatorByID,
 		id:   id,
-	}}
+	}
+	locator := ValueDomainEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func schemaValueDomainUseCoordinate(state *valueDomainLocatorState, schema *cli.Schema) (cli.ValueDomainUse, locatorResolutionStatus, evaluationField) {
@@ -1070,42 +1109,56 @@ func inspectionValueDomainUseCoordinate(state *valueDomainLocatorState, inspecti
 }
 
 func valueDomainEntryNameLocator(parent ValueDomainLocator, name string) ValueDomainEntryLocator {
-	return ValueDomainEntryLocator{state: &valueDomainEntryLocatorState{
+	state := &valueDomainEntryLocatorState{
 		mode:   valueDomainEntryLocatorName,
 		domain: parent.state,
 		name:   name,
-	}}
+	}
+	locator := ValueDomainEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueDomainEntryAtLocator(parent ValueDomainLocator, index int) ValueDomainEntryLocator {
-	return ValueDomainEntryLocator{state: &valueDomainEntryLocatorState{
+	state := &valueDomainEntryLocatorState{
 		mode:   valueDomainEntryLocatorIndex,
 		domain: parent.state,
 		index:  index,
-	}}
+	}
+	locator := ValueDomainEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueDomainUseLocator(value ValueLocator, kind cli.ValueDomainUseKind) ValueDomainLocator {
-	return ValueDomainLocator{state: &valueDomainLocatorState{
+	state := &valueDomainLocatorState{
 		valid: true,
 		value: value.state,
 		use:   kind,
-	}}
+	}
+	locator := ValueDomainLocator{
+		state: state,
+	}
+	return locator
 }
 
 func valueDomainOutcomeExpectation(locator ValueDomainLocator, outcome cli.ValueDomainOutcome) InspectionExpectation {
-	return domainPropertyExpectation{
+	expectation := domainPropertyExpectation{
 		locator: locator.state,
 		kind:    valueDomainPropertyOutcome,
 		outcome: outcome,
 	}
+	return expectation
 }
 
 func valueDomainInvocationScopedExpectation(locator ValueDomainLocator) InspectionExpectation {
-	return domainPropertyExpectation{
+	expectation := domainPropertyExpectation{
 		locator: locator.state,
 		kind:    valueDomainPropertyInvocationScoped,
 	}
+	return expectation
 }
 
 func valueDomainDependenciesExactlyExpectation(locator ValueDomainLocator, values []ValueLocator) InspectionExpectation {
@@ -1113,11 +1166,12 @@ func valueDomainDependenciesExactlyExpectation(locator ValueDomainLocator, value
 	for index, value := range values {
 		states[index] = value.state
 	}
-	return domainPropertyExpectation{
+	expectation := domainPropertyExpectation{
 		locator: locator.state,
 		kind:    valueDomainPropertyDependencies,
 		values:  states,
 	}
+	return expectation
 }
 
 func (valueDomainEntryAvailabilityExpectationValue) referenceExpectation() {}
@@ -1181,19 +1235,37 @@ func (valueDomainEntryReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation valueDomainEntryReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaValueDomainEntryLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation valueDomainEntryReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceValueDomainEntryLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation valueDomainEntryReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionValueDomainEntryLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (valueDomainEntryReplacementAbsenceExpectation) schemaExpectation() {}

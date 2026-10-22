@@ -31,9 +31,11 @@ func TestAuthoringRuleDependencyRequirednessIsPubliclyObservable(t *testing.T) {
 
 	type config = authoringPolicyRelationshipValueConfig
 	var requiredCalls, optionalCalls, optionalThenRequiredCalls, requiredThenOptionalCalls int
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			value := root.Values.String(&root.Config.Value)
 			root.Rule.Check("required", func(context.Context, *config, cli.Dependencies) (bool, error) {
@@ -57,7 +59,8 @@ func TestAuthoringRuleDependencyRequirednessIsPubliclyObservable(t *testing.T) {
 				return true, nil
 			}).DependsOn(value).DependsOn(value.OptionalDependency())
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	root := clitest.RootCommand()
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
@@ -510,7 +513,7 @@ func TestAuthoringAcceptanceRetainsDestinationResolutionPolicyDimensions(t *test
 	t.Parallel()
 	type config = policyNameTagsConfig
 	var got config
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "resolution",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
@@ -523,7 +526,8 @@ func TestAuthoringAcceptanceRetainsDestinationResolutionPolicyDimensions(t *test
 			root.Flags.Sequence(tags).Long("tag")
 		},
 		Run: func(_ context.Context, c *config) error { got = *c; return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	name := root.Flag("--name").Value()
 	tags := root.Flag("--tag").Value()
@@ -573,7 +577,7 @@ func TestResolutionPolicyValuesRetainExactDeclaredPolicy(t *testing.T) {
 	combine := func(order cli.ResolutionTierOrder) cli.ResolutionPolicy {
 		return cli.Value.CombineTiers(order)
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "policies",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
@@ -586,7 +590,8 @@ func TestResolutionPolicyValuesRetainExactDeclaredPolicy(t *testing.T) {
 			root.Flags.Sequence(tags).Long("tag")
 		},
 		Run: func(_ context.Context, c *config) error { got = *c; return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	name := root.Flag("--name").Value()
 	tags := root.Flag("--tag").Value()
@@ -699,27 +704,39 @@ func TestDefinitionAuthoringRejectsMalformedStaticPolicy(t *testing.T) {
 		name    string
 		declare func(*cli.CommandBuilder[config])
 	}{
-		{"invalid Rule code", func(root *cli.CommandBuilder[config]) {
-			root.Rule.Check(
-				"Bad Code",
-				func(context.Context, *config, cli.Dependencies) (bool, error) { return true, nil },
-			)
-		}},
-		{"invalid regexp", func(root *cli.CommandBuilder[config]) {
-			value := root.Values.String(&root.Config.Value)
-			root.Rule.Match(value, "[")
-		}},
-		{"invalid Advisory", func(root *cli.CommandBuilder[config]) {
-			root.Advisory.Always(cli.Advisory{
-				Code:     "bad",
-				Severity: cli.NoticeSeverityUnknown,
-				Message:  "message",
-			})
-		}},
-		{"zero Notice match", func(root *cli.CommandBuilder[config]) {
-			value := root.Values.String(&root.Config.Value)
-			root.Notice.SuppressWhen(root.When.Resolved(value), cli.NoticeMatch{})
-		}},
+		{
+			name: "invalid Rule code",
+			declare: func(root *cli.CommandBuilder[config]) {
+				root.Rule.Check(
+					"Bad Code",
+					func(context.Context, *config, cli.Dependencies) (bool, error) { return true, nil },
+				)
+			},
+		},
+		{
+			name: "invalid regexp",
+			declare: func(root *cli.CommandBuilder[config]) {
+				value := root.Values.String(&root.Config.Value)
+				root.Rule.Match(value, "[")
+			},
+		},
+		{
+			name: "invalid Advisory",
+			declare: func(root *cli.CommandBuilder[config]) {
+				root.Advisory.Always(cli.Advisory{
+					Code:     "bad",
+					Severity: cli.NoticeSeverityUnknown,
+					Message:  "message",
+				})
+			},
+		},
+		{
+			name: "zero Notice match",
+			declare: func(root *cli.CommandBuilder[config]) {
+				value := root.Values.String(&root.Config.Value)
+				root.Notice.SuppressWhen(root.When.Resolved(value), cli.NoticeMatch{})
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -936,7 +953,7 @@ func TestPolicyAnalysisFailuresPreservePolicy(t *testing.T) {
 	t.Run("rule evaluation failure", func(t *testing.T) {
 		t.Parallel()
 		cause := errors.New("rule failed")
-		app := clitest.Compile(t, cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
 				root.Rule.Check(
@@ -945,7 +962,8 @@ func TestPolicyAnalysisFailuresPreservePolicy(t *testing.T) {
 				)
 			},
 			Run: func(context.Context, *struct{}) error { return nil },
-		})
+		}
+		app := clitest.Compile(t, definition)
 		diagnostic := clitest.Diagnostic(cli.DiagnosticRuleEvaluationFailure).Rule("failed")
 		proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{})
 		proof.Require(t,
@@ -966,18 +984,21 @@ func TestPolicyAnalysisFailuresPreservePolicy(t *testing.T) {
 
 	t.Run("invalid rule result", func(t *testing.T) {
 		t.Parallel()
-		app := clitest.Compile(t, cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
 				root.Rule.Validate(
 					"invalid",
 					func(context.Context, *struct{}, cli.Dependencies) ([]cli.Violation, error) {
-						return []cli.Violation{{Kind: cli.ViolationUnknown}}, nil
+						return []cli.Violation{{
+							Kind: cli.ViolationUnknown,
+						}}, nil
 					},
 				)
 			},
 			Run: func(context.Context, *struct{}) error { return nil },
-		})
+		}
+		app := clitest.Compile(t, definition)
 		diagnostic := clitest.Diagnostic(cli.DiagnosticInvalidRuleResult).Rule("invalid")
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
 			clitest.FailsWith(diagnostic.Present()),
@@ -993,7 +1014,7 @@ func TestPolicyAnalysisFailuresPreservePolicy(t *testing.T) {
 	t.Run("advisory evaluation failure", func(t *testing.T) {
 		t.Parallel()
 		cause := errors.New("advisory failed")
-		app := clitest.Compile(t, cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
 				root.Advisory.Detect(
@@ -1006,7 +1027,8 @@ func TestPolicyAnalysisFailuresPreservePolicy(t *testing.T) {
 				)
 			},
 			Run: func(context.Context, *struct{}) error { return nil },
-		})
+		}
+		app := clitest.Compile(t, definition)
 		diagnostic := clitest.Diagnostic(cli.DiagnosticAdvisoryEvaluationFailure).Advisory("failed")
 		proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{})
 		proof.Require(t, clitest.FailsWith(diagnostic.Present()))
@@ -1024,15 +1046,20 @@ func TestPolicyAnalysisFailuresPreservePolicy(t *testing.T) {
 
 func TestPolicyFailureDetailsTruncatesViolations(t *testing.T) {
 	t.Parallel()
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			root.Rule.Validate("many", func(context.Context, *struct{}, cli.Dependencies) ([]cli.Violation, error) {
-				return []cli.Violation{{Kind: cli.ViolationInvalid}, {Kind: cli.ViolationInvalid}}, nil
+				return []cli.Violation{{
+					Kind: cli.ViolationInvalid,
+				}, {
+					Kind: cli.ViolationInvalid,
+				}}, nil
 			})
 		},
 		Run: func(context.Context, *struct{}) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Limits: cli.AnalysisLimits{
 			Diagnostics: 1,
@@ -1052,9 +1079,11 @@ func TestPolicyFailureDetailsTruncatesViolations(t *testing.T) {
 func TestPolicySkippedRuleAndUnmatchedAdvisoryPreservePublic(t *testing.T) {
 	t.Parallel()
 	type config = policyValueStringConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			value := root.Values.String(&root.Config.Value)
 			root.Values.Default(value, "default")
@@ -1067,7 +1096,8 @@ func TestPolicySkippedRuleAndUnmatchedAdvisoryPreservePublic(t *testing.T) {
 				Message:  "not matched",
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
 		root.RuleAt(0).ActivationOutcome(cli.EvaluationOutcomeUnsatisfied),
@@ -1079,9 +1109,11 @@ func TestPolicySkippedRuleAndUnmatchedAdvisoryPreservePublic(t *testing.T) {
 func TestPolicyBlockedDependenciesPreservePublic(t *testing.T) {
 	t.Parallel()
 	type config = policyValueStringConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			value := root.Values.String(&root.Config.Value)
 			root.Rule.Check("blocked", func(context.Context, *config, cli.Dependencies) (bool, error) {
@@ -1097,7 +1129,8 @@ func TestPolicyBlockedDependenciesPreservePublic(t *testing.T) {
 				Message:  "blocked",
 			}).DependsOn(value)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
 		root.Rule("blocked").Outcome(cli.EvaluationOutcomeSkipped),
@@ -1118,9 +1151,11 @@ func TestSelectedProfileEvaluatesOnlyItsValueAndPolicyGraph(t *testing.T) {
 
 	var activeSeedCalls, activeValueCalls, inactiveSeedCalls, inactiveValueCalls int
 	var activeRuleCalls, activeAdvisoryCalls, inactiveRuleCalls, inactiveAdvisoryCalls int
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			profileDomain := cli.Value.Domain(cli.Value.Assign[string](), func(domain *cli.ValueDomainBuilder[string]) {
 				domain.Value("active", "active")
@@ -1206,7 +1241,8 @@ func TestSelectedProfileEvaluatesOnlyItsValueAndPolicyGraph(t *testing.T) {
 				})
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	root := clitest.RootCommand()
 	profile := root.ValueAt(0)

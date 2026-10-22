@@ -30,82 +30,94 @@ func (l CommandLocator) AdvisoryAt(index int) AdvisoryLocator {
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (l CommandLocator) AdvisoriesExactly(values ...AdvisoryLocator) DeclarationExpectation {
-	return commandAdvisoriesExpectation{
+	expectation := commandAdvisoriesExpectation{
 		command: l.state,
 		items:   advisoryLocatorStates(values),
 	}
+	return expectation
 }
 
 // Activation returns a locator that follows the public activation relationship from the located
 // Advisory. The returned locator carries locator coordinates, not observed state.
 func (locator AdvisoryLocator) Activation() ConditionExpressionLocator {
-	return ConditionExpressionLocator{state: &conditionExpressionLocatorState{
+	state := &conditionExpressionLocatorState{
 		mode:     conditionExpressionLocatorAdvisoryActivation,
 		advisory: locator.state,
-	}}
+	}
+	conditionExpressionLocator := ConditionExpressionLocator{
+		state: state,
+	}
+	return conditionExpressionLocator
 }
 
 // Origin returns an expectation that checks the located advisory has the framework-established
 // DeclarationOrigin expected.
 func (locator AdvisoryLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return advisoryOriginExpectationValue{
+	value := advisoryOriginExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Exists returns an expectation that checks the located Advisory exists in the relevant public
 // declaration observation.
 func (locator AdvisoryLocator) Exists() DeclarationExpectation {
-	return advisoryExistenceExpectationValue{
+	value := advisoryExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located Advisory is absent from a
 // complete relevant public declaration domain; incomplete observation cannot manufacture
 // absence.
 func (locator AdvisoryLocator) DoesNotExist() DeclarationExpectation {
-	return advisoryExistenceExpectationValue{
+	value := advisoryExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Kind returns an expectation that checks the Advisory has the requested declared
 // AdvisoryKind.
 func (locator AdvisoryLocator) Kind(v cli.AdvisoryKind) DeclarationExpectation {
-	return advisoryKindExpectationValue{
+	value := advisoryKindExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Code returns an expectation that checks the Advisory carries the requested AdvisoryCode; the
 // code is metadata, not Advisory identity.
 func (locator AdvisoryLocator) Code(v cli.AdvisoryCode) DeclarationExpectation {
-	return advisoryCodeExpectationValue{
+	value := advisoryCodeExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Severity returns an expectation that checks the Advisory has the requested Notice severity.
 func (locator AdvisoryLocator) Severity(v cli.NoticeSeverity) DeclarationExpectation {
-	return advisorySeverityExpectationValue{
+	value := advisorySeverityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the Advisory has the requested declared
 // reachability.
 func (locator AdvisoryLocator) Reachability(v cli.Reachability) DeclarationExpectation {
-	return advisoryReachabilityExpectationValue{
+	value := advisoryReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Outcome returns an expectation that checks the Advisory's invocation-time outcome.
@@ -126,10 +138,11 @@ func (locator AdvisoryLocator) SubjectsExactly(values ...ValueLocator) Declarati
 	for i, value := range values {
 		states[i] = value.state
 	}
-	return advisoryValuesExpectationValue{
+	expectation := advisoryValuesExpectationValue{
 		locator:  locator.state,
 		expected: states,
 	}
+	return expectation
 }
 
 // DependenciesExactly returns an expectation that checks the Advisory declares exactly the
@@ -139,11 +152,12 @@ func (locator AdvisoryLocator) DependenciesExactly(values ...ValueLocator) Decla
 	for i, value := range values {
 		states[i] = value.state
 	}
-	return advisoryValuesExpectationValue{
+	expectation := advisoryValuesExpectationValue{
 		locator:      locator.state,
 		expected:     states,
 		dependencies: true,
 	}
+	return expectation
 }
 
 type commandAdvisoriesExpectation struct {
@@ -527,10 +541,11 @@ func compareAdvisoryStatesSchema(command cli.CommandSchema, states []*advisoryLo
 				}
 			}
 			if matches != 1 || matched != index {
-				return disprovedResult(label, evaluationText("ordered unambiguous advisory locators"), collectionCardinalityField{
+				field := collectionCardinalityField{
 					name:  semanticNameMatchesAdvisoryCodeRecords,
 					count: matches,
-				})
+				}
+				return disprovedResult(label, evaluationText("ordered unambiguous advisory locators"), field)
 			}
 		default:
 			return disprovedResult(label, evaluationText("advisory index/code locators"), evaluationText(fmt.Sprintf("invalid advisory locator at position %d", index)))
@@ -563,10 +578,11 @@ func compareAdvisoryStatesReference(command cli.CommandReference, states []*advi
 				}
 			}
 			if matches != 1 || matched != index {
-				return disprovedResult(label, evaluationText("ordered unambiguous advisory locators"), collectionCardinalityField{
+				field := collectionCardinalityField{
 					name:  semanticNameMatchesAdvisoryCodeRecords,
 					count: matches,
-				})
+				}
+				return disprovedResult(label, evaluationText("ordered unambiguous advisory locators"), field)
 			}
 		default:
 			return disprovedResult(label, evaluationText("advisory index/code locators"), evaluationText(fmt.Sprintf("invalid advisory locator at position %d", index)))
@@ -601,10 +617,11 @@ func compareAdvisoryStatesInspection(command cli.CommandInspection, states []*ad
 				}
 			}
 			if matches != 1 || matched != index {
-				return disprovedResult(label, evaluationText("ordered unambiguous advisory locators"), collectionCardinalityField{
+				field := collectionCardinalityField{
 					name:  semanticNameMatchesAdvisoryCodeRecords,
 					count: matches,
-				})
+				}
+				return disprovedResult(label, evaluationText("ordered unambiguous advisory locators"), field)
 			}
 		default:
 			return disprovedResult(label, evaluationText("advisory index/code locators"), evaluationText(fmt.Sprintf("invalid advisory locator at position %d", index)))
@@ -620,7 +637,10 @@ func advisoryCodeLocator(command CommandLocator, code cli.AdvisoryCode) Advisory
 		code:    code,
 	}
 
-	return AdvisoryLocator{state: state}
+	locator := AdvisoryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func advisoryIndexLocator(command CommandLocator, index int) AdvisoryLocator {
@@ -630,21 +650,26 @@ func advisoryIndexLocator(command CommandLocator, index int) AdvisoryLocator {
 		index:   index,
 	}
 
-	return AdvisoryLocator{state: state}
+	locator := AdvisoryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func advisoryOutcomeExpectation(locator AdvisoryLocator, status cli.AdvisoryOutcome) InspectionExpectation {
-	return advisoryOutcomeExpectationValue{
+	value := advisoryOutcomeExpectationValue{
 		locator:  locator.state,
 		expected: status,
 	}
+	return value
 }
 
 func advisoryActivationOutcomeExpectation(locator AdvisoryLocator, outcome cli.EvaluationOutcome) InspectionExpectation {
-	return advisoryActivationOutcomeExpectationValue{
+	value := advisoryActivationOutcomeExpectationValue{
 		locator:  locator.state,
 		expected: outcome,
 	}
+	return value
 }
 
 func (commandAdvisoriesExpectation) schemaExpectation() {}

@@ -77,7 +77,9 @@ func BenchmarkInspectProviderCommandSelection(b *testing.B) {
 				command: "provider-target",
 			},
 		} {
-			request := cli.InspectionRequest{Args: []string{target.command}}
+			request := cli.InspectionRequest{
+				Args: []string{target.command},
+			}
 			preflightProviderCommandSelection(b, app, request, target.command)
 			b.Run(fmt.Sprintf("BaseCommands=%d/Target=%s", base, target.name), func(b *testing.B) {
 				b.ReportAllocs()
@@ -90,9 +92,13 @@ func BenchmarkInspectProviderCommandSelection(b *testing.B) {
 func providerPublicationFixture(tb testing.TB, base, providers int) (cli.Application, cli.CompletionRequest) {
 	tb.Helper()
 	definition := cli.Definition[emptyConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
 			root.Subcommands.Command(cli.Command[emptyConfig]{
 				Name: "target",
@@ -100,7 +106,9 @@ func providerPublicationFixture(tb testing.TB, base, providers int) (cli.Applica
 					for index := range providers {
 						name := fmt.Sprintf("provider-%04d", index)
 						target.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[emptyConfig]) error {
-							batch.Command(cli.Command[emptyConfig]{Name: name})
+							batch.Command(cli.Command[emptyConfig]{
+								Name: name,
+							})
 							return nil
 						})
 					}
@@ -111,7 +119,9 @@ func providerPublicationFixture(tb testing.TB, base, providers int) (cli.Applica
 					Name: "bulk",
 					Declare: func(bulk *cli.CommandBuilder[emptyConfig]) {
 						for index := range base {
-							bulk.Subcommands.Command(cli.Command[emptyConfig]{Name: fmt.Sprintf("base-%04d", index)})
+							bulk.Subcommands.Command(cli.Command[emptyConfig]{
+								Name: fmt.Sprintf("base-%04d", index),
+							})
 						}
 					},
 				})
@@ -122,24 +132,34 @@ func providerPublicationFixture(tb testing.TB, base, providers int) (cli.Applica
 	if err != nil {
 		tb.Fatalf("provider publication compile: %v", err)
 	}
-	return app, cli.CompletionRequest{
-		Args:   []string{"target", ""},
-		Cursor: cli.CompletionCursor{Argument: 1},
+	cursor := cli.CompletionCursor{
+		Argument: 1,
 	}
+	request := cli.CompletionRequest{
+		Args:   []string{"target", ""},
+		Cursor: cursor,
+	}
+	return app, request
 }
 
 func providerPeerFixture(tb testing.TB, peers, outputs int) (cli.Application, cli.CompletionRequest) {
 	tb.Helper()
 	definition := cli.Definition[emptyConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
 			for index := range peers {
 				name := fmt.Sprintf("peer-%04d", index)
 				root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[emptyConfig]) error {
 					if outputs != 0 {
-						batch.Command(cli.Command[emptyConfig]{Name: name})
+						batch.Command(cli.Command[emptyConfig]{
+							Name: name,
+						})
 					}
 					return nil
 				})
@@ -150,26 +170,45 @@ func providerPeerFixture(tb testing.TB, peers, outputs int) (cli.Application, cl
 	if err != nil {
 		tb.Fatalf("provider peer compile: %v", err)
 	}
-	return app, cli.CompletionRequest{Args: []string{""}, Cursor: cli.CompletionCursor{Argument: 0}}
+	cursor := cli.CompletionCursor{
+		Argument: 0,
+	}
+	request := cli.CompletionRequest{
+		Args:   []string{""},
+		Cursor: cursor,
+	}
+	return app, request
 }
 
 func providerGrammarLocalityFixture(tb testing.TB, placement declarationPlacement, aliases int) (cli.Application, cli.InspectionRequest) {
 	tb.Helper()
 	definition := cli.Definition[emptyConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
-			root.Subcommands.Command(cli.Command[emptyConfig]{Name: "target"})
-			root.Subcommands.Command(cli.Command[emptyConfig]{Name: "decoy"})
+			root.Subcommands.Command(cli.Command[emptyConfig]{
+				Name: "target",
+			})
+			root.Subcommands.Command(cli.Command[emptyConfig]{
+				Name: "decoy",
+			})
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[emptyConfig]) error {
-				batch.Alias(cli.CommandPath{"target"}, cli.CommandAlias{Name: "selected"})
+				batch.Alias(cli.CommandPath{"target"}, cli.CommandAlias{
+					Name: "selected",
+				})
 				owner := cli.CommandPath{"decoy"}
 				if placement == placementSelected {
 					owner = cli.CommandPath{"target"}
 				}
 				for index := range aliases {
-					batch.Alias(owner, cli.CommandAlias{Name: fmt.Sprintf("variable-%04d", index)})
+					batch.Alias(owner, cli.CommandAlias{
+						Name: fmt.Sprintf("variable-%04d", index),
+					})
 				}
 				return nil
 			})
@@ -179,7 +218,9 @@ func providerGrammarLocalityFixture(tb testing.TB, placement declarationPlacemen
 	if err != nil {
 		tb.Fatalf("provider grammar locality compile: %v", err)
 	}
-	request := cli.InspectionRequest{Args: []string{"selected"}}
+	request := cli.InspectionRequest{
+		Args: []string{"selected"},
+	}
 	return app, request
 }
 
@@ -217,16 +258,26 @@ func preflightProviderGrammarLocality(tb testing.TB, app cli.Application, reques
 func providerCommandSelectionFixture(tb testing.TB, base int) cli.Application {
 	tb.Helper()
 	definition := cli.Definition[emptyConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
-			root.Subcommands.Command(cli.Command[emptyConfig]{Name: "static-target"})
+			root.Subcommands.Command(cli.Command[emptyConfig]{
+				Name: "static-target",
+			})
 			for index := range base {
-				root.Subcommands.Command(cli.Command[emptyConfig]{Name: fmt.Sprintf("base-%04d", index)})
+				root.Subcommands.Command(cli.Command[emptyConfig]{
+					Name: fmt.Sprintf("base-%04d", index),
+				})
 			}
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[emptyConfig]) error {
-				batch.Command(cli.Command[emptyConfig]{Name: "provider-target"})
+				batch.Command(cli.Command[emptyConfig]{
+					Name: "provider-target",
+				})
 				return nil
 			})
 		},

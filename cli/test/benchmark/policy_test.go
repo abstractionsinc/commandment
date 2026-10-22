@@ -29,7 +29,9 @@ func policyFixture(tb testing.TB, placement declarationPlacement, policies int) 
 	tb.Helper()
 	definition := cli.Definition[emptyConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
 			root.Subcommands.Command(cli.Command[emptyConfig]{
 				Name: "target",
@@ -53,7 +55,10 @@ func policyFixture(tb testing.TB, placement declarationPlacement, policies int) 
 	if err != nil {
 		tb.Fatalf("policy benchmark compile: %v", err)
 	}
-	return app, cli.InspectionRequest{Args: []string{"target"}}
+	request := cli.InspectionRequest{
+		Args: []string{"target"},
+	}
+	return app, request
 }
 
 func preflightPolicyInspection(tb testing.TB, app cli.Application, request cli.InspectionRequest, placement declarationPlacement, policies int) {

@@ -25,7 +25,9 @@ func Compile[C any](t testing.TB, definition cli.Definition[C]) cli.Application 
 		for i, diagnostic := range report.Diagnostics {
 			codes[i] = diagnostic.Code
 		}
-		actual = diagnosticCodeCollectionField{values: codes}
+		actual = diagnosticCodeCollectionField{
+			values: codes,
+		}
 	}
 	failEvaluationResults(t, disprovedResult(evaluationText("compilation"), evaluationText("success"), actual))
 	panic("clitest: testing.TB.FailNow returned")

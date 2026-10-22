@@ -26,7 +26,7 @@ func TestBindConfigurationStorageReplaysTypedFieldRelationship(t *testing.T) {
 	t.Parallel()
 	type config = authoringStorageNameNestConfig
 	var got config
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "storage-owned",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Int(&root.Config.Nest.Count).Long("count")
@@ -35,7 +35,8 @@ func TestBindConfigurationStorageReplaysTypedFieldRelationship(t *testing.T) {
 			got = *cfg
 			return nil
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestBindConfigurationStoragePreservesAuthoringSemantics(t *testing.T) {
 	t.Parallel()
 	type config = authoringStorageNestedConfig
 	var got config
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Int(&root.Config.Nested.Count).Long("count")
@@ -74,7 +75,8 @@ func TestBindConfigurationStoragePreservesAuthoringSemantics(t *testing.T) {
 			got = *cfg
 			return nil
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--count", "9"},
 	}); err != nil {
@@ -119,68 +121,98 @@ func TestAuthoringTransactionRejectsInvalidStagedRecords(t *testing.T) {
 		name       string
 		definition cli.Definition[config]
 	}{
-		{"embedded destination", cli.Definition[config]{
-			Name:    "tool",
-			Declare: func(root *cli.CommandBuilder[config]) { root.Flags.String(nil).Long("value") },
-		}},
-		{"argument options duplicate", cli.Definition[config]{
-			Name: "tool",
-			Declare: func(root *cli.CommandBuilder[config]) {
-				root.Arguments.String(&root.Config.Value, "value").Optional().Optional()
+		{
+			name: "embedded destination",
+			definition: cli.Definition[config]{
+				Name:    "tool",
+				Declare: func(root *cli.CommandBuilder[config]) { root.Flags.String(nil).Long("value") },
 			},
-		}},
-		{"argument options greedy minimal", cli.Definition[config]{
-			Name: "tool",
-			Declare: func(root *cli.CommandBuilder[config]) {
-				root.Arguments.String(&root.Config.Value, "value").Greedy().Minimal()
+		},
+		{
+			name: "argument options duplicate",
+			definition: cli.Definition[config]{
+				Name: "tool",
+				Declare: func(root *cli.CommandBuilder[config]) {
+					root.Arguments.String(&root.Config.Value, "value").Optional().Optional()
+				},
 			},
-		}},
-		{"literal end marker duplicate", cli.Definition[config]{
-			Name: "tool",
-			Declare: func(root *cli.CommandBuilder[config]) {
-				root.Arguments.Literal("stop").EndOfOptions().EndOfOptions()
+		},
+		{
+			name: "argument options greedy minimal",
+			definition: cli.Definition[config]{
+				Name: "tool",
+				Declare: func(root *cli.CommandBuilder[config]) {
+					root.Arguments.String(&root.Config.Value, "value").Greedy().Minimal()
+				},
 			},
-		}},
-		{"flag spelling", cli.Definition[config]{
-			Name:    "tool",
-			Declare: func(root *cli.CommandBuilder[config]) { root.Flags.Bool(&root.Config.Flag).Short(0) },
-		}},
-		{"flag spelling directive", cli.Definition[config]{
-			Name: "tool",
-			Declare: func(root *cli.CommandBuilder[config]) {
-				root.Flags.String(&root.Config.Value).
-					Long("value").
-					ValueForms(cli.FlagValueFormAssigned, cli.FlagValueFormAssigned)
+		},
+		{
+			name: "literal end marker duplicate",
+			definition: cli.Definition[config]{
+				Name: "tool",
+				Declare: func(root *cli.CommandBuilder[config]) {
+					root.Arguments.Literal("stop").EndOfOptions().EndOfOptions()
+				},
 			},
-		}},
-		{"command declaration", cli.Definition[config]{
-			Name: "tool",
-			Declare: func(root *cli.CommandBuilder[config]) {
-				root.Subcommands.Command(cli.Command[struct{}]{
-					Name: "",
-				})
+		},
+		{
+			name: "flag spelling",
+			definition: cli.Definition[config]{
+				Name:    "tool",
+				Declare: func(root *cli.CommandBuilder[config]) { root.Flags.Bool(&root.Config.Flag).Short(0) },
 			},
-		}},
-		{"dialect directive", cli.Definition[config]{
-			Name:    "tool",
-			Declare: func(root *cli.CommandBuilder[config]) { root.Dialect.FlagOrder(cli.FlagOrderUnknown) },
-		}},
-		{"resolution policies", cli.Definition[config]{
-			Name: "tool",
-			Declare: func(root *cli.CommandBuilder[config]) {
-				value := root.Values.String(&root.Config.Value)
-				root.Values.ResolveWith(value)
+		},
+		{
+			name: "flag spelling directive",
+			definition: cli.Definition[config]{
+				Name: "tool",
+				Declare: func(root *cli.CommandBuilder[config]) {
+					root.Flags.String(&root.Config.Value).
+						Long("value").
+						ValueForms(cli.FlagValueFormAssigned, cli.FlagValueFormAssigned)
+				},
 			},
-		}},
-		{"signal policy", cli.Definition[config]{
-			Name: "tool",
-			Declare: func(root *cli.CommandBuilder[config]) {
-				root.Signals.Policy(
-					root.Signals.Match.Interrupt().During(cli.SignalPhaseResolution).Each(),
-					root.Signals.Action.Abort(2),
-				)
+		},
+		{
+			name: "command declaration",
+			definition: cli.Definition[config]{
+				Name: "tool",
+				Declare: func(root *cli.CommandBuilder[config]) {
+					root.Subcommands.Command(cli.Command[struct{}]{
+						Name: "",
+					})
+				},
 			},
-		}},
+		},
+		{
+			name: "dialect directive",
+			definition: cli.Definition[config]{
+				Name:    "tool",
+				Declare: func(root *cli.CommandBuilder[config]) { root.Dialect.FlagOrder(cli.FlagOrderUnknown) },
+			},
+		},
+		{
+			name: "resolution policies",
+			definition: cli.Definition[config]{
+				Name: "tool",
+				Declare: func(root *cli.CommandBuilder[config]) {
+					value := root.Values.String(&root.Config.Value)
+					root.Values.ResolveWith(value)
+				},
+			},
+		},
+		{
+			name: "signal policy",
+			definition: cli.Definition[config]{
+				Name: "tool",
+				Declare: func(root *cli.CommandBuilder[config]) {
+					root.Signals.Policy(
+						root.Signals.Match.Interrupt().During(cli.SignalPhaseResolution).Each(),
+						root.Signals.Action.Abort(2),
+					)
+				},
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -220,13 +252,17 @@ func TestCommandDeclarationRejectsForeignParentStream(t *testing.T) {
 	clitest.Compile(t, cli.Definition[config]{
 		Name: "foreign",
 		Declare: func(root *cli.CommandBuilder[config]) {
-			foreign = root.Subcommands.Command(cli.Command[struct{}]{Name: "foreign-child"})
+			foreign = root.Subcommands.Command(cli.Command[struct{}]{
+				Name: "foreign-child",
+			})
 		},
 	})
 	clitest.CompileFails(t, cli.Definition[config]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
-			local := root.Subcommands.Command(cli.Command[struct{}]{Name: "local-child"})
+			local := root.Subcommands.Command(cli.Command[struct{}]{
+				Name: "local-child",
+			})
 			local.ReplacedBy(foreign)
 		},
 	}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
@@ -235,21 +271,27 @@ func TestCommandDeclarationRejectsForeignParentStream(t *testing.T) {
 func TestCommandDeclarationRejectsRepeatedDefaultAuthoring(t *testing.T) {
 	t.Parallel()
 	t.Run("duplicate unconditional", func(t *testing.T) {
+		t.Parallel()
 		clitest.CompileFails(t, cli.Definition[struct{}]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
-				root.Subcommands.Command(cli.Command[struct{}]{Name: "child"}).Default().Default()
+				root.Subcommands.Command(cli.Command[struct{}]{
+					Name: "child",
+				}).Default().Default()
 			},
 		}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 	})
 	t.Run("unconditional then conditional", func(t *testing.T) {
+		t.Parallel()
 		type config struct{ Gate string }
 		clitest.CompileFails(t, cli.Definition[config]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				gate := root.Values.String(&root.Config.Gate)
 				condition := root.When.Resolved(gate)
-				root.Subcommands.Command(cli.Command[struct{}]{Name: "child"}).
+				root.Subcommands.Command(cli.Command[struct{}]{
+					Name: "child",
+				}).
 					Default().DefaultWhen(condition)
 			},
 		}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
@@ -258,7 +300,7 @@ func TestCommandDeclarationRejectsRepeatedDefaultAuthoring(t *testing.T) {
 
 func TestAuthoringTransactionRejectsDuplicateLifecycleDirective(t *testing.T) {
 	t.Parallel()
-	proof := clitest.CompileFails(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -269,7 +311,8 @@ func TestAuthoringTransactionRejectsDuplicateLifecycleDirective(t *testing.T) {
 				IntroducedIn: "1",
 			})
 		},
-	})
+	}
+	proof := clitest.CompileFails(t, definition)
 	proof.Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 }
 
@@ -362,7 +405,7 @@ func TestDefinitionAuthoringLowersRootAndChildConfigurationFactories(t *testing.
 	type rootConfig = definitionAuthoringNameRootConfig
 	type childConfig = definitionAuthoringCountChildConfig
 	var rootSeen, childSeen bool
-	app := compileMustCompilePublic(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "commandment",
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			root.Flags.String(&root.Config.Name).Long("name")
@@ -375,7 +418,8 @@ func TestDefinitionAuthoringLowersRootAndChildConfigurationFactories(t *testing.
 			})
 		},
 		Run: func(_ context.Context, c *rootConfig) error { rootSeen = c.Name == "root"; return nil },
-	})
+	}
+	app := compileMustCompilePublic(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--name", "root"},
 	}); err != nil {
@@ -395,7 +439,7 @@ func TestCaptureDefinitionAuthoringPreservesDefinitionAuthoringSemantics(t *test
 	t.Parallel()
 	type config = definitionAuthoringNameConfig
 	var ran string
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Description: cli.Description{
 			Short: "short",
@@ -412,7 +456,8 @@ func TestCaptureDefinitionAuthoringPreservesDefinitionAuthoringSemantics(t *test
 			ran = cfg.Name
 			return nil
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--name", "value"},
 	}); err != nil {
@@ -560,16 +605,28 @@ func TestFlagAuthoringRejectsMissingOrContradictorySpellingGrammarAtomically(t *
 		name    string
 		declare func(*cli.CommandBuilder[config])
 	}{
-		{"missing spelling", func(root *cli.CommandBuilder[config]) { root.Flags.String(&root.Config.Value) }},
-		{"long joined", func(root *cli.CommandBuilder[config]) {
-			root.Flags.String(&root.Config.Value).Long("value").ValueForms(cli.FlagValueFormJoined)
-		}},
-		{"count forms", func(root *cli.CommandBuilder[config]) {
-			root.Flags.Count(&root.Config.Count).Short('v').ValueForms(cli.FlagValueFormJoined)
-		}},
-		{"fixed and implicit", func(root *cli.CommandBuilder[config]) {
-			root.Flags.String(&root.Config.Value).Short('x').FixedValue("a").ImplicitValue("b")
-		}},
+		{
+			name:    "missing spelling",
+			declare: func(root *cli.CommandBuilder[config]) { root.Flags.String(&root.Config.Value) },
+		},
+		{
+			name: "long joined",
+			declare: func(root *cli.CommandBuilder[config]) {
+				root.Flags.String(&root.Config.Value).Long("value").ValueForms(cli.FlagValueFormJoined)
+			},
+		},
+		{
+			name: "count forms",
+			declare: func(root *cli.CommandBuilder[config]) {
+				root.Flags.Count(&root.Config.Count).Short('v').ValueForms(cli.FlagValueFormJoined)
+			},
+		},
+		{
+			name: "fixed and implicit",
+			declare: func(root *cli.CommandBuilder[config]) {
+				root.Flags.String(&root.Config.Value).Short('x').FixedValue("a").ImplicitValue("b")
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -588,9 +645,11 @@ func TestFlagAuthoringRejectsMissingOrContradictorySpellingGrammarAtomically(t *
 func TestAuthoringAcceptancePreservesStructuralGrammarOwnershipFacts(t *testing.T) {
 	t.Parallel()
 	type config = selectionRootChildConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            "ownership",
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "ownership",
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Root).Long("root")
 			root.Subcommands.Command(cli.Command[config]{
@@ -598,7 +657,8 @@ func TestAuthoringAcceptancePreservesStructuralGrammarOwnershipFacts(t *testing.
 				Declare: func(child *cli.CommandBuilder[config]) { child.Flags.String(&child.Config.Child).Long("child") },
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	child := root.Command("child")
 	clitest.Schema(app).Require(
@@ -780,7 +840,9 @@ func TestCompileRejectsEmptyCommandNameAtAcceptance(t *testing.T) {
 	clitest.CompileFails(t, cli.Definition[struct{}]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
-			root.Subcommands.Command(cli.Command[struct{}]{Name: ""})
+			root.Subcommands.Command(cli.Command[struct{}]{
+				Name: "",
+			})
 		},
 	}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 }

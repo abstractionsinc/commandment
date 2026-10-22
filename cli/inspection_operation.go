@@ -280,9 +280,10 @@ func (operation *inspectionOperation) finish(ready bool) Inspection {
 }
 
 func rejectedInspection() Inspection {
-	return Inspection{
+	inspection := Inspection{
 		Status: InspectionStatusRejected,
 	}
+	return inspection
 }
 
 func dynamicDomainOutcomesComplete(outcomes map[int]dynamicDomainOutcome, demanded []int) bool {

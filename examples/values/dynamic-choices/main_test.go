@@ -15,7 +15,9 @@ func TestMoonChoicesDependOnTheSelectedSystem(t *testing.T) {
 	system := command.Flag("--system").Value()
 	moon := command.ArgumentFormAt(0).Term("moon").Value()
 	domain := moon.Domain(cli.ValueDomainUseDestination)
-	request := cli.InspectionRequest{Args: []string{"visit", "--system", "jovian", "europa"}}
+	request := cli.InspectionRequest{
+		Args: []string{"visit", "--system", "jovian", "europa"},
+	}
 	clitest.Inspect(t.Context(), app, request).Require(t,
 		clitest.InspectionReady(),
 		system.Text("jovian"),

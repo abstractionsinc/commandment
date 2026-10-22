@@ -39,9 +39,10 @@ type signalOccurrenceCounter struct {
 }
 
 func prepareSignalOccurrenceCounter() *signalOccurrenceCounter {
-	return &signalOccurrenceCounter{
+	counter := &signalOccurrenceCounter{
 		counts: make(map[SignalCounterID]uint64),
 	}
+	return counter
 }
 
 func (counter *signalOccurrenceCounter) Observe(id SignalCounterID) (uint64, error) {
@@ -80,10 +81,11 @@ func acceptSignalOccurrence(event signalAcceptedNotification, occurrence uint64)
 	if occurrence == 0 || event.Sequence() == 0 || !event.Watch().Valid() || !event.Notification().Valid() {
 		return runSignalOccurrence{}, errSignalOccurrenceInvalid
 	}
-	return runSignalOccurrence{
+	accepted := runSignalOccurrence{
 		event:      event,
 		occurrence: occurrence,
-	}, nil
+	}
+	return accepted, nil
 }
 
 func (occurrence runSignalOccurrence) Valid() bool {
@@ -261,30 +263,34 @@ type signalDispatchAction[C any] struct {
 }
 
 func signalBatchCallbackAction[C any](run func(context.Context, *C, signalDeliveryBatch) error) signalDispatchAction[C] {
-	return signalDispatchAction[C]{
+	action := signalDispatchAction[C]{
 		kind: signalDispatchActionCallback,
 		run:  run,
 	}
+	return action
 }
 
 func signalCancelDispatchAction[C any]() signalDispatchAction[C] {
-	return signalDispatchAction[C]{
+	action := signalDispatchAction[C]{
 		kind: signalDispatchActionCancel,
 	}
+	return action
 }
 
 func signalBatchAbortAction[C any](run func(context.Context, *C, signalDeliveryBatch) error) signalDispatchAction[C] {
-	return signalDispatchAction[C]{
+	action := signalDispatchAction[C]{
 		kind: signalDispatchActionAbort,
 		run:  run,
 	}
+	return action
 }
 
 func signalBatchReraiseAction[C any](run func(context.Context, *C, signalDeliveryBatch) error) signalDispatchAction[C] {
-	return signalDispatchAction[C]{
+	action := signalDispatchAction[C]{
 		kind: signalDispatchActionReraise,
 		run:  run,
 	}
+	return action
 }
 
 func (action signalDispatchAction[C]) valid() bool {
@@ -520,7 +526,10 @@ func (dispatcher *signalDispatcher[C]) DispatchBatch(policyID SignalPolicyID, ba
 	policy, ok := dispatcher.policies[policyID]
 	dispatcher.mu.Unlock()
 	if !ok {
-		return false, signalDispatchMissingPolicyError{policyID: policyID}
+		failure := signalDispatchMissingPolicyError{
+			policyID: policyID,
+		}
+		return false, failure
 	}
 	terminal, err := dispatcher.executePolicyBatch(ctx, config, batch, policy)
 	if err != nil || terminal {
@@ -1096,7 +1105,7 @@ func (routing *signalRouting) flushWindow(ctx context.Context, window *signalRou
 				continue
 			}
 			if err := routing.route(ctx, state); err != nil {
-				dispatchErr = errors.Join(err)
+				dispatchErr = err
 			}
 		}
 		if dispatchErr == nil {

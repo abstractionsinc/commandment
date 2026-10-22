@@ -16,7 +16,9 @@ func TestApproachValueUsesTheDeclaredChoices(t *testing.T) {
 	clitest.Schema(app).Require(t,
 		domain.EntriesExactly(domain.Entry("orbit"), domain.Entry("land"), domain.Entry("flyby")),
 	)
-	landRequest := cli.InspectionRequest{Args: []string{"visit", "--approach", "land", "europa"}}
+	landRequest := cli.InspectionRequest{
+		Args: []string{"visit", "--approach", "land", "europa"},
+	}
 	clitest.Inspect(t.Context(), app, landRequest).Require(t,
 		clitest.InspectionReady(),
 		approach.Text("land"),

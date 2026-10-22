@@ -99,14 +99,29 @@ func TestClosedExpectationFamiliesPreserveOperationApplicability(t *testing.T) {
 	}
 }
 
-// Static value declaration truth and Inspection observation/effective truth are deliberately disjoint.
+// TestValueExpectationAxesPreserveOperationApplicability keeps static declaration truth disjoint from Inspection observation and effective truth.
 func TestValueExpectationAxesPreserveOperationApplicability(t *testing.T) {
 	t.Parallel()
-	for name, expectation := range map[string]any{
-		"Exists":            clitest.ValueByID(1).Exists(),
-		"DoesNotExist":      clitest.ValueByID(1).DoesNotExist(),
-		"DeclaredSensitive": clitest.ValueByID(1).DeclaredSensitive(),
-	} {
+	staticCases := []struct {
+		name        string
+		expectation any
+	}{
+		{
+			name:        "Exists",
+			expectation: clitest.ValueByID(1).Exists(),
+		},
+		{
+			name:        "DoesNotExist",
+			expectation: clitest.ValueByID(1).DoesNotExist(),
+		},
+		{
+			name:        "DeclaredSensitive",
+			expectation: clitest.ValueByID(1).DeclaredSensitive(),
+		},
+	}
+	for _, test := range staticCases {
+		name := test.name
+		expectation := test.expectation
 		if _, ok := expectation.(clitest.StaticDeclarationExpectation); !ok {
 			t.Fatalf("%s no longer implements StaticDeclarationExpectation", name)
 		}
@@ -115,11 +130,26 @@ func TestValueExpectationAxesPreserveOperationApplicability(t *testing.T) {
 		}
 	}
 
-	for name, expectation := range map[string]any{
-		"Observed":    clitest.ValueByID(1).Observed(),
-		"NotObserved": clitest.ValueByID(1).NotObserved(),
-		"Sensitive":   clitest.ValueByID(1).Sensitive(),
-	} {
+	inspectionCases := []struct {
+		name        string
+		expectation any
+	}{
+		{
+			name:        "Observed",
+			expectation: clitest.ValueByID(1).Observed(),
+		},
+		{
+			name:        "NotObserved",
+			expectation: clitest.ValueByID(1).NotObserved(),
+		},
+		{
+			name:        "Sensitive",
+			expectation: clitest.ValueByID(1).Sensitive(),
+		},
+	}
+	for _, test := range inspectionCases {
+		name := test.name
+		expectation := test.expectation
 		if _, ok := expectation.(clitest.InspectionExpectation); !ok {
 			t.Fatalf("%s no longer implements InspectionExpectation", name)
 		}
@@ -129,7 +159,7 @@ func TestValueExpectationAxesPreserveOperationApplicability(t *testing.T) {
 	}
 }
 
-// TokenAt is the positive public spelling for an authoritative token-order coordinate.
+// TestTokenAtPublicCoordinate preserves TokenAt as the positive public spelling for an authoritative token-order coordinate.
 func TestTokenAtPublicCoordinate(t *testing.T) {
 	t.Parallel()
 	var expectation any = clitest.TokenAt(0).Role(cli.TokenRoleCommand)
@@ -151,9 +181,10 @@ func TestApplicationOwnedEffectsAndErrorsRemainOrdinaryGo(t *testing.T) {
 		Name: "ordinary-go-boundary",
 		Run: func(context.Context, *struct{}) error {
 			effects++
-			return &applicationOwnedError{
+			failure := &applicationOwnedError{
 				cause: sentinel,
 			}
+			return failure
 		},
 	}
 	app, err := cli.Compile(definition)

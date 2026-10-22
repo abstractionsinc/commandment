@@ -18,14 +18,15 @@ func (err *frontendActionError) Unwrap() error { return err.cause }
 
 func writeFrameworkOutput(operation *invocation, writer io.Writer, text, subject string) error {
 	if _, err := io.WriteString(writer, text); err != nil {
+		failure := &frontendActionError{
+			operation: "write " + subject + " output",
+			cause:     err,
+		}
 		return operationDiagnosticFailure(
 			operation,
 			DiagnosticOutputWriteFailure,
 			subject+" output write failure",
-			&frontendActionError{
-				operation: "write " + subject + " output",
-				cause:     err,
-			},
+			failure,
 		)
 	}
 	return nil
@@ -67,10 +68,11 @@ func executeVersionAction(ctx context.Context, snapshot *runState, model *effect
 	}
 	text, err := render(ctx, document, profile)
 	if err != nil {
-		return &frontendActionError{
+		failure := &frontendActionError{
 			operation: "render version output",
 			cause:     err,
 		}
+		return failure
 	}
 	return writeFrameworkOutput(snapshot.invocation, snapshot.stdout, text, "version")
 }
@@ -654,7 +656,7 @@ func runValueDiagnostics(model *effectiveModel, analysis valueAnalysis) []Diagno
 }
 
 func notRunnableCommandDiagnosticFailure(operation *invocation, command CommandID) error {
-	return retainDiagnosticFailure(payload{
+	failurePayload := payload{
 		Diagnostics: []diagnostic{{
 			Code:             string(DiagnosticNotRunnableCommand),
 			Message:          "selected command is not runnable",
@@ -662,7 +664,8 @@ func notRunnableCommandDiagnosticFailure(operation *invocation, command CommandI
 			Command:          command,
 		}},
 		Presentation: operation.FrameworkPresentation(),
-	}, nil)
+	}
+	return retainDiagnosticFailure(failurePayload, nil)
 }
 
 func runGrammarDiagnosticFailure(operation *invocation, grammar grammarResult) error {
@@ -744,9 +747,10 @@ func joinOrdered(errors ...error) error {
 	case 1:
 		return filtered[0]
 	default:
-		return &orderedError{
+		failure := &orderedError{
 			errors: filtered,
 		}
+		return failure
 	}
 }
 

@@ -23,56 +23,65 @@ func (l CommandLocator) NoticeSuppressionAt(index int) NoticeSuppressionLocator 
 // suppressions are exactly the supplied locators in authoritative public order. Exactness is not
 // inferred from an incomplete observation.
 func (l CommandLocator) NoticeSuppressionsExactly(values ...NoticeSuppressionLocator) DeclarationExpectation {
-	return commandNoticeSuppressionsExpectation{
+	expectation := commandNoticeSuppressionsExpectation{
 		command: l.state,
 		items:   noticeSuppressionLocatorStates(values),
 	}
+	return expectation
 }
 
 // ConditionExpression returns a reusable expectation that checks the public condition
 // expression exposed by the located Notice suppression.
 func (locator NoticeSuppressionLocator) ConditionExpression() ConditionExpressionLocator {
-	return ConditionExpressionLocator{state: &conditionExpressionLocatorState{
+	state := &conditionExpressionLocatorState{
 		mode:              conditionExpressionLocatorNoticeSuppression,
 		noticeSuppression: locator.state,
-	}}
+	}
+	conditionExpressionLocator := ConditionExpressionLocator{
+		state: state,
+	}
+	return conditionExpressionLocator
 }
 
 // Origin returns an expectation that checks the located notice suppression has the
 // framework-established DeclarationOrigin expected.
 func (locator NoticeSuppressionLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return noticeSuppressionOriginExpectationValue{
+	value := noticeSuppressionOriginExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Exists returns an expectation that checks the located Notice suppression exists in the
 // relevant public declaration observation.
 func (locator NoticeSuppressionLocator) Exists() DeclarationExpectation {
-	return noticeSuppressionExistenceExpectationValue{
+	value := noticeSuppressionExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located Notice suppression is absent
 // from a complete relevant public declaration domain; incomplete observation cannot
 // manufacture absence.
 func (locator NoticeSuppressionLocator) DoesNotExist() DeclarationExpectation {
-	return noticeSuppressionExistenceExpectationValue{
+	value := noticeSuppressionExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the Notice suppression has the requested
 // declared reachability.
 func (locator NoticeSuppressionLocator) Reachability(v cli.Reachability) DeclarationExpectation {
-	return noticeSuppressionReachabilityExpectationValue{
+	value := noticeSuppressionReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ConditionOutcome returns an expectation that checks the Notice suppression's invocation-time
@@ -84,10 +93,11 @@ func (locator NoticeSuppressionLocator) ConditionOutcome(outcome cli.EvaluationO
 // Match returns an expectation that checks the Notice suppression has exactly the requested
 // public NoticeMatch.
 func (locator NoticeSuppressionLocator) Match(v cli.NoticeMatch) DeclarationExpectation {
-	return noticeSuppressionMatchExpectationValue{
+	value := noticeSuppressionMatchExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 type commandNoticeSuppressionsExpectation struct {
@@ -263,14 +273,18 @@ func noticeSuppressionIndexLocator(command CommandLocator, index int) NoticeSupp
 		index:   index,
 	}
 
-	return NoticeSuppressionLocator{state: state}
+	locator := NoticeSuppressionLocator{
+		state: state,
+	}
+	return locator
 }
 
 func noticeSuppressionConditionOutcomeExpectation(locator NoticeSuppressionLocator, outcome cli.EvaluationOutcome) InspectionExpectation {
-	return noticeSuppressionConditionOutcomeExpectationValue{
+	value := noticeSuppressionConditionOutcomeExpectationValue{
 		locator:  locator.state,
 		expected: outcome,
 	}
+	return value
 }
 
 func (commandNoticeSuppressionsExpectation) schemaExpectation() {}
@@ -355,19 +369,37 @@ func (noticeSuppressionMatchExpectationValue) inspectionExpectation() {}
 func (expectation noticeSuppressionMatchExpectationValue) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaNoticeSuppressionLocator(expectation.locator, schema)
 	actual := resolution.value.Match
-	return declarationResolvedComparison(resolution.status, resolution.subject, resolution.detail, property(evaluationText("match"), noticeMatchField{value: expectation.expected}), property(evaluationText("match"), noticeMatchField{value: actual}), actual == expectation.expected)
+	field := noticeMatchField{
+		value: expectation.expected,
+	}
+	observedField := noticeMatchField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, resolution.subject, resolution.detail, property(evaluationText("match"), field), property(evaluationText("match"), observedField), actual == expectation.expected)
 }
 
 func (expectation noticeSuppressionMatchExpectationValue) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceNoticeSuppressionLocator(expectation.locator, reference)
 	actual := resolution.value.Match
-	return declarationResolvedComparison(resolution.status, resolution.subject, resolution.detail, property(evaluationText("match"), noticeMatchField{value: expectation.expected}), property(evaluationText("match"), noticeMatchField{value: actual}), actual == expectation.expected)
+	field := noticeMatchField{
+		value: expectation.expected,
+	}
+	observedField := noticeMatchField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, resolution.subject, resolution.detail, property(evaluationText("match"), field), property(evaluationText("match"), observedField), actual == expectation.expected)
 }
 
 func (expectation noticeSuppressionMatchExpectationValue) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionNoticeSuppressionLocator(expectation.locator, inspection)
 	actual := resolution.value.Match
-	return declarationResolvedComparison(resolution.status, resolution.subject, resolution.detail, property(evaluationText("match"), noticeMatchField{value: expectation.expected}), property(evaluationText("match"), noticeMatchField{value: actual}), actual == expectation.expected)
+	field := noticeMatchField{
+		value: expectation.expected,
+	}
+	observedField := noticeMatchField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, resolution.subject, resolution.detail, property(evaluationText("match"), field), property(evaluationText("match"), observedField), actual == expectation.expected)
 }
 
 func (noticeSuppressionOriginExpectationValue) schemaExpectation() {}

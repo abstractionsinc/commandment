@@ -219,38 +219,43 @@ func FailsWith(expectations ...DiagnosticReportExpectation) FailureExpectation {
 // EffectiveLocale checks the authoritative effective locale on each operation to which
 // the returned expectation is applicable.
 func EffectiveLocale(locale cli.Locale) EffectiveLocaleExpectation {
-	return effectiveLocaleExpectationValue{
+	value := effectiveLocaleExpectationValue{
 		locale: locale,
 	}
+	return value
 }
 
 // EvaluatedRelease checks the release value under which the observed declaration
 // was evaluated.
 func EvaluatedRelease(release string) ReleaseExpectation {
-	return releaseExpectationValue{
+	value := releaseExpectationValue{
 		release: release,
 	}
+	return value
 }
 
 // InspectionReady checks that the Inspection reached ready status.
 func InspectionReady() InspectionExpectation {
-	return inspectionStatusExpectation{
+	expectation := inspectionStatusExpectation{
 		status: cli.InspectionStatusReady,
 	}
+	return expectation
 }
 
 // InspectionRejected checks that the Inspection reached rejected status.
 func InspectionRejected() InspectionExpectation {
-	return inspectionStatusExpectation{
+	expectation := inspectionStatusExpectation{
 		status: cli.InspectionStatusRejected,
 	}
+	return expectation
 }
 
 // InspectionIncomplete checks that the Inspection reached incomplete status.
 func InspectionIncomplete() InspectionExpectation {
-	return inspectionStatusExpectation{
+	expectation := inspectionStatusExpectation{
 		status: cli.InspectionStatusIncomplete,
 	}
+	return expectation
 }
 
 // InspectionTruncated checks that the Inspection reports truncated output.

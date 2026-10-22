@@ -32,10 +32,11 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 	var inputRead windows.Handle
 	var inputWrite windows.Handle
 	if err := windows.CreatePipe(&inputRead, &inputWrite, nil, 0); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "create ConPTY input pipe",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	defer func() {
 		if inputRead != 0 {
@@ -49,10 +50,11 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 	var outputRead windows.Handle
 	var outputWrite windows.Handle
 	if err := windows.CreatePipe(&outputRead, &outputWrite, nil, 0); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "create ConPTY output pipe",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	defer func() {
 		if outputRead != 0 {
@@ -69,10 +71,11 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 		Y: int16(terminalRows),
 	}
 	if err := windows.CreatePseudoConsole(size, inputRead, outputWrite, 0, &console); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "create ConPTY",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	defer func() {
 		if console != 0 {
@@ -81,33 +84,37 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 	}()
 
 	if err := windows.CloseHandle(inputRead); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "release ConPTY input endpoint",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	inputRead = 0
 	if err := windows.CloseHandle(outputWrite); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "release ConPTY output endpoint",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	outputWrite = 0
 
 	attributes, err := windows.NewProcThreadAttributeList(1)
 	if err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "allocate ConPTY process attributes",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	defer attributes.Delete()
 	if err := attributes.Update(windows.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, unsafe.Pointer(&console), unsafe.Sizeof(console)); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "attach ConPTY process attribute",
 			cause:   err,
 		}
+		return nil, failure
 	}
 
 	job, err := createTerminalJob()
@@ -122,27 +129,30 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 
 	executableUTF16, err := windows.UTF16PtrFromString(executable)
 	if err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "encode shell executable",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	argv := make([]string, 0, len(args)+1)
 	argv = append(argv, executable)
 	argv = append(argv, args...)
 	commandLineUTF16, err := windows.UTF16FromString(windows.ComposeCommandLine(argv))
 	if err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "encode shell command line",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	workspaceUTF16, err := windows.UTF16PtrFromString(workspace)
 	if err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "encode shell working directory",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	environmentUTF16, err := windowsEnvironmentBlock(environment)
 	if err != nil {
@@ -158,10 +168,11 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 	var processInfo windows.ProcessInformation
 	flags := uint32(windows.EXTENDED_STARTUPINFO_PRESENT | windows.CREATE_SUSPENDED | windows.CREATE_UNICODE_ENVIRONMENT)
 	if err := windows.CreateProcess(executableUTF16, &commandLineUTF16[0], nil, nil, false, flags, &environmentUTF16[0], workspaceUTF16, &startup.StartupInfo, &processInfo); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "start ConPTY shell process",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	thread := processInfo.Thread
 	defer func() {
@@ -174,29 +185,35 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 	}()
 
 	if err := windows.AssignProcessToJobObject(job, processInfo.Process); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "assign shell process tree to job",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	if _, err := windows.ResumeThread(thread); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "resume shell process",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	if err := windows.CloseHandle(thread); err != nil {
-		return nil, failureError{
+		failure := failureError{
 			subject: "close shell primary thread handle",
 			cause:   err,
 		}
+		return nil, failure
 	}
 	thread = 0
 
 	input := os.NewFile(uintptr(inputWrite), "shelltest-conpty-input")
 	output := os.NewFile(uintptr(outputRead), "shelltest-conpty-output")
 	if input == nil || output == nil {
-		return nil, failureError{subject: "construct ConPTY stream handles"}
+		failure := failureError{
+			subject: "construct ConPTY stream handles",
+		}
+		return nil, failure
 	}
 	inputWrite = 0
 	outputRead = 0
@@ -220,19 +237,21 @@ func startTerminalProcess(parent context.Context, executable string, args []stri
 func createTerminalJob() (windows.Handle, error) {
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
-		return 0, failureError{
+		failure := failureError{
 			subject: "create shell process job",
 			cause:   err,
 		}
+		return 0, failure
 	}
 	var limits windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION
 	limits.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil {
 		_ = windows.CloseHandle(job)
-		return 0, failureError{
+		failure := failureError{
 			subject: "configure shell process job",
 			cause:   err,
 		}
+		return 0, failure
 	}
 	return job, nil
 }
@@ -258,7 +277,10 @@ func windowsEnvironmentBlock(environment []string) ([]uint16, error) {
 	for _, orderedEntry := range ordered {
 		entry := orderedEntry.value
 		if strings.IndexByte(entry, 0) >= 0 {
-			return nil, failureError{subject: "invalid shell environment entry"}
+			failure := failureError{
+				subject: "invalid shell environment entry",
+			}
+			return nil, failure
 		}
 		block = append(block, utf16.Encode([]rune(entry))...)
 		block = append(block, 0)

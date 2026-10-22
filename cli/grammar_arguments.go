@@ -64,10 +64,11 @@ func reduceArgumentFormClassifications(classifications []argumentFormClassificat
 		return argumentAllocation{}, result
 	}
 	if len(accepted) == 1 {
-		return argumentAllocation{
+		allocation := argumentAllocation{
 			Form:  accepted[0].form,
 			Terms: cloneTermAllocations(accepted[0].allocation),
-		}, grammarIssue{}
+		}
+		return allocation, grammarIssue{}
 	}
 	if len(rejected) != 0 {
 		result := grammarIssue{
@@ -79,10 +80,11 @@ func reduceArgumentFormClassifications(classifications []argumentFormClassificat
 		}
 		return argumentAllocation{}, result
 	}
-	return argumentAllocation{}, grammarIssue{
+	issue := grammarIssue{
 		Kind:       grammarIssueNoArgumentForm,
 		TokenIndex: tokenIndex,
 	}
+	return argumentAllocation{}, issue
 }
 
 func allocateArgumentForm(ctx context.Context, operation *invocation, analysis *analysisState, grammar grammarResult, valueLanguages grammarValueLanguageDemandFunc, forms []argumentFormGrammar, args []string, indices []int) (argumentAllocation, []argumentFormEvaluation, grammarIssue) {
@@ -194,10 +196,11 @@ func noArgumentFormMatchIssue(forms []argumentFormGrammar, args []string, indice
 
 		return result
 	}
-	return grammarIssue{
+	issue := grammarIssue{
 		Kind:       grammarIssueNoArgumentForm,
 		TokenIndex: firstIndex(indices),
 	}
+	return issue
 }
 
 func evaluateArgumentForm(ctx context.Context, operation *invocation, analysis *analysisState, grammar grammarResult, valueLanguages grammarValueLanguageDemandFunc, form argumentFormGrammar, allocation []termAllocation, args []string) (argumentFormEvaluationStatus, ArgumentTermID, error) {

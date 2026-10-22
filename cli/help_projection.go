@@ -17,7 +17,7 @@ type helpProjection struct {
 	target       CommandID
 	scope        []string
 	frontier     helpFrontier
-	defaults     map[CommandID]bool
+	defaults     map[CommandID]struct{}
 	providers    helpProviderOrigins
 	helpGroups   []helpGroupRecord
 	page         HelpPage
@@ -174,10 +174,11 @@ func localizedReleaseLifecycle(localization localizationSnapshot, locale Locale,
 }
 
 func localizedDescription(localization localizationSnapshot, locale Locale, description Description) Description {
-	return Description{
+	returnedDescription := Description{
 		Short: referenceText(localization, string(locale), description.Short),
 		Long:  referenceText(localization, string(locale), description.Long),
 	}
+	return returnedDescription
 }
 
 func localizedExamples(localization localizationSnapshot, locale Locale, examples []Example) []Example {
@@ -350,6 +351,7 @@ func (projection *helpProjection) commandGroups() []HelpCommandGroup {
 			}
 		}
 		path := helpCommandPathIDs(projection.model, entry.target)
+		_, isDefault := projection.defaults[entry.target]
 		origin := DeclarationOriginApplication
 		if _, provider := projection.providers.entries[entry.id]; provider {
 			origin = DeclarationOriginProvider
@@ -361,7 +363,7 @@ func (projection *helpProjection) commandGroups() []HelpCommandGroup {
 			TargetPath:     path,
 			Name:           entry.name,
 			Description:    localizedDescription(localization, projection.locale, description),
-			Default:        projection.defaults[entry.target],
+			Default:        isDefault,
 			Runnable:       projection.commandRunnable(entry.target),
 			HasSubcommands: projection.hasSubcommands(entry.target),
 			Release: localizedReleaseLifecycle(

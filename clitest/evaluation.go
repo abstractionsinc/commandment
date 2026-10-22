@@ -314,10 +314,11 @@ type locatorResolution[T any] struct {
 }
 
 func observed(subject semanticSubject, condition observationCondition) semanticObservation {
-	return semanticObservation{
+	observation := semanticObservation{
 		subject:   subject,
 		condition: condition,
 	}
+	return observation
 }
 
 func emptyEvaluationField(field evaluationField) bool {
@@ -329,58 +330,68 @@ func emptyEvaluationField(field evaluationField) bool {
 }
 
 func property(name, value evaluationField) semanticProperty {
-	return semanticProperty{
+	property := semanticProperty{
 		name:  name,
 		value: value,
 	}
+	return property
 }
 
 func qualifySubject(base, qualifier evaluationField) qualifiedSubject {
-	return qualifiedSubject{
+	subject := qualifiedSubject{
 		base:      base,
 		qualifier: qualifier,
 	}
+	return subject
 }
 
 func indexedSubject(noun evaluationField, index int, parent evaluationField) indexedRelationSubject {
-	return indexedRelationSubject{
+	subject := indexedRelationSubject{
 		noun:   noun,
 		index:  index,
 		parent: parent,
 	}
+	return subject
 }
 
 func subjectNamed(base evaluationField, name string) namedSubject {
-	return namedSubject{
+	subject := namedSubject{
 		base: base,
 		name: name,
 	}
+	return subject
 }
 
 func subjectAt(base evaluationField, index int) indexedSubjectField {
-	return indexedSubjectField{
+	field := indexedSubjectField{
 		base:  base,
 		index: index,
 	}
+	return field
 }
 
 func withDetail(prefix string, detail evaluationField) prefixedDetail {
-	return prefixedDetail{
+	result := prefixedDetail{
 		prefix: prefix,
 		detail: detail,
 	}
+	return result
 }
 
 func comparison(name, value evaluationField) comparisonField {
-	return comparisonField{
+	field := comparisonField{
 		name:      name,
 		separator: " = ",
 		value:     value,
 	}
+	return field
 }
 
 func provedResult() evaluationResult {
-	return evaluationResult{status: evaluationProved}
+	result := evaluationResult{
+		status: evaluationProved,
+	}
+	return result
 }
 
 func disprovedResult(subject, expect, actual evaluationField) evaluationResult {
@@ -414,21 +425,25 @@ func expectsOperationFailure[T any](expectations []T) bool {
 }
 
 func diagnosticByCode(code cli.DiagnosticCode) DiagnosticLocator {
-	return DiagnosticLocator{
-		state: &diagnosticLocatorState{
-			mode: diagnosticLocatorCode,
-			code: code,
-		},
+	state := &diagnosticLocatorState{
+		mode: diagnosticLocatorCode,
+		code: code,
 	}
+	locator := DiagnosticLocator{
+		state: state,
+	}
+	return locator
 }
 
 func diagnosticByIndex(index int) DiagnosticLocator {
-	return DiagnosticLocator{
-		state: &diagnosticLocatorState{
-			mode:  diagnosticLocatorIndex,
-			index: index,
-		},
+	state := &diagnosticLocatorState{
+		mode:  diagnosticLocatorIndex,
+		index: index,
 	}
+	locator := DiagnosticLocator{
+		state: state,
+	}
+	return locator
 }
 
 func diagnosticRule(locator DiagnosticLocator, code cli.RuleCode) DiagnosticLocator {
@@ -438,7 +453,10 @@ func diagnosticRule(locator DiagnosticLocator, code cli.RuleCode) DiagnosticLoca
 	state := *locator.state
 	state.ruleSet = true
 	state.rule = code
-	return DiagnosticLocator{state: &state}
+	diagnosticLocator := DiagnosticLocator{
+		state: &state,
+	}
+	return diagnosticLocator
 }
 
 func diagnosticAdvisory(locator DiagnosticLocator, code cli.AdvisoryCode) DiagnosticLocator {
@@ -448,7 +466,10 @@ func diagnosticAdvisory(locator DiagnosticLocator, code cli.AdvisoryCode) Diagno
 	state := *locator.state
 	state.advisorySet = true
 	state.advisory = code
-	return DiagnosticLocator{state: &state}
+	diagnosticLocator := DiagnosticLocator{
+		state: &state,
+	}
+	return diagnosticLocator
 }
 
 func diagnosticOn(locator DiagnosticLocator, subject DiagnosticSubject) DiagnosticLocator {
@@ -458,17 +479,22 @@ func diagnosticOn(locator DiagnosticLocator, subject DiagnosticSubject) Diagnost
 	state := *locator.state
 	state.subjectSet = true
 	state.subject = subject
-	return DiagnosticLocator{state: &state}
+	diagnosticLocator := DiagnosticLocator{
+		state: &state,
+	}
+	return diagnosticLocator
 }
 
 func diagnosticRepairAt(diagnostic DiagnosticLocator, index int) RepairLocator {
-	return RepairLocator{
-		state: &repairLocatorState{
-			mode:       repairLocatorDiagnosticIndex,
-			diagnostic: diagnostic.state,
-			index:      index,
-		},
+	state := &repairLocatorState{
+		mode:       repairLocatorDiagnosticIndex,
+		diagnostic: diagnostic.state,
+		index:      index,
 	}
+	locator := RepairLocator{
+		state: state,
+	}
+	return locator
 }
 
 func diagnosticAmbiguityActual(location diagnosticLocation) string {
@@ -479,121 +505,136 @@ func diagnosticAmbiguityActual(location diagnosticLocation) string {
 }
 
 func diagnosticPresentExpectation(locator DiagnosticLocator) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyPresent,
 	}
+	return expectation
 }
 
 func diagnosticAbsentExpectation(locator DiagnosticLocator) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyAbsent,
 	}
+	return expectation
 }
 
 func diagnosticCodeExpectation(locator DiagnosticLocator, code cli.DiagnosticCode) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyCode,
 		code:     code,
 	}
+	return expectation
 }
 
 func diagnosticViolationExpectation(locator DiagnosticLocator, kind cli.ViolationKind) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:   locator.state,
 		property:  diagnosticPropertyViolation,
 		violation: kind,
 	}
+	return expectation
 }
 
 func diagnosticProducerKindExpectation(locator DiagnosticLocator, kind cli.ValueProducerKind) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:      locator.state,
 		property:     diagnosticPropertyProducerKind,
 		producerKind: kind,
 	}
+	return expectation
 }
 
 func diagnosticTierExpectation(locator DiagnosticLocator, tier cli.ResolutionTier) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyTier,
 		tier:     tier,
 	}
+	return expectation
 }
 
 func diagnosticDispositionExpectation(locator DiagnosticLocator, disposition cli.ValueCandidateDisposition) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:     locator.state,
 		property:    diagnosticPropertyDisposition,
 		disposition: disposition,
 	}
+	return expectation
 }
 
 func diagnosticExitCodeExpectation(locator DiagnosticLocator, code int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyExitCode,
 		integer:  code,
 	}
+	return expectation
 }
 
 func diagnosticSensitiveExpectation(locator DiagnosticLocator) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertySensitive,
 	}
+	return expectation
 }
 
 func diagnosticInputRedactedExpectation(locator DiagnosticLocator) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyInputRedacted,
 	}
+	return expectation
 }
 
 func diagnosticSpanExpectation(locator DiagnosticLocator, span cli.InputSpan) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertySpan,
 		span:     span,
 	}
+	return expectation
 }
 
 func diagnosticRepairCountExpectation(locator DiagnosticLocator, count int) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:  locator.state,
 		property: diagnosticPropertyRepairCount,
 		integer:  count,
 	}
+	return expectation
 }
 
 func diagnosticSignalActionFailureExpectation(locator DiagnosticLocator, failure cli.SignalActionFailure) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:             locator.state,
 		property:            diagnosticPropertySignalActionFailure,
 		signalActionFailure: cloneSignalActionFailure(failure),
 	}
+	return expectation
 }
 
 func diagnosticSignalOverflowFailureExpectation(locator DiagnosticLocator, failure cli.SignalOverflowFailure) OutcomeExpectation {
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:               locator.state,
 		property:              diagnosticPropertySignalOverflowFailure,
 		signalOverflowFailure: failure,
 	}
+	return expectation
 }
 
 func diagnosticNoticeDeliveryFailureExpectation(locator DiagnosticLocator, failure cli.NoticeDeliveryFailure) OutcomeExpectation {
 	expected := failure
 	expected.CommandPath = slices.Clone(failure.CommandPath)
-	return diagnosticExpectation{
+	expectation := diagnosticExpectation{
 		locator:               locator.state,
 		property:              diagnosticPropertyNoticeDeliveryFailure,
 		noticeDeliveryFailure: expected,
 	}
+	return expectation
 }
 
 func cloneSignalActionFailure(input cli.SignalActionFailure) cli.SignalActionFailure {
@@ -640,11 +681,17 @@ func diagnosticsExactlyExpectation(locators []DiagnosticLocator) OutcomeExpectat
 	for index, locator := range locators {
 		states[index] = locator.state
 	}
-	return diagnosticsExactlyExpectationValue{locators: states}
+	value := diagnosticsExactlyExpectationValue{
+		locators: states,
+	}
+	return value
 }
 
 func summarizeOutcomes(outcomes []evaluationResult) evaluationField {
-	return evaluationSummary{outcomes: slices.Clone(outcomes)}
+	summary := evaluationSummary{
+		outcomes: slices.Clone(outcomes),
+	}
+	return summary
 }
 
 func declarationMissing(status locatorResolutionStatus, label, expected, detail evaluationField, truncated bool) evaluationResult {

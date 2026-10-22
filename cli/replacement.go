@@ -208,74 +208,82 @@ func (EnvironmentInputDeclaration[C, T]) environmentReplacementTarget(*C, *T) {}
 func (EnvironmentPrefixDeclaration[C, K, V]) environmentReplacementTarget(*C, *map[K]V) {}
 
 func (source CommandDeclaration[C]) authoringReplacementTarget() authoringReplacementTarget {
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:    authoringReplacementCommand,
 		session: source.session,
 		command: source.command,
 	}
+	return target
 }
 
 func (source FlagDeclaration[C, T]) authoringReplacementTarget() authoringReplacementTarget {
 	ref := source.flag
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:    authoringReplacementFlag,
 		session: source.state,
 		flag:    ref,
 	}
+	return target
 }
 
 func (source ArgumentDeclaration[C, T]) authoringReplacementTarget() authoringReplacementTarget {
 	ref := source.term
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:     authoringReplacementArgument,
 		session:  source.state,
 		argument: ref,
 	}
+	return target
 }
 
 func (source FlagSpellingDeclaration[C, T]) authoringReplacementTarget() authoringReplacementTarget {
 	ref := source.spelling
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:     authoringReplacementFlagSpelling,
 		session:  source.state,
 		spelling: ref,
 	}
+	return target
 }
 
 func (source EnvironmentInputDeclaration[C, T]) authoringReplacementTarget() authoringReplacementTarget {
 	ref := source.producer
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:        authoringReplacementEnvironment,
 		session:     source.state,
 		environment: ref,
 	}
+	return target
 }
 
 func (source EnvironmentPrefixDeclaration[C, K, V]) authoringReplacementTarget() authoringReplacementTarget {
 	ref := source.producer
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:        authoringReplacementEnvironment,
 		session:     source.state,
 		environment: ref,
 	}
+	return target
 }
 
 func (source ArgumentFormDeclaration[C]) authoringReplacementTarget() authoringReplacementTarget {
 	ref := source.form
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:         authoringReplacementArgumentForm,
 		session:      source.state,
 		argumentForm: ref,
 	}
+	return target
 }
 
 func (source ArgumentLiteralDeclaration[C]) authoringReplacementTarget() authoringReplacementTarget {
 	ref := source.term
-	return authoringReplacementTarget{
+	target := authoringReplacementTarget{
 		kind:     authoringReplacementArgumentLiteral,
 		session:  source.state,
 		argument: ref,
 	}
+	return target
 }
 
 func replaceDeclaration(source, target authoringReplacementCarrier) {
@@ -427,60 +435,66 @@ func commandEntryReplacementIdentity(id CommandEntryID) declarationReplacementId
 	if !id.present() {
 		panic("semantic: invalid command-entry replacement identity")
 	}
-	return declarationReplacementIdentity{
+	identity := declarationReplacementIdentity{
 		kind:         declarationReplacementKindCommandEntry,
 		commandEntry: id,
 	}
+	return identity
 }
 
 func flagReplacementIdentity(id FlagID) declarationReplacementIdentity {
 	if !id.present() {
 		panic("semantic: invalid flag replacement identity")
 	}
-	return declarationReplacementIdentity{
+	identity := declarationReplacementIdentity{
 		kind: declarationReplacementKindFlag,
 		flag: id,
 	}
+	return identity
 }
 
 func flagSpellingReplacementIdentity(id FlagSpellingID) declarationReplacementIdentity {
 	if !id.present() {
 		panic("semantic: invalid flag-spelling replacement identity")
 	}
-	return declarationReplacementIdentity{
+	identity := declarationReplacementIdentity{
 		kind:         declarationReplacementKindFlagSpelling,
 		flagSpelling: id,
 	}
+	return identity
 }
 
 func argumentFormReplacementIdentity(id ArgumentFormID) declarationReplacementIdentity {
 	if !id.present() {
 		panic("semantic: invalid argument-form replacement identity")
 	}
-	return declarationReplacementIdentity{
+	identity := declarationReplacementIdentity{
 		kind:         declarationReplacementKindArgumentForm,
 		argumentForm: id,
 	}
+	return identity
 }
 
 func argumentTermReplacementIdentity(id ArgumentTermID) declarationReplacementIdentity {
 	if !id.present() {
 		panic("semantic: invalid argument-term replacement identity")
 	}
-	return declarationReplacementIdentity{
+	identity := declarationReplacementIdentity{
 		kind:         declarationReplacementKindArgumentTerm,
 		argumentTerm: id,
 	}
+	return identity
 }
 
 func environmentInputReplacementIdentity(id EnvironmentInputID) declarationReplacementIdentity {
 	if !id.present() {
 		panic("semantic: invalid environment-input replacement identity")
 	}
-	return declarationReplacementIdentity{
+	identity := declarationReplacementIdentity{
 		kind:             declarationReplacementKindEnvironmentInput,
 		environmentInput: id,
 	}
+	return identity
 }
 
 func (identity declarationReplacementIdentity) Valid() bool {

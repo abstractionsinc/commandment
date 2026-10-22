@@ -143,71 +143,80 @@ func (rejectionConstructors) Message(code InputRejectionCode, message string, op
 
 // At attaches a half-open byte range [start, end) within one rejected token.
 func (rejectionConstructors) At(token, start, end int) rejectionOption {
-	return rejectionOption{
-		kind: rejectionOptionRange,
-		inputRange: inputRejectionRange{
-			firstToken: token,
-			firstByte:  start,
-			lastToken:  token,
-			lastByte:   end,
-		},
+	inputRange := inputRejectionRange{
+		firstToken: token,
+		firstByte:  start,
+		lastToken:  token,
+		lastByte:   end,
 	}
+	option := rejectionOption{
+		kind:       rejectionOptionRange,
+		inputRange: inputRange,
+	}
+	return option
 }
 
 // Across attaches an ordered parser-local range that may span tokens. Token indexes
 // and byte offsets are zero-based, and the ending byte offset is exclusive.
 func (rejectionConstructors) Across(firstToken, firstByte, lastToken, lastByte int) rejectionOption {
-	return rejectionOption{
-		kind: rejectionOptionRange,
-		inputRange: inputRejectionRange{
-			firstToken: firstToken,
-			firstByte:  firstByte,
-			lastToken:  lastToken,
-			lastByte:   lastByte,
-		},
+	inputRange := inputRejectionRange{
+		firstToken: firstToken,
+		firstByte:  firstByte,
+		lastToken:  lastToken,
+		lastByte:   lastByte,
 	}
+	option := rejectionOption{
+		kind:       rejectionOptionRange,
+		inputRange: inputRange,
+	}
+	return option
 }
 
 // Expected records distinct values that would have satisfied the parser.
 func (rejectionConstructors) Expected(values ...string) rejectionOption {
-	return rejectionOption{
+	option := rejectionOption{
 		kind:   rejectionOptionExpected,
 		values: append([]string(nil), values...),
 	}
+	return option
 }
 
 // Suggest records distinct alternative values suitable for presentation.
 func (rejectionConstructors) Suggest(values ...string) rejectionOption {
-	return rejectionOption{
+	option := rejectionOption{
 		kind:   rejectionOptionSuggest,
 		values: append([]string(nil), values...),
 	}
+	return option
 }
 
 // ReplaceWith records replacement tokens for the rejection range. It is valid only
 // when Message also receives At or Across.
 func (rejectionConstructors) ReplaceWith(tokens ...string) rejectionOption {
-	return rejectionOption{
+	option := rejectionOption{
 		kind:   rejectionOptionReplacement,
 		values: append([]string(nil), tokens...),
 	}
+	return option
 }
 
 // Hint attaches one nonempty human-facing hint to the rejection.
 func (rejectionConstructors) Hint(text string) rejectionOption {
-	return rejectionOption{
+	option := rejectionOption{
 		kind: rejectionOptionHint,
 		text: text,
 	}
+	return option
 }
 
 // Sensitive marks rejection presentation as protected. The Commandment substitutes safe
 // presentation and excludes sensitive rejection message/hint text from localization lookup and
 // audit surfaces.
 func (rejectionConstructors) Sensitive() rejectionOption {
-	return rejectionOption{
+	option := rejectionOption{
 		kind: rejectionOptionSensitive,
 	}
+	return option
 }
 
 func validInputRejectionRange(value inputRejectionRange) bool {

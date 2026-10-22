@@ -15,14 +15,19 @@ func TestFilesystemResponseFileSuppliesArgument(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	load := cli.ResponseFileRequest{Path: "crew.args", Base: "."}
+	load := cli.ResponseFileRequest{
+		Path: "crew.args",
+		Base: ".",
+	}
 	file := cli.ResponseFile{
 		Key:         "crew.args",
 		Location:    "crew.args",
 		IncludeBase: ".",
 		Content:     content,
 	}
-	files := clitest.ResponseFiles{Loads: map[cli.ResponseFileRequest]cli.ResponseFile{load: file}}
+	files := clitest.ResponseFiles{
+		Loads: map[cli.ResponseFileRequest]cli.ResponseFile{load: file},
+	}
 	request := cli.InspectionRequest{
 		Args:             []string{"hail", "@crew.args"},
 		WorkingDirectory: ".",

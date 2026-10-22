@@ -159,10 +159,11 @@ func (access accessCapability[C]) OptionalValue[O, T any](source destinationLike
 		if !ok {
 			return nil, false
 		}
-		return OptionalValue[T]{
+		value := OptionalValue[T]{
 			Value:   snapshot,
 			Present: true,
-		}, true
+		}
+		return value, true
 	}
 	stageTypedAccess(
 		access.config,
@@ -186,10 +187,11 @@ func (access accessCapability[C]) ValueState[O, T any](source destinationLike[O,
 		if !ok {
 			return nil, false
 		}
-		return OptionalValue[ValueState]{
+		value := OptionalValue[ValueState]{
 			Value:   state,
 			Present: true,
-		}, true
+		}
+		return value, true
 	}
 	stageTypedAccess(
 		access.config,

@@ -64,7 +64,9 @@ func TestStaticPolicyFamiliesUseCommandOwnedRecordsAcrossArtifacts(t *testing.T)
 		NoticeSuppressions: []cli.NoticeSuppressionSchema{suppressionSchema},
 	}
 	schema := cli.Schema{
-		Commands: map[cli.CommandID]cli.CommandSchema{commandID: commandSchema, targetID: {ID: targetID}},
+		Commands: map[cli.CommandID]cli.CommandSchema{commandID: commandSchema, targetID: {
+			ID: targetID,
+		}},
 		CommandDefaults: map[cli.CommandDefaultID]cli.CommandDefaultSchema{
 			defaultID: {
 				ID:           defaultID,
@@ -80,10 +82,16 @@ func TestStaticPolicyFamiliesUseCommandOwnedRecordsAcrossArtifacts(t *testing.T)
 				Dependencies: []cli.ValueID{dependencyID},
 			},
 		},
-		Flags: map[cli.FlagID]cli.FlagSchema{flagID: {ID: flagID}},
+		Flags: map[cli.FlagID]cli.FlagSchema{flagID: {
+			ID: flagID,
+		}},
 		Values: map[cli.ValueID]cli.ValueSchema{
-			subjectID:    {ID: subjectID},
-			dependencyID: {ID: dependencyID},
+			subjectID: {
+				ID: subjectID,
+			},
+			dependencyID: {
+				ID: dependencyID,
+			},
 		},
 	}
 
@@ -106,7 +114,9 @@ func TestStaticPolicyFamiliesUseCommandOwnedRecordsAcrossArtifacts(t *testing.T)
 		NoticeSuppressions: []cli.NoticeSuppressionSchema{suppressionSchema},
 	}
 	reference := cli.Reference{
-		Commands: map[cli.CommandID]cli.CommandReference{commandID: commandReference, targetID: {ID: targetID}},
+		Commands: map[cli.CommandID]cli.CommandReference{commandID: commandReference, targetID: {
+			ID: targetID,
+		}},
 		CommandDefaults: map[cli.CommandDefaultID]cli.CommandDefaultReference{
 			defaultID: {
 				ID:           defaultID,
@@ -122,10 +132,16 @@ func TestStaticPolicyFamiliesUseCommandOwnedRecordsAcrossArtifacts(t *testing.T)
 				Dependencies: []cli.ValueID{dependencyID},
 			},
 		},
-		Flags: map[cli.FlagID]cli.FlagReference{flagID: {ID: flagID}},
+		Flags: map[cli.FlagID]cli.FlagReference{flagID: {
+			ID: flagID,
+		}},
 		Values: map[cli.ValueID]cli.ValueReference{
-			subjectID:    {ValueSchema: cli.ValueSchema{ID: subjectID}},
-			dependencyID: {ValueSchema: cli.ValueSchema{ID: dependencyID}},
+			subjectID: {ValueSchema: cli.ValueSchema{
+				ID: subjectID,
+			}},
+			dependencyID: {ValueSchema: cli.ValueSchema{
+				ID: dependencyID,
+			}},
 		},
 	}
 
@@ -176,7 +192,9 @@ func TestStaticPolicyFamiliesUseCommandOwnedRecordsAcrossArtifacts(t *testing.T)
 		},
 	}
 	inspection := cli.Inspection{
-		Commands: map[cli.CommandID]cli.CommandInspection{commandID: commandInspection, targetID: {ID: targetID}},
+		Commands: map[cli.CommandID]cli.CommandInspection{commandID: commandInspection, targetID: {
+			ID: targetID,
+		}},
 		CommandDefaults: map[cli.CommandDefaultID]cli.CommandDefaultInspection{
 			defaultID: {
 				ID:               defaultID,
@@ -193,10 +211,16 @@ func TestStaticPolicyFamiliesUseCommandOwnedRecordsAcrossArtifacts(t *testing.T)
 				Dependencies: []cli.ValueID{dependencyID},
 			},
 		},
-		Flags: map[cli.FlagID]cli.FlagInspection{flagID: {ID: flagID}},
+		Flags: map[cli.FlagID]cli.FlagInspection{flagID: {
+			ID: flagID,
+		}},
 		Values: map[cli.ValueID]cli.ValueInspection{
-			subjectID:    {ID: subjectID},
-			dependencyID: {ID: dependencyID},
+			subjectID: {
+				ID: subjectID,
+			},
+			dependencyID: {
+				ID: dependencyID,
+			},
 		},
 	}
 
@@ -237,9 +261,23 @@ func TestStaticPolicyFamiliesUseCommandOwnedRecordsAcrossArtifacts(t *testing.T)
 		suppressionLocator.Match(match),
 	}
 	for _, expectation := range expectations {
-		(SchemaResult{state: &schemaResultState{observation: schema}}).Require(t, expectation)
-		(ReferenceResult{state: &referenceResultState{observation: reference, err: nil}}).Require(t, expectation)
-		(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t, expectation)
+		(SchemaResult{
+			state: &schemaResultState{
+				observation: schema,
+			},
+		}).Require(t, expectation)
+		(ReferenceResult{
+			state: &referenceResultState{
+				observation: reference,
+				err:         nil,
+			},
+		}).Require(t, expectation)
+		(InspectionResult{
+			state: &inspectionResultState{
+				observation: inspection,
+				err:         nil,
+			},
+		}).Require(t, expectation)
 	}
 }
 
@@ -254,7 +292,9 @@ func TestStaticPolicyRuntimeExpectationsUseInspectionOnlyState(t *testing.T) {
 			commandID: {
 				ID:              commandID,
 				CommandDefaults: []cli.CommandDefaultID{defaultID},
-				Conditions:      []cli.ConditionInspection{{Outcome: cli.EvaluationOutcomeSatisfied}},
+				Conditions: []cli.ConditionInspection{{
+					Outcome: cli.EvaluationOutcomeSatisfied,
+				}},
 				Rules: []cli.RuleInspection{
 					{
 						Code:              ruleCode,
@@ -268,7 +308,9 @@ func TestStaticPolicyRuntimeExpectationsUseInspectionOnlyState(t *testing.T) {
 					ActivationOutcome: cli.EvaluationOutcomeSatisfied,
 				}},
 				NoticeSuppressions: []cli.NoticeSuppressionInspection{
-					{ConditionOutcome: cli.EvaluationOutcomeSatisfied},
+					{
+						ConditionOutcome: cli.EvaluationOutcomeSatisfied,
+					},
 				},
 			},
 		},
@@ -280,7 +322,12 @@ func TestStaticPolicyRuntimeExpectationsUseInspectionOnlyState(t *testing.T) {
 		},
 	}
 	command := CommandByID(commandID)
-	(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t,
+	(InspectionResult{
+		state: &inspectionResultState{
+			observation: inspection,
+			err:         nil,
+		},
+	}).Require(t,
 		command.DefaultAt(0).ConditionOutcome(cli.EvaluationOutcomeSatisfied),
 		command.ConditionAt(0).Outcome(cli.EvaluationOutcomeSatisfied),
 		command.Rule(ruleCode).Outcome(cli.EvaluationOutcomeSatisfied),
@@ -296,7 +343,9 @@ func TestStaticPolicyExactCollectionsRefuseTruncatedMissingOwner(t *testing.T) {
 	expectation := CommandByID(commandID).Rule(cli.RuleCode("required")).DependenciesExactly(ValueByID(2))
 	inspection := cli.Inspection{
 		Truncated: true,
-		Commands:  map[cli.CommandID]cli.CommandInspection{commandID: {ID: commandID}},
+		Commands: map[cli.CommandID]cli.CommandInspection{commandID: {
+			ID: commandID,
+		}},
 	}
 	evaluator, evaluatorOK := expectation.(interface {
 		evaluateInspection(inspection cli.Inspection, err error) evaluationResult
@@ -314,10 +363,14 @@ func TestStaticPolicyNegativeExistencePublicSurface(t *testing.T) {
 	t.Parallel()
 	commandID := cli.CommandID(1)
 	schema := cli.Schema{
-		Commands: map[cli.CommandID]cli.CommandSchema{commandID: {ID: commandID}},
+		Commands: map[cli.CommandID]cli.CommandSchema{commandID: {
+			ID: commandID,
+		}},
 	}
 	reference := cli.Reference{
-		Commands: map[cli.CommandID]cli.CommandReference{commandID: {ID: commandID}},
+		Commands: map[cli.CommandID]cli.CommandReference{commandID: {
+			ID: commandID,
+		}},
 	}
 	inspection := cli.Inspection{
 		Commands: map[cli.CommandID]cli.CommandInspection{commandID: {
@@ -354,7 +407,9 @@ func TestStaticPolicyTypedResolversPreserveInvalidAndClosureStates(t *testing.T)
 	inspection := cli.Inspection{
 		Truncated: true,
 		Commands: map[cli.CommandID]cli.CommandInspection{
-			commandID: {ID: commandID},
+			commandID: {
+				ID: commandID,
+			},
 		},
 	}
 
@@ -362,12 +417,30 @@ func TestStaticPolicyTypedResolversPreserveInvalidAndClosureStates(t *testing.T)
 		name   string
 		status locatorResolutionStatus
 	}{
-		{name: "default negative index", status: resolveInspectionCommandDefaultLocator(CommandByID(commandID).DefaultAt(-1).state, inspection).status},
-		{name: "provider negative index", status: resolveInspectionCommandProviderLocator(CommandByID(commandID).ProviderAt(-1).state, inspection).status},
-		{name: "condition negative index", status: resolveInspectionConditionLocator(CommandByID(commandID).ConditionAt(-1).state, inspection).status},
-		{name: "rule negative index", status: resolveInspectionRuleLocator(CommandByID(commandID).RuleAt(-1).state, inspection).status},
-		{name: "advisory negative index", status: resolveInspectionAdvisoryLocator(CommandByID(commandID).AdvisoryAt(-1).state, inspection).status},
-		{name: "suppression negative index", status: resolveInspectionNoticeSuppressionLocator(CommandByID(commandID).NoticeSuppressionAt(-1).state, inspection).status},
+		{
+			name:   "default negative index",
+			status: resolveInspectionCommandDefaultLocator(CommandByID(commandID).DefaultAt(-1).state, inspection).status,
+		},
+		{
+			name:   "provider negative index",
+			status: resolveInspectionCommandProviderLocator(CommandByID(commandID).ProviderAt(-1).state, inspection).status,
+		},
+		{
+			name:   "condition negative index",
+			status: resolveInspectionConditionLocator(CommandByID(commandID).ConditionAt(-1).state, inspection).status,
+		},
+		{
+			name:   "rule negative index",
+			status: resolveInspectionRuleLocator(CommandByID(commandID).RuleAt(-1).state, inspection).status,
+		},
+		{
+			name:   "advisory negative index",
+			status: resolveInspectionAdvisoryLocator(CommandByID(commandID).AdvisoryAt(-1).state, inspection).status,
+		},
+		{
+			name:   "suppression negative index",
+			status: resolveInspectionNoticeSuppressionLocator(CommandByID(commandID).NoticeSuppressionAt(-1).state, inspection).status,
+		},
 	}
 	for _, tc := range cases {
 		if tc.status != locatorResolutionInvalid {
@@ -390,23 +463,38 @@ func TestStaticPolicyTypedRelationsPreserveTargetAndMatchSemantics(t *testing.T)
 	targetID := cli.CommandID(2)
 	defaultID := cli.CommandDefaultID(3)
 	flagID := cli.FlagID(4)
-	match := cli.NoticeMatch{Code: cli.NoticeDeprecatedFlag}
+	match := cli.NoticeMatch{
+		Code: cli.NoticeDeprecatedFlag,
+	}
 
 	schema := cli.Schema{
 		Commands: map[cli.CommandID]cli.CommandSchema{
 			commandID: {
 				ID: commandID,
 				Conditions: []cli.ConditionSchema{{
-					Target: cli.DeclarationIdentity{Kind: cli.DeclarationKindFlag, Flag: flagID},
+					Target: cli.DeclarationIdentity{
+						Kind: cli.DeclarationKindFlag,
+						Flag: flagID,
+					},
 				}},
-				NoticeSuppressions: []cli.NoticeSuppressionSchema{{Match: match}},
+				NoticeSuppressions: []cli.NoticeSuppressionSchema{{
+					Match: match,
+				}},
 			},
-			targetID: {ID: targetID},
+			targetID: {
+				ID: targetID,
+			},
 		},
 		CommandDefaults: map[cli.CommandDefaultID]cli.CommandDefaultSchema{
-			defaultID: {ID: defaultID, Parent: commandID, Target: targetID},
+			defaultID: {
+				ID:     defaultID,
+				Parent: commandID,
+				Target: targetID,
+			},
 		},
-		Flags: map[cli.FlagID]cli.FlagSchema{flagID: {ID: flagID}},
+		Flags: map[cli.FlagID]cli.FlagSchema{flagID: {
+			ID: flagID,
+		}},
 	}
 
 	expectations := []SchemaExpectation{

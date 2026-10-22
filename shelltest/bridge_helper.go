@@ -35,30 +35,36 @@ type bridgeBootstrap struct {
 func materializeBridgeHelper(workspace string, generation generatedCompletion, bridge *applicationBridge) (string, error) {
 	executable, err := os.Executable()
 	if err != nil {
-		return "", failureError{
+		failure := failureError{
 			subject: "resolve shelltest helper executable",
 			cause:   err,
 		}
+		return "", failure
 	}
 	relative := filepath.Join("bin", generation.generation.ApplicationName)
 	if err := copyWorkspaceExecutable(workspace, relative, executable); err != nil {
-		return "", failureError{
+		failure := failureError{
 			subject: "copy shelltest helper executable",
 			cause:   err,
 		}
+		return "", failure
 	}
 	bootstrap := encodeBridgeBootstrap(bridgeBootstrap{
 		endpoint:   bridge.endpoint,
 		capability: bridge.capability,
 	})
 	if len(bootstrap) > bridgeBootstrapLimit {
-		return "", failureError{subject: "application bridge bootstrap exceeds limit"}
+		failure := failureError{
+			subject: "application bridge bootstrap exceeds limit",
+		}
+		return "", failure
 	}
 	if err := createWorkspaceFile(workspace, relative+bridgeBootstrapSuffix, bootstrap, privateFileMode); err != nil {
-		return "", failureError{
+		failure := failureError{
 			subject: "create application bridge bootstrap",
 			cause:   err,
 		}
+		return "", failure
 	}
 	return filepath.Join(workspace, relative), nil
 }
@@ -69,27 +75,40 @@ func encodeBridgeBootstrap(bootstrap bridgeBootstrap) []byte {
 
 func decodeBridgeBootstrap(data []byte) (bridgeBootstrap, error) {
 	if len(data) == 0 || len(data) > bridgeBootstrapLimit {
-		return bridgeBootstrap{}, failureError{subject: "invalid application bridge bootstrap"}
+		failure := failureError{
+			subject: "invalid application bridge bootstrap",
+		}
+		return bridgeBootstrap{}, failure
 	}
 	parts := bytes.Split(data, []byte{'\n'})
 	if len(parts) != 4 || string(parts[0]) != "commandment-shelltest-bridge-v1" || len(parts[3]) != 0 {
-		return bridgeBootstrap{}, failureError{subject: "invalid application bridge bootstrap"}
+		failure := failureError{
+			subject: "invalid application bridge bootstrap",
+		}
+		return bridgeBootstrap{}, failure
 	}
 	endpoint := string(parts[1])
 	address, err := netip.ParseAddrPort(endpoint)
 	if err != nil || address.Addr() != netip.MustParseAddr("127.0.0.1") || address.Port() == 0 {
-		return bridgeBootstrap{}, failureError{subject: "invalid application bridge endpoint"}
+		failure := failureError{
+			subject: "invalid application bridge endpoint",
+		}
+		return bridgeBootstrap{}, failure
 	}
 	capabilityBytes, err := hex.DecodeString(string(parts[2]))
 	if err != nil || len(capabilityBytes) != bridgeCapabilityBytes || strings.ToLower(string(parts[2])) != string(parts[2]) {
-		return bridgeBootstrap{}, failureError{subject: "invalid application bridge capability"}
+		failure := failureError{
+			subject: "invalid application bridge capability",
+		}
+		return bridgeBootstrap{}, failure
 	}
 	var capability bridgeCapability
 	copy(capability[:], capabilityBytes)
-	return bridgeBootstrap{
+	bootstrap := bridgeBootstrap{
 		endpoint:   endpoint,
 		capability: capability,
-	}, nil
+	}
+	return bootstrap, nil
 }
 
 //nolint:gochecknoinits // The copied helper must branch before testing package startup; the adjacent sidecar is its only discriminator.

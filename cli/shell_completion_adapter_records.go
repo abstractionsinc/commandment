@@ -192,10 +192,11 @@ func writeShellCompletionAdapterRecord(writer io.Writer, kind string, fields ...
 		return errInvalidShellCompletionAdapter
 	}
 	if _, err := io.WriteString(writer, kind); err != nil {
-		return &shellCompletionAdapterError{
+		failure := &shellCompletionAdapterError{
 			detail: "write record kind",
 			cause:  err,
 		}
+		return failure
 	}
 	for _, field := range fields {
 		encoded, err := escapeShellCompletionAdapterRecordField(field)
@@ -203,17 +204,19 @@ func writeShellCompletionAdapterRecord(writer io.Writer, kind string, fields ...
 			return errInvalidShellCompletionAdapter
 		}
 		if _, err := io.WriteString(writer, "\t"+encoded); err != nil {
-			return &shellCompletionAdapterError{
+			failure := &shellCompletionAdapterError{
 				detail: "write record field",
 				cause:  err,
 			}
+			return failure
 		}
 	}
 	if _, err := io.WriteString(writer, "\n"); err != nil {
-		return &shellCompletionAdapterError{
+		failure := &shellCompletionAdapterError{
 			detail: "write record terminator",
 			cause:  err,
 		}
+		return failure
 	}
 	return nil
 }

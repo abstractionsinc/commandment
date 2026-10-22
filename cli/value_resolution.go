@@ -79,9 +79,10 @@ func prepareLazyValue[T any](fn func() (T, error)) *lazyValue[T] {
 	if fn == nil {
 		panic("invocation: nil candidate evaluator")
 	}
-	return &lazyValue[T]{
+	value := &lazyValue[T]{
 		fn: fn,
 	}
+	return value
 }
 
 func (lazy *lazyValue[T]) get() (T, error) {

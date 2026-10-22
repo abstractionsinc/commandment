@@ -382,17 +382,19 @@ func TestCompiledApplicationPublishesStaticPolicyAndEndpointFreeSignalSchema(t *
 			{
 				name: "handler callback",
 				plan: func(signals *cli.Signals[config]) cli.SignalActionPlan[config] {
-					return signals.Action.Handle(cli.SignalHandler[config]{
+					handler := cli.SignalHandler[config]{
 						Name: "missing",
-					}).ThenAbort(1)
+					}
+					return signals.Action.Handle(handler).ThenAbort(1)
 				},
 			},
 			{
 				name: "target callback",
 				plan: func(signals *cli.Signals[config]) cli.SignalActionPlan[config] {
-					return signals.Action.Forward(cli.SignalTarget[config]{
+					target := cli.SignalTarget[config]{
 						Name: "missing",
-					}).ThenAbort(1)
+					}
+					return signals.Action.Forward(target).ThenAbort(1)
 				},
 			},
 		} {
@@ -408,11 +410,12 @@ func TestCompiledApplicationPublishesStaticPolicyAndEndpointFreeSignalSchema(t *
 		}
 	})
 
-	clitest.Reference(app, cli.ReferenceOptions{
+	referenceOptions := cli.ReferenceOptions{
 		Locale:     "fr",
 		Visibility: cli.ReferenceVisibilityPublic,
 		Order:      cli.ReferenceOrderDeclaration,
-	}).Require(t,
+	}
+	clitest.Reference(app, referenceOptions).Require(t,
 		clitest.EffectiveLocale("fr"),
 		policy.Exists(),
 		policy.Visible(),
@@ -544,11 +547,12 @@ func TestCompilePublishesStaticArtifactAuthorityJoins(t *testing.T) {
 			if test.release != nil {
 				release = test.release()
 			}
-			app, err := cli.Compile(cli.Definition[config]{
+			definition := cli.Definition[config]{
 				Name:    "tool",
 				Release: release,
 				Declare: test.declare,
-			})
+			}
+			app, err := cli.Compile(definition)
 			if err != nil {
 				t.Fatalf("Compile() error = %v", err)
 			}
@@ -562,7 +566,7 @@ func TestSchemaProjectsStaticArtifactRepresentations(t *testing.T) {
 	t.Parallel()
 	type opaqueValue = schemaNumberOpaqueValue
 	type config = schemaNameItemsOpaqueEventsConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2", "3"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -579,7 +583,8 @@ func TestSchemaProjectsStaticArtifactRepresentations(t *testing.T) {
 			events := root.Signals.Endpoint(&root.Config.Events)
 			root.Signals.Policy(root.Signals.Match.Interrupt().Each(), root.Signals.Action.Emit(events))
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -637,7 +642,7 @@ func TestSchemaProjectsStaticArtifactRepresentations(t *testing.T) {
 func TestReplacementCompatibilityRejectsCrossFlagAndCrossCommandLiteral(t *testing.T) {
 	t.Parallel()
 	type config = schemaABConfig
-	validApp := schemaMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -650,10 +655,11 @@ func TestReplacementCompatibilityRejectsCrossFlagAndCrossCommandLiteral(t *testi
 			})
 			old.ReplacedBy(newer)
 		},
-	})
+	}
+	validApp := schemaMustCompilePublic(t, definition)
 	validProof := clitest.Schema(validApp)
 	validProof.Require(t, clitest.RootCommand().Exists())
-	_, err := cli.Compile(cli.Definition[config]{
+	definitionUnderTest := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -667,12 +673,13 @@ func TestReplacementCompatibilityRejectsCrossFlagAndCrossCommandLiteral(t *testi
 			})
 			old.ReplacedBy(newer)
 		},
-	})
+	}
+	_, err := cli.Compile(definitionUnderTest)
 	if err == nil {
 		t.Fatal("cross-flag spelling replacement accepted")
 	}
 
-	_, err = cli.Compile(cli.Definition[config]{
+	definitionUnderTest2 := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -700,7 +707,8 @@ func TestReplacementCompatibilityRejectsCrossFlagAndCrossCommandLiteral(t *testi
 			})
 			old.ReplacedBy(newer)
 		},
-	})
+	}
+	_, err = cli.Compile(definitionUnderTest2)
 	if err == nil {
 		t.Fatal("cross-command literal replacement accepted")
 	}
@@ -710,9 +718,11 @@ func TestSchemaRemainsStaticAcrossIndependentProviderOperations(t *testing.T) {
 	t.Parallel()
 	type config = schemaConfig
 	providerCalls := 0
-	app, err := cli.Compile(cli.Definition[config]{
-		Name:            "tool",
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
 				providerCalls++
@@ -722,7 +732,8 @@ func TestSchemaRemainsStaticAcrossIndependentProviderOperations(t *testing.T) {
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -818,11 +829,12 @@ func TestSpellingAndFiniteDomainPresentationMetadataProjectAcrossArtifacts(t *te
 func TestProjectApplicationSchemaPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -838,11 +850,12 @@ func TestProjectApplicationSchemaPreservesSchemaProjectionSemantics(t *testing.T
 func TestSchemaCommandPathPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -858,11 +871,12 @@ func TestSchemaCommandPathPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectSchemaCommandsAndEntriesPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -878,11 +892,12 @@ func TestProjectSchemaCommandsAndEntriesPreservesSchemaProjectionSemantics(t *te
 func TestProjectSchemaActionsAndGrammarPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -898,11 +913,12 @@ func TestProjectSchemaActionsAndGrammarPreservesSchemaProjectionSemantics(t *tes
 func TestProjectSchemaValuesAndDomainsPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -918,11 +934,12 @@ func TestProjectSchemaValuesAndDomainsPreservesSchemaProjectionSemantics(t *test
 func TestProjectSchemaStaticRelationsPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -938,11 +955,12 @@ func TestProjectSchemaStaticRelationsPreservesSchemaProjectionSemantics(t *testi
 func TestProjectLifecycleStatePreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -958,11 +976,12 @@ func TestProjectLifecycleStatePreservesSchemaProjectionSemantics(t *testing.T) {
 func TestValueTypePreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -978,11 +997,12 @@ func TestValueTypePreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectPublicDialectPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -998,11 +1018,12 @@ func TestProjectPublicDialectPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectStaticReachabilityPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1018,11 +1039,12 @@ func TestProjectStaticReachabilityPreservesSchemaProjectionSemantics(t *testing.
 func TestProjectGrammarProfileSetPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1038,11 +1060,12 @@ func TestProjectGrammarProfileSetPreservesSchemaProjectionSemantics(t *testing.T
 func TestProjectHelpPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1058,11 +1081,12 @@ func TestProjectHelpPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectCompletionPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1078,11 +1102,12 @@ func TestProjectCompletionPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectValueLiteralPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1098,11 +1123,12 @@ func TestProjectValueLiteralPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectShortcutDefaultValuesPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1118,11 +1144,12 @@ func TestProjectShortcutDefaultValuesPreservesSchemaProjectionSemantics(t *testi
 func TestProjectStaticDefaultPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1138,11 +1165,12 @@ func TestProjectStaticDefaultPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectValueDestinationKindPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1158,11 +1186,12 @@ func TestProjectValueDestinationKindPreservesSchemaProjectionSemantics(t *testin
 func TestDeclarationOriginPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1178,11 +1207,12 @@ func TestDeclarationOriginPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestActionEntryKindPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1198,11 +1228,12 @@ func TestActionEntryKindPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestInvocationActionPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1218,11 +1249,12 @@ func TestInvocationActionPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectFlagSpellingKindPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1238,11 +1270,12 @@ func TestProjectFlagSpellingKindPreservesSchemaProjectionSemantics(t *testing.T)
 func TestProjectArgumentTermKindPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1258,11 +1291,12 @@ func TestProjectArgumentTermKindPreservesSchemaProjectionSemantics(t *testing.T)
 func TestValueDomainEntryKindPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1278,11 +1312,12 @@ func TestValueDomainEntryKindPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestValueDomainUseKindPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1298,11 +1333,12 @@ func TestValueDomainUseKindPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestValueCandidateContributionPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1318,11 +1354,12 @@ func TestValueCandidateContributionPreservesSchemaProjectionSemantics(t *testing
 func TestFlagOrderPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1338,11 +1375,12 @@ func TestFlagOrderPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestShortClusteringPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1358,11 +1396,12 @@ func TestShortClusteringPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestNameMatchingPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1378,11 +1417,12 @@ func TestNameMatchingPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestNameNormalizationPreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1398,11 +1438,12 @@ func TestNameNormalizationPreservesSchemaProjectionSemantics(t *testing.T) {
 func TestDashlessModePreservesSchemaProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1418,11 +1459,12 @@ func TestDashlessModePreservesSchemaProjectionSemantics(t *testing.T) {
 func TestProjectStaticReplacementsPreservesReplacementProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1438,11 +1480,12 @@ func TestProjectStaticReplacementsPreservesReplacementProjectionSemantics(t *tes
 func TestProjectReplacementIdentityPreservesReplacementProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1458,11 +1501,12 @@ func TestProjectReplacementIdentityPreservesReplacementProjectionSemantics(t *te
 func TestReplacementPresentationPreservesReplacementProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1478,11 +1522,12 @@ func TestReplacementPresentationPreservesReplacementProjectionSemantics(t *testi
 func TestSetGenericReplacementPreservesReplacementProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1498,11 +1543,12 @@ func TestSetGenericReplacementPreservesReplacementProjectionSemantics(t *testing
 func TestActionEntryReplacementPresentationPreservesReplacementProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1518,11 +1564,12 @@ func TestActionEntryReplacementPresentationPreservesReplacementProjectionSemanti
 func TestDomainReplacementPresentationPreservesReplacementProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1538,11 +1585,12 @@ func TestDomainReplacementPresentationPreservesReplacementProjectionSemantics(t 
 func TestTargetDeprecatedDuringMigrationPreservesReplacementProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1558,11 +1606,12 @@ func TestTargetDeprecatedDuringMigrationPreservesReplacementProjectionSemantics(
 func TestProjectStaticSignalPoliciesPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1578,11 +1627,12 @@ func TestProjectStaticSignalPoliciesPreservesSignalProjectionSemantics(t *testin
 func TestProjectSignalPolicySchemaPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1598,11 +1648,12 @@ func TestProjectSignalPolicySchemaPreservesSignalProjectionSemantics(t *testing.
 func TestProjectSignalSelectorPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1618,11 +1669,12 @@ func TestProjectSignalSelectorPreservesSignalProjectionSemantics(t *testing.T) {
 func TestProjectSignalActionPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1638,11 +1690,12 @@ func TestProjectSignalActionPreservesSignalProjectionSemantics(t *testing.T) {
 func TestProjectSignalSelectorKindPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1658,11 +1711,12 @@ func TestProjectSignalSelectorKindPreservesSignalProjectionSemantics(t *testing.
 func TestProjectSignalAggregationPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1678,11 +1732,12 @@ func TestProjectSignalAggregationPreservesSignalProjectionSemantics(t *testing.T
 func TestProjectSignalActionKindPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1698,11 +1753,12 @@ func TestProjectSignalActionKindPreservesSignalProjectionSemantics(t *testing.T)
 func TestProjectSchemaSignalOriginPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1718,11 +1774,12 @@ func TestProjectSchemaSignalOriginPreservesSignalProjectionSemantics(t *testing.
 func TestProjectSignalPhaseSchemaPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1738,11 +1795,12 @@ func TestProjectSignalPhaseSchemaPreservesSignalProjectionSemantics(t *testing.T
 func TestProjectSignalHostCapabilitiesPreservesSignalProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1758,11 +1816,12 @@ func TestProjectSignalHostCapabilitiesPreservesSignalProjectionSemantics(t *test
 func TestProjectStaticPoliciesPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1778,11 +1837,12 @@ func TestProjectStaticPoliciesPreservesStaticPolicyProjectionSemantics(t *testin
 func TestProjectConditionTargetPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1798,11 +1858,12 @@ func TestProjectConditionTargetPreservesStaticPolicyProjectionSemantics(t *testi
 func TestProjectConditionEffectPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1818,11 +1879,12 @@ func TestProjectConditionEffectPreservesStaticPolicyProjectionSemantics(t *testi
 func TestProjectConditionExpressionPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1838,11 +1900,12 @@ func TestProjectConditionExpressionPreservesStaticPolicyProjectionSemantics(t *t
 func TestProjectPolicyConditionExpressionPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1858,11 +1921,12 @@ func TestProjectPolicyConditionExpressionPreservesStaticPolicyProjectionSemantic
 func TestDestinationSensitivePreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1878,11 +1942,12 @@ func TestDestinationSensitivePreservesStaticPolicyProjectionSemantics(t *testing
 func TestProjectRuleSchemaPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1898,11 +1963,12 @@ func TestProjectRuleSchemaPreservesStaticPolicyProjectionSemantics(t *testing.T)
 func TestProjectRuleOperandPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1918,11 +1984,12 @@ func TestProjectRuleOperandPreservesStaticPolicyProjectionSemantics(t *testing.T
 func TestRuleOperandLanguagePreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1938,11 +2005,12 @@ func TestRuleOperandLanguagePreservesStaticPolicyProjectionSemantics(t *testing.
 func TestProjectRuleFailurePreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1958,11 +2026,12 @@ func TestProjectRuleFailurePreservesStaticPolicyProjectionSemantics(t *testing.T
 func TestProjectRuleKindPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1978,11 +2047,12 @@ func TestProjectRuleKindPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 func TestProjectAdvisorySchemaPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -1998,11 +2068,12 @@ func TestProjectAdvisorySchemaPreservesStaticPolicyProjectionSemantics(t *testin
 func TestProjectAdvisoryKindPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -2018,11 +2089,12 @@ func TestProjectAdvisoryKindPreservesStaticPolicyProjectionSemantics(t *testing.
 func TestProjectNoticeSeverityPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -2038,11 +2110,12 @@ func TestProjectNoticeSeverityPreservesStaticPolicyProjectionSemantics(t *testin
 func TestProjectNoticeMatchPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -2058,11 +2131,12 @@ func TestProjectNoticeMatchPreservesStaticPolicyProjectionSemantics(t *testing.T
 func TestProjectValueProducerKindPreservesStaticPolicyProjectionSemantics(t *testing.T) {
 	t.Parallel()
 	type config = schemaNameSecretItemsEventsConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: declareSchemaProjectionFixture,
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Exists(),
 		clitest.Command("child").Exists(),
@@ -2224,7 +2298,7 @@ func TestValueDomainUseKind(t *testing.T) {
 func TestProjectReplacementIdentity(t *testing.T) {
 	t.Parallel()
 	type config = schemaOldNewLegacyCurrentConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2", "3"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -2245,7 +2319,8 @@ func TestProjectReplacementIdentity(t *testing.T) {
 				})
 			oldEnv.ReplacedBy(newEnv)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Flag("--old").ReplacedBy(clitest.RootCommand().Flag("--new")),
@@ -2256,7 +2331,7 @@ func TestProjectReplacementIdentity(t *testing.T) {
 func TestReplacementPresentation(t *testing.T) {
 	t.Parallel()
 	type config = schemaOldFlagNewFlagOldArgNewArgOldEnvNewEnvOldMapNewMapConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2", "3"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -2299,7 +2374,8 @@ func TestReplacementPresentation(t *testing.T) {
 			})
 			oldPrefix.ReplacedBy(newPrefix)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Flag("--old").ReplacementPresentation("-n"),
@@ -2312,7 +2388,7 @@ func TestReplacementPresentation(t *testing.T) {
 func TestSetGenericReplacement(t *testing.T) {
 	t.Parallel()
 	type config = schemaOldNewLegacyCurrentConfig2
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2", "3"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -2333,7 +2409,8 @@ func TestSetGenericReplacement(t *testing.T) {
 				})
 			oldEnv.ReplacedBy(newEnv)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Flag("--old").ReplacedBy(clitest.RootCommand().Flag("--new")),
@@ -2344,7 +2421,7 @@ func TestSetGenericReplacement(t *testing.T) {
 func TestTargetDeprecatedDuringMigration(t *testing.T) {
 	t.Parallel()
 	type config = schemaValuesConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2", "3", "4"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -2384,7 +2461,8 @@ func TestTargetDeprecatedDuringMigration(t *testing.T) {
 			})
 			g.ReplacedBy(h)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().Flag("--a").Spelling("--a").ReplacementTargetDeprecatedDuringMigration(true),
@@ -2607,15 +2685,19 @@ func TestProjectSignalActionKind(t *testing.T) {
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			source := root.Signals.Source(cli.SignalSource[string]{
 				Signals: []cli.SignalDescriptor[string]{
-					{Signal: "relay", Fidelity: cli.SignalSourceDeliveryFidelityExact},
+					{
+						Signal:   "relay",
+						Fidelity: cli.SignalSourceDeliveryFidelityExact,
+					},
 				},
 				Open: func(context.Context) (cli.SignalStream[string], error) {
-					return cli.SignalStream[string]{
+					stream := cli.SignalStream[string]{
 						Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 							<-ctx.Done()
 							return cli.SignalNotification[string]{}, ctx.Err()
 						},
-					}, nil
+					}
+					return stream, nil
 				},
 			})
 			root.Signals.Policy(

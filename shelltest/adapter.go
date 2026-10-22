@@ -75,10 +75,11 @@ func decodeShellAdapterRequest(input []byte) (shellAdapterRequest, error) {
 	reader := bufio.NewReader(bytes.NewReader(input))
 	prelude, err := reader.ReadString('\n')
 	if err != nil {
-		return shellAdapterRequest{}, failureError{
+		failure := failureError{
 			subject: "decode shell completion prelude",
 			detail:  boundedFailureDetail(err.Error()),
 		}
+		return shellAdapterRequest{}, failure
 	}
 	var codec shellAdapterCodec
 	switch prelude {
@@ -87,7 +88,10 @@ func decodeShellAdapterRequest(input []byte) (shellAdapterRequest, error) {
 	case "records\n":
 		codec = shellAdapterCodecRecords
 	default:
-		return shellAdapterRequest{}, failureError{subject: "invalid shell completion prelude"}
+		failure := failureError{
+			subject: "invalid shell completion prelude",
+		}
+		return shellAdapterRequest{}, failure
 	}
 	var request shellAdapterRequest
 	switch codec {
@@ -105,19 +109,34 @@ func decodeShellAdapterRequest(input []byte) (shellAdapterRequest, error) {
 		request.responseCodec = codec
 	}
 	if request.responseCodec != shellAdapterCodecJSON && request.responseCodec != shellAdapterCodecRecords {
-		return shellAdapterRequest{}, failureError{subject: "invalid shell completion response encoding"}
+		failure := failureError{
+			subject: "invalid shell completion response encoding",
+		}
+		return shellAdapterRequest{}, failure
 	}
 	if request.shellFamily == "" {
-		return shellAdapterRequest{}, failureError{subject: "invalid shell completion shell identity"}
+		failure := failureError{
+			subject: "invalid shell completion shell identity",
+		}
+		return shellAdapterRequest{}, failure
 	}
 	if len(request.input.Words) == 0 || len(request.input.Words) > shellAdapterWordLimit {
-		return shellAdapterRequest{}, failureError{subject: "invalid shell completion observed words"}
+		failure := failureError{
+			subject: "invalid shell completion observed words",
+		}
+		return shellAdapterRequest{}, failure
 	}
 	if request.input.Cursor.Word < 0 || request.input.Cursor.Word >= len(request.input.Words) || request.input.Cursor.Byte < 0 || request.input.Cursor.Byte > len(request.input.Words[request.input.Cursor.Word].Value) {
-		return shellAdapterRequest{}, failureError{subject: "invalid shell completion cursor"}
+		failure := failureError{
+			subject: "invalid shell completion cursor",
+		}
+		return shellAdapterRequest{}, failure
 	}
 	if request.input.ExactArgvPrefix < 0 || request.input.ExactArgvPrefix > len(request.input.Words) {
-		return shellAdapterRequest{}, failureError{subject: "invalid shell completion exact argv prefix"}
+		failure := failureError{
+			subject: "invalid shell completion exact argv prefix",
+		}
+		return shellAdapterRequest{}, failure
 	}
 	switch request.input.Topology {
 	case cli.CompletionArgvTopologyExact:
@@ -125,15 +144,24 @@ func decodeShellAdapterRequest(input []byte) (shellAdapterRequest, error) {
 	case cli.CompletionArgvTopologyPrefixExact:
 	case cli.CompletionArgvTopologyUncertain:
 		if request.input.ExactArgvPrefix != 0 {
-			return shellAdapterRequest{}, failureError{subject: "invalid uncertain shell completion topology"}
+			failure := failureError{
+				subject: "invalid uncertain shell completion topology",
+			}
+			return shellAdapterRequest{}, failure
 		}
 	default:
-		return shellAdapterRequest{}, failureError{subject: "invalid shell completion topology"}
+		failure := failureError{
+			subject: "invalid shell completion topology",
+		}
+		return shellAdapterRequest{}, failure
 	}
 	if request.input.Cursor.Space == cli.CompletionCursorSpaceArgumentBytes {
 		word := request.input.Words[request.input.Cursor.Word]
 		if request.input.Cursor.Word >= request.input.ExactArgvPrefix || word.Fidelity != cli.CompletionInputFidelityExact {
-			return shellAdapterRequest{}, failureError{subject: "invalid argument-byte shell completion cursor"}
+			failure := failureError{
+				subject: "invalid argument-byte shell completion cursor",
+			}
+			return shellAdapterRequest{}, failure
 		}
 	}
 	if request.matching == 0 {
@@ -145,15 +173,19 @@ func decodeShellAdapterRequest(input []byte) (shellAdapterRequest, error) {
 func (request shellAdapterRequest) completionRequest(environ []string, workingDirectory, activationName, activationExpected string) (cli.CompletionRequest, error) {
 	activationValue, present := environmentValue(environ, activationName)
 	if !present || activationValue != activationExpected {
-		return cli.CompletionRequest{}, failureError{subject: "completion activation value mismatch"}
+		failure := failureError{
+			subject: "completion activation value mismatch",
+		}
+		return cli.CompletionRequest{}, failure
 	}
 	semanticEnvironment := removeEnvironment(environ, activationName)
 	env, err := cli.EnvFromEnviron(semanticEnvironment)
 	if err != nil {
-		return cli.CompletionRequest{}, failureError{
+		failure := failureError{
 			subject: "invalid completion process environment",
 			cause:   err,
 		}
+		return cli.CompletionRequest{}, failure
 	}
 	match := cli.CompletionMatchOptions{
 		Mode: cli.CompletionMatchModePrefix,
@@ -167,7 +199,10 @@ func (request shellAdapterRequest) completionRequest(environ []string, workingDi
 		match.Mode = cli.CompletionMatchModeUnfiltered
 		match.Fields = []cli.CompletionMatchField{cli.CompletionMatchFieldValue}
 	default:
-		return cli.CompletionRequest{}, failureError{subject: "invalid shell completion matching mode"}
+		failure := failureError{
+			subject: "invalid shell completion matching mode",
+		}
+		return cli.CompletionRequest{}, failure
 	}
 	observation := request.input
 	observation.Words = slices.Clone(request.input.Words)
@@ -262,7 +297,10 @@ func encodeShellAdapterResponse(writer io.Writer, codec shellAdapterCodec, respo
 	case shellAdapterCodecRecords:
 		return encodeShellAdapterRecordsResponse(writer, response)
 	default:
-		return failureError{subject: "invalid shell completion response encoding"}
+		failure := failureError{
+			subject: "invalid shell completion response encoding",
+		}
+		return failure
 	}
 }
 
@@ -391,10 +429,11 @@ func shellAdapterMatchingFromToken(token string) (shellAdapterMatching, bool) {
 func processResponseFileAccess() cli.ResponseFileAccess {
 	loader := func(ctx context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
 		if err := ctx.Err(); err != nil {
-			return cli.ResponseFile{}, failureError{
+			failure := failureError{
 				subject: responseFileReadSubject,
 				cause:   err,
 			}
+			return cli.ResponseFile{}, failure
 		}
 		path := request.Path
 		if !filepath.IsAbs(path) {
@@ -402,25 +441,28 @@ func processResponseFileAccess() cli.ResponseFileAccess {
 		}
 		path, err := filepath.Abs(path)
 		if err != nil {
-			return cli.ResponseFile{}, failureError{
+			failure := failureError{
 				subject: responseFileReadSubject,
 				cause:   err,
 			}
+			return cli.ResponseFile{}, failure
 		}
 		// #nosec G304 -- the public ResponseFileAccess request supplies the exact process path to acquire.
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return cli.ResponseFile{}, failureError{
+			failure := failureError{
 				subject: responseFileReadSubject,
 				detail:  path,
 				cause:   err,
 			}
+			return cli.ResponseFile{}, failure
 		}
 		if err := ctx.Err(); err != nil {
-			return cli.ResponseFile{}, failureError{
+			failure := failureError{
 				subject: responseFileReadSubject,
 				cause:   err,
 			}
+			return cli.ResponseFile{}, failure
 		}
 		result := cli.ResponseFile{
 			Key:         path,
@@ -430,7 +472,10 @@ func processResponseFileAccess() cli.ResponseFileAccess {
 		}
 		return result, nil
 	}
-	return cli.ResponseFileAccess{Load: loader}
+	access := cli.ResponseFileAccess{
+		Load: loader,
+	}
+	return access
 }
 
 func removeEnvironment(environment []string, name string) []string {

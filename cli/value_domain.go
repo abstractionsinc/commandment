@@ -537,9 +537,10 @@ func captureValueDomain[T comparable](snapshot func(T) T, declare func(*ValueDom
 	}
 	if declare == nil {
 		state.issues = append(state.issues, "missing declaration callback")
-		return ValueDomain[T]{
+		domain := ValueDomain[T]{
 			state: state,
-		}, nil
+		}
+		return domain, nil
 	}
 	session := valueDomainSession[T]{
 		draft: state,
@@ -549,9 +550,10 @@ func captureValueDomain[T comparable](snapshot func(T) T, declare func(*ValueDom
 		session: &session,
 	}
 	cause := session.invoke(func() { declare(builder) })
-	return ValueDomain[T]{
+	domain := ValueDomain[T]{
 		state: state,
-	}, cause
+	}
+	return domain, cause
 }
 
 func stageValueDomain[T comparable](snapshot func(T) T, declare func(*ValueDomainBuilder[T])) ValueDomain[T] {
@@ -766,10 +768,11 @@ func validateDynamicValueDomain(domainIndex int, domain valueDomainRecord, comma
 	}
 	order := dependencyOrdinal(domainIndex)
 	reject := func(rejections []rejection) []rejection {
-		return append(rejections, rejection{
+		candidateRejection := rejection{
 			Kind:  rejectionStructuralInvalidity,
 			Order: order,
-		})
+		}
+		return append(rejections, candidateRejection)
 	}
 	var rejections []rejection
 	if _, ok := commands[definition.Owner()]; !ok {
@@ -941,9 +944,10 @@ type domainEntryRecord struct {
 }
 
 func acceptDomainEntryRecord(id ValueDomainEntryID, position declarationPosition) domainEntryRecord {
-	return domainEntryRecord{
+	record := domainEntryRecord{
 		meta: acceptRecordMeta(id, position),
 	}
+	return record
 }
 
 // domainValueInput is the complete immutable payload of one canonical domain value.
@@ -1021,10 +1025,11 @@ func acceptValueDomainUseRecord(destination ValueID, kind ValueDomainUseKind) va
 	default:
 		panic("semantic: invalid value domain use")
 	}
-	return valueDomainUseRecord{
+	record := valueDomainUseRecord{
 		destination: destination,
 		kind:        kind,
 	}
+	return record
 }
 
 type valueDomainRecord struct {
@@ -1053,10 +1058,11 @@ func acceptValueDomainRecord(entries []ValueDomainEntryID, uses []valueDomainUse
 			panic("semantic: invalid value domain use")
 		}
 	}
-	return valueDomainRecord{
+	record := valueDomainRecord{
 		entries: append([]ValueDomainEntryID(nil), entries...),
 		uses:    append([]valueDomainUseRecord(nil), uses...),
 	}
+	return record
 }
 
 func (record valueDomainRecord) Entries() []ValueDomainEntryID {
@@ -1138,16 +1144,18 @@ func stageDynamicValueDomain[C any, T comparable](values *Values[C], provide fun
 	}
 	if values == nil || values.session == nil || provide == nil {
 		state.issues = append(state.issues, "invalid dynamic domain declaration")
-		return ValueDomain[T]{
+		domain := ValueDomain[T]{
 			state: state,
 		}
+		return domain
 	}
 	descriptors, ok := dependencyDescriptors(dependencies)
 	if !ok {
 		state.issues = append(state.issues, "invalid dynamic domain dependency")
-		return ValueDomain[T]{
+		domain := ValueDomain[T]{
 			state: state,
 		}
+		return domain
 	}
 	var frozen []authoringDestinationDependency
 	var frozenOK bool
@@ -1158,9 +1166,10 @@ func stageDynamicValueDomain[C any, T comparable](values *Values[C], provide fun
 	})
 	if !frozenOK {
 		state.issues = append(state.issues, "invalid dynamic domain dependency provenance")
-		return ValueDomain[T]{
+		domain := ValueDomain[T]{
 			state: state,
 		}
+		return domain
 	}
 	dynamic := &dynamicDomainDraft{
 		ownerCommand: owner,
@@ -1187,7 +1196,8 @@ func stageDynamicValueDomain[C any, T comparable](values *Values[C], provide fun
 		return domain.state, nil
 	}
 	state.dynamic = dynamic
-	return ValueDomain[T]{
+	domain := ValueDomain[T]{
 		state: state,
 	}
+	return domain
 }

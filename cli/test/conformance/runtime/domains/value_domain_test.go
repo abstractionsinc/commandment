@@ -23,10 +23,14 @@ func TestMultiUseDynamicDomainSnapshotIsDetachedAcrossOperations(t *testing.T) {
 	t.Parallel()
 	type config = concurrencyModeRegionConfig
 	calls := 0
-	app, err := cli.Compile(cli.Definition[config]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -41,7 +45,8 @@ func TestMultiUseDynamicDomainSnapshotIsDetachedAcrossOperations(t *testing.T) {
 			root.Flags.ValueFor(mode).Long("mode")
 			root.Flags.ValueFor(region).Long("region")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,12 +69,13 @@ func TestMultiUseDynamicDomainSnapshotIsDetachedAcrossOperations(t *testing.T) {
 				}
 			}
 		}
-		uses := map[cli.ValueID]bool{}
+		uses := map[cli.ValueID]struct{}{}
 		for _, use := range domain.Uses {
-			uses[use.Destination] = true
+			uses[use.Destination] = struct{}{}
 		}
 		for _, destination := range destinations {
-			if destination == 0 || !uses[destination] {
+			_, used := uses[destination]
+			if destination == 0 || !used {
 				t.Fatalf("%s domain uses = %#v destinations=%#v", label, domain.Uses, destinations)
 			}
 			value := inspection.Values[destination]
@@ -112,10 +118,14 @@ func TestDynamicDomainFailedAndReadyEmptyArtifactsDetachAcrossOperations(t *test
 	type config = concurrencyModeConfig
 	failure := errors.New("domain unavailable")
 	failedCalls := 0
-	failed, err := cli.Compile(cli.Definition[config]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -126,7 +136,8 @@ func TestDynamicDomainFailedAndReadyEmptyArtifactsDetachAcrossOperations(t *test
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	failed, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,10 +163,14 @@ func TestDynamicDomainFailedAndReadyEmptyArtifactsDetachAcrossOperations(t *test
 	}
 
 	emptyCalls := 0
-	empty, err := cli.Compile(cli.Definition[config]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definitionUnderTest := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -166,7 +181,8 @@ func TestDynamicDomainFailedAndReadyEmptyArtifactsDetachAcrossOperations(t *test
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	empty, err := cli.Compile(definitionUnderTest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,10 +212,14 @@ func TestDynamicDomainMaterializationReady(t *testing.T) {
 	t.Parallel()
 	type config = domainMaterializationModeConfig
 	var calls int
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            domainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: domainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(ctx context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -215,7 +235,8 @@ func TestDynamicDomainMaterializationReady(t *testing.T) {
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().Flag("--mode").Value()
 	domain := value.Domain(cli.ValueDomainUseDestination)
 	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -238,10 +259,14 @@ func TestDynamicDomainMaterializationFailure(t *testing.T) {
 	t.Parallel()
 	type config = domainMaterializationModeConfig
 	sentinel := errors.New("domain unavailable")
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            domainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: domainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -251,7 +276,8 @@ func TestDynamicDomainMaterializationFailure(t *testing.T) {
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--mode", "missing"},
@@ -271,10 +297,14 @@ func TestDynamicDomainMaterializationFailure(t *testing.T) {
 func TestDynamicDomainMaterializationRejectsInvalidDynamicDeclaration(t *testing.T) {
 	t.Parallel()
 	type config = domainMaterializationModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            domainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: domainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -285,7 +315,8 @@ func TestDynamicDomainMaterializationRejectsInvalidDynamicDeclaration(t *testing
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--mode", "invalid"},
@@ -301,10 +332,14 @@ func TestDynamicDomainDemandSkipsUnallocatedOptionalArgument(t *testing.T) {
 	t.Parallel()
 	type config = domainMaterializationModeConfig
 	calls := 0
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            domainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: domainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -318,7 +353,8 @@ func TestDynamicDomainDemandSkipsUnallocatedOptionalArgument(t *testing.T) {
 				func(form *cli.ArgumentFormBuilder[config]) { form.ValueFor(mode, "mode").Optional() },
 			)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().ArgumentFormAt(0).Term("mode").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
 		clitest.InspectionReady(), clitest.DiagnosticsExactly(),
@@ -337,10 +373,14 @@ type domainMembershipModeConfig struct{ Mode string }
 func TestEffectiveDomainMembershipPreservesCanonicalAndAliasEntries(t *testing.T) {
 	t.Parallel()
 	type config = domainMembershipModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            domainMembershipToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: domainMembershipToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -352,7 +392,8 @@ func TestEffectiveDomainMembershipPreservesCanonicalAndAliasEntries(t *testing.T
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	prod := domain.Entry("prod")
 	alias := domain.Entry("p")
@@ -373,9 +414,11 @@ func TestNewDynamicValueDomainPreservesDynamicDomainAuthoringSemantics(t *testin
 	t.Parallel()
 	type config = dynamicDomainAuthoringModeConfig
 	callbackErr := errors.New("dynamic domain failed")
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -385,14 +428,17 @@ func TestNewDynamicValueDomainPreservesDynamicDomainAuthoringSemantics(t *testin
 			)
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--mode", "ready"},
 	}).Require(t, clitest.InspectionReady())
 
-	failed := clitest.Compile(t, cli.Definition[config]{
+	definitionUnderTest := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -401,7 +447,8 @@ func TestNewDynamicValueDomainPreservesDynamicDomainAuthoringSemantics(t *testin
 			)
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
-	})
+	}
+	failed := clitest.Compile(t, definitionUnderTest)
 	_, err := failed.Inspect(t.Context(), cli.InspectionRequest{
 		Args: []string{"--mode", "ready"},
 	})
@@ -439,10 +486,14 @@ func TestDynamicDomainPublicationScopeClosesSiblingCommandTargetsWithoutImportin
 	var targetCalls atomic.Int32
 	var unrelatedCalls atomic.Int32
 	var decoyCalls atomic.Int32
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[rootConfig]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			root.Subcommands.Command(cli.Command[targetConfig]{
 				Name: "target",
@@ -488,7 +539,8 @@ func TestDynamicDomainPublicationScopeClosesSiblingCommandTargetsWithoutImportin
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	target := clitest.Command("target")
 	ready := target.Flag("--domain").Value().Domain(cli.ValueDomainUseDestination)
@@ -526,10 +578,14 @@ func TestDynamicDomainSettlementConvergesConcurrentDemandOnOneOperation(t *testi
 	t.Parallel()
 	type config = dynamicDomainMaterializationFirstSecondConfig
 	var calls atomic.Int32
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -543,7 +599,8 @@ func TestDynamicDomainSettlementConvergesConcurrentDemandOnOneOperation(t *testi
 			root.Flags.ValueFor(first).Long("first")
 			root.Flags.ValueFor(second).Long("second")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	first := clitest.RootCommand().Flag("--first").Value().Domain(cli.ValueDomainUseDestination)
 	second := clitest.RootCommand().Flag("--second").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -565,9 +622,11 @@ func TestDynamicDomainProviderBuilderExpiresAfterDemandedCallback(t *testing.T) 
 	t.Parallel()
 	type config = dynamicDomainMaterializationModeConfig
 	var retained *cli.ValueDomainBuilder[string]
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: dynamicDomainMaterializationToolName,
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -579,7 +638,8 @@ func TestDynamicDomainProviderBuilderExpiresAfterDemandedCallback(t *testing.T) 
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -607,10 +667,14 @@ func TestDynamicDomainSettlementBlocksOnUnresolvedRequiredDependencyWithoutExecu
 	t.Parallel()
 	type config = dynamicDomainMaterializationRegionModeConfig
 	var calls atomic.Int32
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			region := root.Facts.Require(&root.Config.Region)
 			domain := root.Values.Domain(
@@ -623,7 +687,8 @@ func TestDynamicDomainSettlementBlocksOnUnresolvedRequiredDependencyWithoutExecu
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--mode", "x"},
@@ -643,10 +708,14 @@ func TestDynamicDomainSettlementCanceledDemandDoesNotExecuteOrCommit(t *testing.
 	t.Parallel()
 	type config = dynamicDomainMaterializationModeConfig
 	var calls atomic.Int32
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -657,7 +726,8 @@ func TestDynamicDomainSettlementCanceledDemandDoesNotExecuteOrCommit(t *testing.
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	proof := clitest.Inspect(ctx, app, cli.InspectionRequest{
@@ -681,10 +751,14 @@ func TestDynamicDomainFailureAndSuccessfulEmptySnapshotRemainDistinct(t *testing
 	type config = dynamicDomainMaterializationModeConfig
 	failure := errors.New("domain unavailable")
 	failedCalls := 0
-	failed := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -695,7 +769,8 @@ func TestDynamicDomainFailureAndSuccessfulEmptySnapshotRemainDistinct(t *testing
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	failed := clitest.Compile(t, definition)
 	failedDomain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	failedProof := clitest.Inspect(t.Context(), failed, cli.InspectionRequest{
 		Args: []string{"--mode", "x"},
@@ -716,10 +791,14 @@ func TestDynamicDomainFailureAndSuccessfulEmptySnapshotRemainDistinct(t *testing
 	}
 
 	emptyCalls := 0
-	empty := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definitionUnderTest := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -730,7 +809,8 @@ func TestDynamicDomainFailureAndSuccessfulEmptySnapshotRemainDistinct(t *testing
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	empty := clitest.Compile(t, definitionUnderTest)
 	emptyDomain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Inspect(t.Context(), empty, cli.InspectionRequest{
 		Args: []string{"--mode", "x"},
@@ -756,10 +836,14 @@ func TestDynamicDomainIndependentFailureRacingWithCancellationRemainsProvisionFa
 	callerCancellation := errors.New("caller cancellation")
 	started := make(chan struct{})
 	release := make(chan struct{})
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -771,7 +855,8 @@ func TestDynamicDomainIndependentFailureRacingWithCancellationRemainsProvisionFa
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	ctx, cancel := context.WithCancelCause(t.Context())
 	result := make(chan clitest.InspectionResult, 1)
@@ -806,10 +891,14 @@ func TestDynamicDomainResolvesDeclaredDependenciesBeforeDemandedCallback(t *test
 	t.Parallel()
 	type config = dynamicDomainMaterializationRegionModeConfig
 	calls := 0
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			region := root.Values.String(&root.Config.Region)
 			root.Flags.ValueFor(region).Long("region")
@@ -829,7 +918,8 @@ func TestDynamicDomainResolvesDeclaredDependenciesBeforeDemandedCallback(t *test
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--region", "us", "--mode", "u"},
@@ -848,10 +938,14 @@ func TestDynamicDomainResolvesDeclaredDependenciesBeforeDemandedCallback(t *test
 func TestDynamicDomainRejectsTypedContributionOutsideAcceptedSnapshot(t *testing.T) {
 	t.Parallel()
 	type config = dynamicDomainMaterializationModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -867,7 +961,8 @@ func TestDynamicDomainRejectsTypedContributionOutsideAcceptedSnapshot(t *testing
 				),
 			)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().ValueAt(0).Domain(cli.ValueDomainUseDestination)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidValue).Present()),
@@ -881,10 +976,14 @@ func TestDynamicDomainCancellationAfterFinalValidationBeforeLinearizationLeavesN
 	t.Parallel()
 	type config = dynamicDomainMaterializationModeConfig
 	contributionReady := make(chan struct{})
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            dynamicDomainMaterializationToolName,
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: dynamicDomainMaterializationToolName,
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(ctx context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -897,7 +996,8 @@ func TestDynamicDomainCancellationAfterFinalValidationBeforeLinearizationLeavesN
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 	ctx, cancel := context.WithCancel(t.Context())
 	result := make(chan clitest.InspectionResult, 1)
@@ -929,10 +1029,14 @@ func TestDynamicDomainCancellationDuringCallbackAndAfterLinearizedPublication(t 
 	t.Run("during callback", func(t *testing.T) {
 		t.Parallel()
 		started := make(chan struct{})
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:            dynamicDomainMaterializationToolName,
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: dynamicDomainMaterializationToolName,
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				domain := root.Values.Domain(
 					func(ctx context.Context, _ *config, _ cli.Dependencies, _ *cli.ValueDomainBuilder[string]) error {
@@ -944,7 +1048,8 @@ func TestDynamicDomainCancellationDuringCallbackAndAfterLinearizedPublication(t 
 				mode := root.Values.Value(&root.Config.Mode, domain)
 				root.Flags.ValueFor(mode).Long("mode")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 		ctx, cancel := context.WithCancel(t.Context())
 		result := make(chan clitest.InspectionResult, 1)
@@ -970,10 +1075,14 @@ func TestDynamicDomainCancellationDuringCallbackAndAfterLinearizedPublication(t 
 
 	t.Run("after successful publication", func(t *testing.T) {
 		t.Parallel()
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:            dynamicDomainMaterializationToolName,
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: dynamicDomainMaterializationToolName,
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[config]) {
 				domain := root.Values.Domain(
 					func(_ context.Context, _ *config, _ cli.Dependencies, builder *cli.ValueDomainBuilder[string]) error {
@@ -984,7 +1093,8 @@ func TestDynamicDomainCancellationDuringCallbackAndAfterLinearizedPublication(t 
 				mode := root.Values.Value(&root.Config.Mode, domain)
 				root.Flags.ValueFor(mode).Long("mode")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		domain := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
 		entry := domain.Entry("prod")
 		ctx, cancel := context.WithCancel(t.Context())
@@ -1028,14 +1138,18 @@ func TestRunAndInspectionDynamicDomainIncompleteRemainIncomplete(t *testing.T) {
 	app := clitest.Compile(t, definition)
 	args := []string{"--mode", "x"}
 
-	runErr := app.Run(t.Context(), cli.RunRequest{Args: args})
+	runErr := app.Run(t.Context(), cli.RunRequest{
+		Args: args,
+	})
 	if runErr == nil {
 		t.Fatal("Run() error = nil, want incomplete invocation to fail closed")
 	}
 	if handlerCalled {
 		t.Fatal("Run() executed handler for incomplete invocation")
 	}
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: args}).Require(t, clitest.InspectionIncomplete())
+	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: args,
+	}).Require(t, clitest.InspectionIncomplete())
 }
 
 func TestRunAndInspectionDynamicDomainFailureRemainRejected(t *testing.T) {
@@ -1055,10 +1169,14 @@ func TestRunAndInspectionDynamicDomainFailureRemainRejected(t *testing.T) {
 	app := clitest.Compile(t, definition)
 	args := []string{"--mode", "x"}
 
-	if err := app.Run(t.Context(), cli.RunRequest{Args: args}); !errors.Is(err, cause) {
+	if err := app.Run(t.Context(), cli.RunRequest{
+		Args: args,
+	}); !errors.Is(err, cause) {
 		t.Fatalf("Run() error = %v, want %v", err, cause)
 	}
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: args})
+	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: args,
+	})
 	proof.Require(t,
 		clitest.InspectionRejected(),
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticValueDomainProvisionFailure).Present()),

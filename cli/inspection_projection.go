@@ -17,12 +17,14 @@ func projectInspectionDynamicDomainEntry(result *Inspection, operation *invocati
 		origin = DeclarationOriginProvider
 	}
 	projected := ValueDomainEntryInspection{
-		ID:             ValueDomainEntryID(entry.meta.id.uint32()),
-		Kind:           valueDomainEntryKind(entry.kind),
-		Origin:         origin,
-		Name:           entry.name,
-		Canonical:      ValueDomainEntryID(entry.canonical.uint32()),
-		Description:    Description{Short: referenceText(operation.LocalizationForCommand(owner), string(locale), entry.description)},
+		ID:        ValueDomainEntryID(entry.meta.id.uint32()),
+		Kind:      valueDomainEntryKind(entry.kind),
+		Origin:    origin,
+		Name:      entry.name,
+		Canonical: ValueDomainEntryID(entry.canonical.uint32()),
+		Description: Description{
+			Short: referenceText(operation.LocalizationForCommand(owner), string(locale), entry.description),
+		},
 		Hidden:         entry.hidden,
 		Available:      available,
 		Visible:        available && !entry.hidden,
@@ -48,11 +50,12 @@ func inspectionDynamicDomainReplacement(model *effectiveModel, source domainEntr
 		}
 		presentation = canonical.name
 	}
-	return &DeclarationReplacement{
-		Target: DeclarationIdentity{
-			Kind:             DeclarationKindValueDomainEntry,
-			ValueDomainEntry: ValueDomainEntryID(replacement.uint32()),
-		},
+	identity := DeclarationIdentity{
+		Kind:             DeclarationKindValueDomainEntry,
+		ValueDomainEntry: ValueDomainEntryID(replacement.uint32()),
+	}
+	declarationReplacement := &DeclarationReplacement{
+		Target:       identity,
 		Presentation: presentation,
 		TargetDeprecatedDuringMigration: targetDeprecatedDuringMigration(
 			model.Application().release,
@@ -60,6 +63,7 @@ func inspectionDynamicDomainReplacement(model *effectiveModel, source domainEntr
 			target.lifecycle,
 		),
 	}
+	return declarationReplacement
 }
 
 func inspectionFromReference(reference referenceProjection) Inspection {
@@ -422,9 +426,10 @@ func projectGrammarSelection(selection commandSelection) CommandSelection {
 
 func projectGrammarActionSelection(grammar grammarResult, reference referenceProjection) InvocationActionSelection {
 	if !grammar.Selection.ActionSelected() {
-		return InvocationActionSelection{
+		selection := InvocationActionSelection{
 			Selected: InvocationActionRun,
 		}
+		return selection
 	}
 	if !grammar.Selection.Action.present() {
 		trigger := InvocationActionTriggerUnknown
@@ -435,10 +440,11 @@ func projectGrammarActionSelection(grammar grammarResult, reference referencePro
 			trigger = InvocationActionTriggerStructural
 		case actionTriggerNone:
 		}
-		return InvocationActionSelection{
+		selection := InvocationActionSelection{
 			Selected: InvocationActionHelp,
 			Trigger:  trigger,
 		}
+		return selection
 	}
 	entryID := grammar.Selection.Action
 	entry, ok := reference.ActionEntries[entryID]
@@ -1281,7 +1287,9 @@ func applySignalInspection(result *Inspection, operation *inspectionOperation, s
 		result.SignalSource.MissingSourceCapabilities = plan.requiredSource
 		result.SignalSource.MissingHostCapabilities = plan.requiredHost &^ availableHost
 		markActiveSignalPoliciesBlocked(result, activePolicies)
-		return []Diagnostic{{Code: DiagnosticIncompatibleSignalSource}}, true, nil
+		return []Diagnostic{{
+			Code: DiagnosticIncompatibleSignalSource,
+		}}, true, nil
 	}
 
 	result.SignalSource.Supplied = true
@@ -1291,7 +1299,9 @@ func applySignalInspection(result *Inspection, operation *inspectionOperation, s
 	if err != nil {
 		result.SignalSource.Status = SignalIntegrationStatusFailed
 		markActiveSignalPoliciesBlocked(result, activePolicies)
-		return []Diagnostic{{Code: DiagnosticSignalSourceFailure}}, true, err
+		return []Diagnostic{{
+			Code: DiagnosticSignalSourceFailure,
+		}}, true, err
 	}
 	result.SignalSource.ResolvedSignals = projectSemanticSignals(resolved.resolvedSignals)
 	result.SignalSource.MissingSignals = projectSemanticSignals(resolved.compatibility.missingSignals)
@@ -1302,7 +1312,9 @@ func applySignalInspection(result *Inspection, operation *inspectionOperation, s
 	if !resolved.compatibility.compatible() {
 		result.SignalSource.Status = SignalIntegrationStatusIncompatible
 		markActiveSignalPoliciesBlocked(result, activePolicies)
-		return []Diagnostic{{Code: DiagnosticIncompatibleSignalSource}}, true, nil
+		return []Diagnostic{{
+			Code: DiagnosticIncompatibleSignalSource,
+		}}, true, nil
 	}
 	result.SignalSource.Status = SignalIntegrationStatusReady
 	return nil, true, nil
@@ -1589,25 +1601,29 @@ func setConditionInspectionOutcome(result *Inspection, model *effectiveModel, re
 func publicStructuralConditionTarget(target conditionTarget) DeclarationIdentity {
 	switch target.Kind() {
 	case conditionTargetCommand:
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:    DeclarationKindCommand,
 			Command: target.Command(),
 		}
+		return identity
 	case conditionTargetFlag:
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind: DeclarationKindFlag,
 			Flag: target.Flag(),
 		}
+		return identity
 	case conditionTargetArgumentForm:
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:         DeclarationKindArgumentForm,
 			ArgumentForm: target.ArgumentForm(),
 		}
+		return identity
 	case conditionTargetArgumentTerm:
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:         DeclarationKindArgumentTerm,
 			ArgumentTerm: target.ArgumentTerm(),
 		}
+		return identity
 	default:
 		return DeclarationIdentity{}
 	}

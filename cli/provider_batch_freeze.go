@@ -13,7 +13,10 @@ func freezeProviderDestinationIdentity(draft *providerBatchDraft, identity desti
 		if _, ok := draft.declarations.destinations.resolve(&draft.declarations, identity.ref); !ok {
 			panic("cli: provider destination identity cannot freeze")
 		}
-		return localDestinationTarget{destination: batchRefAt[batchDestination](identity.ref.index)}
+		target := localDestinationTarget{
+			destination: batchRefAt[batchDestination](identity.ref.index),
+		}
+		return target
 	case acceptedDestinationIdentity:
 		return identity
 	case localDestinationTarget:
@@ -81,7 +84,10 @@ func freezeProviderCondition(draft *providerBatchDraft, input Condition) Conditi
 	if input.state == nil {
 		return Condition{}
 	}
-	return Condition{state: freezeProviderConditionState(draft, input.state)}
+	condition := Condition{
+		state: freezeProviderConditionState(draft, input.state),
+	}
+	return condition
 }
 
 func freezeProviderConditionState(draft *providerBatchDraft, input *conditionState) *conditionState {
@@ -106,7 +112,10 @@ func freezeProviderRuleCondition(draft *providerBatchDraft, input RuleCondition)
 	case Condition:
 		return freezeProviderCondition(draft, input)
 	case validationRuleCondition:
-		return validationRuleCondition{state: freezeProviderRuleConditionState(draft, input.state)}
+		condition := validationRuleCondition{
+			state: freezeProviderRuleConditionState(draft, input.state),
+		}
+		return condition
 	default:
 		return input
 	}
@@ -301,11 +310,12 @@ func freezeProviderFlag(draft *providerBatchDraft, value flagDraft) batchFlag {
 }
 
 func freezeProviderFlagSpelling(value flagSpellingDraft) batchFlagSpelling {
-	return batchFlagSpelling{
+	spelling := batchFlagSpelling{
 		flag: batchRefAt[batchFlag](value.flag.index),
 		kind: value.kind,
 		text: value.text,
 	}
+	return spelling
 }
 
 func freezeProviderFlagSpellingDirective(value flagSpellingDirectiveDraft) batchFlagSpellingDirective {
@@ -364,25 +374,29 @@ func freezeProviderArgumentTerm(draft *providerBatchDraft, value argumentTermDra
 func freezeProviderConditionTarget(target authoringConditionTarget) batchConditionTarget {
 	switch target := target.(type) {
 	case authoringCommandConditionTarget:
-		return batchConditionTarget{
+		frozenTarget := batchConditionTarget{
 			kind:    batchConditionTargetCommand,
 			command: batchRefAt[batchCommand](target.reference.index),
 		}
+		return frozenTarget
 	case authoringFlagConditionTarget:
-		return batchConditionTarget{
+		frozenTarget := batchConditionTarget{
 			kind: batchConditionTargetFlag,
 			flag: batchRefAt[batchFlag](target.reference.index),
 		}
+		return frozenTarget
 	case authoringArgumentFormConditionTarget:
-		return batchConditionTarget{
+		frozenTarget := batchConditionTarget{
 			kind:         batchConditionTargetArgumentForm,
 			argumentForm: batchRefAt[batchArgumentForm](target.reference.index),
 		}
+		return frozenTarget
 	case authoringArgumentTermConditionTarget:
-		return batchConditionTarget{
+		frozenTarget := batchConditionTarget{
 			kind:         batchConditionTargetArgumentTerm,
 			argumentTerm: batchRefAt[batchArgumentTerm](target.reference.index),
 		}
+		return frozenTarget
 	default:
 		return batchConditionTarget{}
 	}
@@ -391,20 +405,23 @@ func freezeProviderConditionTarget(target authoringConditionTarget) batchConditi
 func freezeProviderLifecycleTarget(target authoringLifecycleTarget) batchLifecycleTarget {
 	switch target := target.(type) {
 	case authoringEnvironmentLifecycleTarget:
-		return batchLifecycleTarget{
+		frozenTarget := batchLifecycleTarget{
 			kind:        batchLifecycleTargetEnvironment,
 			environment: batchRefAt[batchValueDirective](target.reference.index),
 		}
+		return frozenTarget
 	case authoringArgumentFormLifecycleTarget:
-		return batchLifecycleTarget{
+		frozenTarget := batchLifecycleTarget{
 			kind:         batchLifecycleTargetArgumentForm,
 			argumentForm: batchRefAt[batchArgumentForm](target.reference.index),
 		}
+		return frozenTarget
 	case authoringArgumentTermLifecycleTarget:
-		return batchLifecycleTarget{
+		frozenTarget := batchLifecycleTarget{
 			kind:         batchLifecycleTargetArgumentTerm,
 			argumentTerm: batchRefAt[batchArgumentTerm](target.reference.index),
 		}
+		return frozenTarget
 	default:
 		return batchLifecycleTarget{}
 	}
@@ -448,15 +465,17 @@ func freezeProviderShortcut(value shortcutDraft) batchShortcut {
 func freezeProviderReplacementTarget(target authoringReplacementTarget, indexes declarationPlanIndex) batchReplacementTarget {
 	index, ok := declarationReplacementTargetIndex(target, indexes)
 	if !ok {
-		return batchReplacementTarget{
+		replacementTarget := batchReplacementTarget{
 			kind:  target.kind,
 			index: -1,
 		}
+		return replacementTarget
 	}
-	return batchReplacementTarget{
+	replacementTarget := batchReplacementTarget{
 		kind:  target.kind,
 		index: index,
 	}
+	return replacementTarget
 }
 
 func freezeProviderSignalDestination(draft *providerBatchDraft, handle *destinationHandle) destinationIdentity {
@@ -861,9 +880,15 @@ func (draft *providerBatchDraft) freezeCommandRef(ref commandRef) batchCommandRe
 func (draft *providerBatchDraft) freezeCommandTarget(target providerCommandTarget) batchCommandTarget {
 	switch target := target.(type) {
 	case stagedCommandTarget:
-		return localCommandTarget{command: draft.freezeCommandRef(target.command)}
+		frozenTarget := localCommandTarget{
+			command: draft.freezeCommandRef(target.command),
+		}
+		return frozenTarget
 	case pathTarget:
-		return pathTarget{path: slices.Clone(target.path)}
+		frozenTarget := pathTarget{
+			path: slices.Clone(target.path),
+		}
+		return frozenTarget
 	default:
 		panic("cli: invalid provider command target")
 	}
@@ -875,7 +900,10 @@ func (draft *providerBatchDraft) freezeDestinationTarget(target destinationIdent
 		if _, ok := draft.declarations.destinations.resolve(&draft.declarations, target.ref); !ok {
 			panic("cli: provider destination target cannot freeze")
 		}
-		return localDestinationTarget{destination: batchRefAt[batchDestination](target.ref.index)}
+		frozenTarget := localDestinationTarget{
+			destination: batchRefAt[batchDestination](target.ref.index),
+		}
+		return frozenTarget
 	case acceptedDestinationIdentity:
 		return target
 	default:

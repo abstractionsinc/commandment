@@ -69,21 +69,26 @@ func (draft *publicationDraft) validateCandidate(decision acceptanceDecision) (g
 	}
 	if len(rejections) != 0 {
 		combined := acceptAcceptanceDecision(acceptanceBoundaryProviderBatch, rejections)
-		return grammarModel{}, rejectionError{
+		failure := rejectionError{
 			rejections: combined.Rejections(),
 		}
+		return grammarModel{}, failure
 	}
 	grammar, hasGrammar, grammarRejections := draft.buildGrammar()
 	if len(grammarRejections) != 0 {
 		combined := acceptAcceptanceDecision(acceptanceBoundaryProviderBatch, grammarRejections)
-		return grammarModel{}, rejectionError{
+		failure := rejectionError{
 			rejections: combined.Rejections(),
 		}
+		return grammarModel{}, failure
 	}
 	if !hasGrammar {
-		return grammarModel{}, rejectionError{
-			rejections: []rejection{{Kind: rejectionStructuralInvalidity}},
+		failure := rejectionError{
+			rejections: []rejection{{
+				Kind: rejectionStructuralInvalidity,
+			}},
 		}
+		return grammarModel{}, failure
 	}
 	return grammar, nil
 }
@@ -643,10 +648,11 @@ func (draft *declarationCandidate) validateValueAndProfileReferences(index refer
 }
 
 func semanticRejection(position declarationPosition) rejection {
-	return rejection{
+	candidateRejection := rejection{
 		Kind:  rejectionStructuralInvalidity,
 		Order: uint64(position),
 	}
+	return candidateRejection
 }
 
 // rejectionKind is private implementation vocabulary for deterministic

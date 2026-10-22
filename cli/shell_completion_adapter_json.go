@@ -44,10 +44,11 @@ type shellCompletionAdapterJSONCursor struct {
 func decodeShellCompletionAdapterJSONRequest(reader io.Reader) (shellCompletionAdapterRequest, error) {
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return shellCompletionAdapterRequest{}, &shellCompletionAdapterError{
+		failure := &shellCompletionAdapterError{
 			detail: "read request",
 			cause:  err,
 		}
+		return shellCompletionAdapterRequest{}, failure
 	}
 	if !utf8.Valid(data) || validateShellCompletionAdapterJSON(data) != nil {
 		return shellCompletionAdapterRequest{}, errInvalidShellCompletionAdapter
@@ -358,16 +359,18 @@ func encodeShellCompletionAdapterJSONResponseValue(writer io.Writer, response sh
 	}
 	data, err := json.Marshal(response)
 	if err != nil {
-		return &shellCompletionAdapterError{
+		failure := &shellCompletionAdapterError{
 			detail: "encode JSON response",
 			cause:  err,
 		}
+		return failure
 	}
 	if _, err := writer.Write(data); err != nil {
-		return &shellCompletionAdapterError{
+		failure := &shellCompletionAdapterError{
 			detail: "write JSON response",
 			cause:  err,
 		}
+		return failure
 	}
 	return nil
 }

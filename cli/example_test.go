@@ -43,7 +43,7 @@ func ExampleApplication_Schema() {
 
 func ExampleCommandBuilder() {
 	type config = exampleVerboseConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
@@ -52,7 +52,8 @@ func ExampleCommandBuilder() {
 			fmt.Println(cfg.Verbose)
 			return nil
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		panic(err)
 	}

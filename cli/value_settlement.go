@@ -297,9 +297,10 @@ func producerValueCandidatePlan(ctx context.Context, operation *invocation, stat
 		tracker.called = true
 		if len(blockedBy) != 0 {
 			tracker.blockedBy = append([]ValueID(nil), blockedBy...)
-			return nil, producerBlockedError{
+			failure := producerBlockedError{
 				destinations: append([]ValueID(nil), blockedBy...),
 			}
+			return nil, failure
 		}
 		var result valueEvaluation
 		var err error
@@ -318,7 +319,9 @@ func producerValueCandidatePlan(ctx context.Context, operation *invocation, stat
 				operation.scope,
 				state.effectiveModel,
 				dependencies,
-				valueAnalysis{Destinations: settled},
+				valueAnalysis{
+					Destinations: settled,
+				},
 			)
 			if !ready {
 				panic("cli: value producer dependencies are not ready")

@@ -36,7 +36,7 @@ func TestProviderCommandDeclarationUsesParentScopeForHeterogeneousReplacement(t 
 	type legacyConfig struct{ Name string }
 	type currentConfig struct{ Name string }
 
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
@@ -69,7 +69,8 @@ func TestProviderCommandDeclarationUsesParentScopeForHeterogeneousReplacement(t 
 				return nil
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	root := clitest.RootCommand()
 	legacy := root.Command("legacy").CanonicalEntry()
@@ -235,7 +236,7 @@ func TestInvalidProviderDeclarationValidationIsOperationLocal(t *testing.T) {
 	type rootConfig = concurrencyLocaleRootConfig
 	type childConfig = concurrencyLocaleChildConfig
 	calls := 0
-	app, err := cli.Compile(cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -255,7 +256,8 @@ func TestInvalidProviderDeclarationValidationIsOperationLocal(t *testing.T) {
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,9 +395,10 @@ func TestInspectionDemandMaterializesCanonicalProviderProgramWithAccessAndOperat
 }
 
 func errorsNew(text string) error {
-	return &externalGuardrailError{
+	failure := &externalGuardrailError{
 		text: text,
 	}
+	return failure
 }
 
 type externalGuardrailError struct{ text string }
@@ -471,10 +474,14 @@ func TestRunAndInspectionProviderFailureRemainRejected(t *testing.T) {
 	app := clitest.Compile(t, definition)
 	args := []string{"remote"}
 
-	if err := app.Run(t.Context(), cli.RunRequest{Args: args}); !errors.Is(err, cause) {
+	if err := app.Run(t.Context(), cli.RunRequest{
+		Args: args,
+	}); !errors.Is(err, cause) {
 		t.Fatalf("Run() error = %v, want %v", err, cause)
 	}
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: args})
+	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: args,
+	})
 	proof.Require(t,
 		clitest.InspectionRejected(),
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticCommandProviderFailure).Present()),
@@ -502,10 +509,14 @@ func TestRunAndInspectionFactSupplyFailureRemainRejected(t *testing.T) {
 		cli.FactsFor[config](func(context.Context, *cli.FactSupply[config]) error { return cause }),
 	}
 
-	if err := app.Run(t.Context(), cli.RunRequest{Facts: facts}); !errors.Is(err, cause) {
+	if err := app.Run(t.Context(), cli.RunRequest{
+		Facts: facts,
+	}); !errors.Is(err, cause) {
 		t.Fatalf("Run() error = %v, want %v", err, cause)
 	}
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{Facts: facts})
+	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Facts: facts,
+	})
 	proof.Require(t,
 		clitest.InspectionRejected(),
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticFactSupplyFailure).Present()),
@@ -535,10 +546,11 @@ func TestRunPreservesFactSupplyFailureDuringResponseGrammar(t *testing.T) {
 		Facts: []cli.FactProvider{cli.FactsFor[config](func(context.Context, *cli.FactSupply[config]) error { return cause })},
 		ResponseFiles: cli.ResponseFileAccess{
 			Load: func(context.Context, cli.ResponseFileRequest) (cli.ResponseFile, error) {
-				return cli.ResponseFile{
+				file := cli.ResponseFile{
 					Key:      "source",
 					Revision: cli.Revision("r1"),
-				}, nil
+				}
+				return file, nil
 			},
 		},
 	}
@@ -605,9 +617,11 @@ func TestDefinitionAuthoringLowersCommandProviderPlanWithoutExecutingIt(t *testi
 	t.Parallel()
 	type config = providerAuthoringRegistryConfig
 	called := false
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            providerAuthoringCommandmentName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: providerAuthoringCommandmentName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			registry := root.Values.String(&root.Config.Registry)
 			root.Values.Default(registry, "ready")
@@ -622,7 +636,8 @@ func TestDefinitionAuthoringLowersCommandProviderPlanWithoutExecutingIt(t *testi
 				return nil
 			}, registry.OptionalDependency())
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if called {
 		t.Fatal("Compile executed provider callback")
 	}
@@ -681,31 +696,43 @@ func TestProviderBatchCaptureRejectsInvalidAtomicContentAndCallbackFailure(t *te
 		name     string
 		provider cli.CommandProvider[config]
 	}{
-		{"alias path is not immediate", func(_ context.Context, batch *cli.CommandBatch[config]) error {
-			batch.Alias(cli.CommandPath{"parent", "child"}, cli.CommandAlias{
-				Name: "alias",
-			})
-			return nil
-		}},
-		{"duplicate localization", func(_ context.Context, batch *cli.CommandBatch[config]) error {
-			batch.Localization(cli.Localization{
-				DefaultLocale: "en",
-			})
-			batch.Localization(cli.Localization{
-				DefaultLocale: "en",
-			})
-			return nil
-		}},
-		{"empty localization when explicitly declared", func(_ context.Context, batch *cli.CommandBatch[config]) error {
-			batch.Localization(cli.Localization{})
-			return nil
-		}},
-		{"textual shortcut default requires values", func(_ context.Context, batch *cli.CommandBatch[config]) error {
-			batch.Shortcut(cli.CommandPath{"child"}, cli.CommandShortcut{
-				Name: "quick",
-			}).DefaultFlag("--mode", nil)
-			return nil
-		}},
+		{
+			name: "alias path is not immediate",
+			provider: func(_ context.Context, batch *cli.CommandBatch[config]) error {
+				batch.Alias(cli.CommandPath{"parent", "child"}, cli.CommandAlias{
+					Name: "alias",
+				})
+				return nil
+			},
+		},
+		{
+			name: "duplicate localization",
+			provider: func(_ context.Context, batch *cli.CommandBatch[config]) error {
+				batch.Localization(cli.Localization{
+					DefaultLocale: "en",
+				})
+				batch.Localization(cli.Localization{
+					DefaultLocale: "en",
+				})
+				return nil
+			},
+		},
+		{
+			name: "empty localization when explicitly declared",
+			provider: func(_ context.Context, batch *cli.CommandBatch[config]) error {
+				batch.Localization(cli.Localization{})
+				return nil
+			},
+		},
+		{
+			name: "textual shortcut default requires values",
+			provider: func(_ context.Context, batch *cli.CommandBatch[config]) error {
+				batch.Shortcut(cli.CommandPath{"child"}, cli.CommandShortcut{
+					Name: "quick",
+				}).DefaultFlag("--mode", nil)
+				return nil
+			},
+		},
 	}
 	for _, tc := range providers {
 		t.Run(tc.name, func(t *testing.T) {
@@ -829,9 +856,11 @@ func TestDynamicDomainDemandLeavesFailureAndCancellationClassificationIntact(t *
 	t.Parallel()
 	sentinel := errors.New("domain failure")
 	type config = providerDemandValueConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := root.Values.Domain(
 				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
@@ -841,7 +870,8 @@ func TestDynamicDomainDemandLeavesFailureAndCancellationClassificationIntact(t *
 			value := root.Values.Value(&root.Config.Value, domain)
 			root.Flags.ValueFor(value).Long("value")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
@@ -868,7 +898,7 @@ type providerLocalizationConfig struct{}
 func TestProviderIndependentLocalizationOwnsMaterializedPresentation(t *testing.T) {
 	t.Parallel()
 	type config = providerLocalizationConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -899,12 +929,13 @@ func TestProviderIndependentLocalizationOwnsMaterializedPresentation(t *testing.
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -915,7 +946,8 @@ func TestProviderIndependentLocalizationOwnsMaterializedPresentation(t *testing.
 				Descriptions: true,
 			},
 		},
-	}).Require(t, clitest.CompletionItem("remote").Presentation("remote", "commande distante"))
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.CompletionItem("remote").Presentation("remote", "commande distante"))
 
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args:   []string{"remote"},
@@ -940,7 +972,7 @@ func TestProviderIndependentLocalizationOwnsMaterializedPresentation(t *testing.
 func TestProviderIndependentLocalizationOwnsContributedAliasPresentation(t *testing.T) {
 	t.Parallel()
 	type config = providerLocalizationConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -974,12 +1006,13 @@ func TestProviderIndependentLocalizationOwnsContributedAliasPresentation(t *test
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -990,13 +1023,14 @@ func TestProviderIndependentLocalizationOwnsContributedAliasPresentation(t *test
 				Descriptions: true,
 			},
 		},
-	}).Require(t, clitest.CompletionItem("remote").Presentation("remote", "alias distant"))
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.CompletionItem("remote").Presentation("remote", "alias distant"))
 }
 
 func TestProviderAliasWithoutLocalDescriptionInheritsTargetDescriptionOwner(t *testing.T) {
 	t.Parallel()
 	type config = providerLocalizationConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -1030,12 +1064,13 @@ func TestProviderAliasWithoutLocalDescriptionInheritsTargetDescriptionOwner(t *t
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -1046,7 +1081,8 @@ func TestProviderAliasWithoutLocalDescriptionInheritsTargetDescriptionOwner(t *t
 				Descriptions: true,
 			},
 		},
-	}).Require(t, clitest.CompletionItem("remote").Presentation("remote", "commande servir"))
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.CompletionItem("remote").Presentation("remote", "commande servir"))
 }
 
 func TestProviderPublicationMetadataRejectsInvalidLocalizationWithoutOutcomeIdentity(t *testing.T) {
@@ -1148,9 +1184,11 @@ func TestProviderSettlementConvergesConcurrentDemandWhileSchedulingDoesNotDefine
 	t.Parallel()
 	type config = providerMaterializationConfig
 	var calls [3]atomic.Int32
-	app := providerMustCompilePublic(t, cli.Definition[config]{
-		Name:            providerMaterializationToolName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: providerMaterializationToolName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
 				calls[0].Add(1)
@@ -1174,7 +1212,8 @@ func TestProviderSettlementConvergesConcurrentDemandWhileSchedulingDoesNotDefine
 				return nil
 			})
 		},
-	})
+	}
+	app := providerMustCompilePublic(t, definition)
 
 	root := clitest.RootCommand()
 	first := root.Command("first")
@@ -1353,7 +1392,9 @@ func TestProviderCanceledOrFailedDemandSettlesOnceWithoutHiddenRetry(t *testing.
 	})
 	root := clitest.RootCommand()
 	provider := root.ProviderAt(0)
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: []string{"discarded"}})
+	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: []string{"discarded"},
+	})
 	proof.Require(t,
 		clitest.InspectionRejected(),
 		clitest.FailsWith(clitest.DiagnosticsExactly(clitest.Diagnostic(cli.DiagnosticCommandProviderFailure))),
@@ -1372,7 +1413,9 @@ func TestProviderCanceledOrFailedDemandSettlesOnceWithoutHiddenRetry(t *testing.
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	before := calls.Load()
-	canceled := clitest.Inspect(ctx, app, cli.InspectionRequest{Args: []string{"discarded"}})
+	canceled := clitest.Inspect(ctx, app, cli.InspectionRequest{
+		Args: []string{"discarded"},
+	})
 	canceled.Require(t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticCommandProviderCancellation).Present()),
 		root.Command("discarded").ObservedDoesNotExist(),
@@ -1431,9 +1474,11 @@ func TestProviderCallbackPanicPropagatesBeforeAnyConcurrentPeerPublication(t *te
 	t.Parallel()
 	type config = providerMaterializationConfig
 	panicValue := errors.New("provider panic")
-	app := providerMustCompilePublic(t, cli.Definition[config]{
-		Name:            providerMaterializationToolName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: providerMaterializationToolName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Subcommands.CommandsFrom(func(context.Context, *cli.CommandBatch[config]) error { panic(panicValue) })
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
@@ -1443,7 +1488,8 @@ func TestProviderCallbackPanicPropagatesBeforeAnyConcurrentPeerPublication(t *te
 				return nil
 			})
 		},
-	})
+	}
+	app := providerMustCompilePublic(t, definition)
 	var recovered any
 	func() {
 		defer func() { recovered = recover() }()
@@ -1726,9 +1772,11 @@ func TestOneOperationModelViewKeepsProviderGrammarDomainPolicyLocalizationAndAcc
 	var providerCalls atomic.Int32
 	var parserCalls atomic.Int32
 	var domainCalls atomic.Int32
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
-		Name:            providerMaterializationToolName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[rootConfig]{
+		Name: providerMaterializationToolName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			profile := root.Values.String(&root.Config.Profile)
 			root.Values.Default(profile, "profiled")
@@ -1749,10 +1797,11 @@ func TestOneOperationModelViewKeepsProviderGrammarDomainPolicyLocalizationAndAcc
 								Count: cli.Count.Exactly(2),
 								Parse: func(_ context.Context, tokens []string) (providerTokenPairValue, error) {
 									parserCalls.Add(1)
-									return providerTokenPairValue{
+									value := providerTokenPairValue{
 										Left:  tokens[0],
 										Right: tokens[1],
-									}, nil
+									}
+									return value, nil
 								},
 								Format: func(value providerTokenPairValue) []string {
 									return []string{"provider-" + value.Left, "provider-" + value.Right}
@@ -1792,7 +1841,8 @@ func TestOneOperationModelViewKeepsProviderGrammarDomainPolicyLocalizationAndAcc
 				return nil
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	root := clitest.RootCommand()
 	remote := root.Command("remote")
@@ -1804,7 +1854,9 @@ func TestOneOperationModelViewKeepsProviderGrammarDomainPolicyLocalizationAndAcc
 	canonical := domain.Entry("prod")
 	alias := domain.Entry("p")
 	notice := clitest.Notice(cli.NoticeAdvisory).Advisory("mode-ready")
-	expectedAccess := clitest.ExecutionAccess{Values: []clitest.ValueLocator{profile}}
+	expectedAccess := clitest.ExecutionAccess{
+		Values: []clitest.ValueLocator{profile},
+	}
 
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args:   []string{"remote", "--mode", "p", "left", "right"},
@@ -1925,7 +1977,9 @@ func TestRejectedStagedProviderCandidatesLeaveNoPublicationLocalizationOrIdentit
 
 func TestProviderPanicRemainsOrdinaryPanic(t *testing.T) {
 	t.Parallel()
-	panicValue := &struct{ marker string }{marker: "provider panic"}
+	panicValue := &struct{ marker string }{
+		marker: "provider panic",
+	}
 	app, err := cli.Compile(cli.Definition[struct{}]{
 		Name: providerMaterializationToolName,
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -1950,7 +2004,7 @@ func TestProviderProducedLocaleSelectorIsRejectedDuringInvocationAnalysis(t *tes
 	type rootConfig = providerMaterializationLocaleRootConfig
 	type childConfig = providerMaterializationLocaleChildConfig
 	providerCalls := 0
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: providerMaterializationToolName,
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -1970,7 +2024,8 @@ func TestProviderProducedLocaleSelectorIsRejectedDuringInvocationAnalysis(t *tes
 				return nil
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if providerCalls != 0 {
 		t.Fatalf("Compile() executed provider %d times", providerCalls)
 	}
@@ -2018,7 +2073,7 @@ func TestProviderAccessSelectedAncestorPolarity(t *testing.T) {
 		}
 	}
 	definition := func(kind accessKind, relationship relation) cli.Definition[config] {
-		return cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: providerMaterializationToolName,
 			Declare: func(root *cli.CommandBuilder[config]) {
 				var accepted cli.Destination[config, string]
@@ -2088,6 +2143,7 @@ func TestProviderAccessSelectedAncestorPolarity(t *testing.T) {
 				})
 			},
 		}
+		return definition
 	}
 
 	tests := []struct {
@@ -2096,21 +2152,96 @@ func TestProviderAccessSelectedAncestorPolarity(t *testing.T) {
 		relationship relation
 		valid        bool
 	}{
-		{"value same command", accessValue, relationSame, false},
-		{"value ancestor", accessValue, relationAncestor, true},
-		{"value sibling", accessValue, relationSibling, false},
-		{"value descendant", accessValue, relationDescendant, false},
-		{"value accepted external ancestor", accessValue, relationAcceptedExternal, true},
-		{"optional value same command", accessOptionalValue, relationSame, false},
-		{"optional value ancestor", accessOptionalValue, relationAncestor, true},
-		{"optional value sibling", accessOptionalValue, relationSibling, false},
-		{"optional value descendant", accessOptionalValue, relationDescendant, false},
-		{"optional value accepted external ancestor", accessOptionalValue, relationAcceptedExternal, true},
-		{"value state same command", accessValueState, relationSame, true},
-		{"value state ancestor", accessValueState, relationAncestor, true},
-		{"value state sibling", accessValueState, relationSibling, false},
-		{"value state descendant", accessValueState, relationDescendant, false},
-		{"value state accepted external ancestor", accessValueState, relationAcceptedExternal, true},
+		{
+			name:         "value same command",
+			kind:         accessValue,
+			relationship: relationSame,
+			valid:        false,
+		},
+		{
+			name:         "value ancestor",
+			kind:         accessValue,
+			relationship: relationAncestor,
+			valid:        true,
+		},
+		{
+			name:         "value sibling",
+			kind:         accessValue,
+			relationship: relationSibling,
+			valid:        false,
+		},
+		{
+			name:         "value descendant",
+			kind:         accessValue,
+			relationship: relationDescendant,
+			valid:        false,
+		},
+		{
+			name:         "value accepted external ancestor",
+			kind:         accessValue,
+			relationship: relationAcceptedExternal,
+			valid:        true,
+		},
+		{
+			name:         "optional value same command",
+			kind:         accessOptionalValue,
+			relationship: relationSame,
+			valid:        false,
+		},
+		{
+			name:         "optional value ancestor",
+			kind:         accessOptionalValue,
+			relationship: relationAncestor,
+			valid:        true,
+		},
+		{
+			name:         "optional value sibling",
+			kind:         accessOptionalValue,
+			relationship: relationSibling,
+			valid:        false,
+		},
+		{
+			name:         "optional value descendant",
+			kind:         accessOptionalValue,
+			relationship: relationDescendant,
+			valid:        false,
+		},
+		{
+			name:         "optional value accepted external ancestor",
+			kind:         accessOptionalValue,
+			relationship: relationAcceptedExternal,
+			valid:        true,
+		},
+		{
+			name:         "value state same command",
+			kind:         accessValueState,
+			relationship: relationSame,
+			valid:        true,
+		},
+		{
+			name:         "value state ancestor",
+			kind:         accessValueState,
+			relationship: relationAncestor,
+			valid:        true,
+		},
+		{
+			name:         "value state sibling",
+			kind:         accessValueState,
+			relationship: relationSibling,
+			valid:        false,
+		},
+		{
+			name:         "value state descendant",
+			kind:         accessValueState,
+			relationship: relationDescendant,
+			valid:        false,
+		},
+		{
+			name:         "value state accepted external ancestor",
+			kind:         accessValueState,
+			relationship: relationAcceptedExternal,
+			valid:        true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -2265,7 +2396,7 @@ func TestProviderRuleAndAdvisoryDestinationPolarityReachesDraft(t *testing.T) {
 		}
 	}
 	definition := func(family relationFamily, relationship relation) cli.Definition[config] {
-		return cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: providerMaterializationToolName,
 			Declare: func(root *cli.CommandBuilder[config]) {
 				var accepted cli.Destination[config, string]
@@ -2327,26 +2458,55 @@ func TestProviderRuleAndAdvisoryDestinationPolarityReachesDraft(t *testing.T) {
 				})
 			},
 		}
+		return definition
 	}
 
 	families := []struct {
 		name   string
 		family relationFamily
 	}{
-		{"rule subject", ruleSubject},
-		{"rule dependency", ruleDependency},
-		{"advisory subject", advisorySubject},
-		{"advisory dependency", advisoryDependency},
+		{
+			name:   "rule subject",
+			family: ruleSubject,
+		},
+		{
+			name:   "rule dependency",
+			family: ruleDependency,
+		},
+		{
+			name:   "advisory subject",
+			family: advisorySubject,
+		},
+		{
+			name:   "advisory dependency",
+			family: advisoryDependency,
+		},
 	}
 	relations := []struct {
 		name         string
 		relationship relation
 		valid        bool
 	}{
-		{"accepted static ancestor", relationAcceptedExternal, true},
-		{"provider-local ancestor", relationAncestor, true},
-		{"provider-local sibling", relationSibling, false},
-		{"provider-local descendant", relationDescendant, false},
+		{
+			name:         "accepted static ancestor",
+			relationship: relationAcceptedExternal,
+			valid:        true,
+		},
+		{
+			name:         "provider-local ancestor",
+			relationship: relationAncestor,
+			valid:        true,
+		},
+		{
+			name:         "provider-local sibling",
+			relationship: relationSibling,
+			valid:        false,
+		},
+		{
+			name:         "provider-local descendant",
+			relationship: relationDescendant,
+			valid:        false,
+		},
 	}
 	for _, family := range families {
 		t.Run(family.name, func(t *testing.T) {
@@ -2544,7 +2704,7 @@ type providerTokenPairValue struct {
 }
 
 func providerTokenPairCodec() cli.ValueCodec[providerTokenPairValue] {
-	return cli.ValueCodec[providerTokenPairValue]{
+	codec := cli.ValueCodec[providerTokenPairValue]{
 		Name: "pair-value",
 		Parse: func(text string) (providerTokenPairValue, error) {
 			return providerTokenPairValue{}, fmt.Errorf("destination codec must not parse token-language input %q", text)
@@ -2552,4 +2712,5 @@ func providerTokenPairCodec() cli.ValueCodec[providerTokenPairValue] {
 		Format:   func(value providerTokenPairValue) string { return value.Left + ":" + value.Right },
 		Snapshot: cli.Value.Assign[providerTokenPairValue](),
 	}
+	return codec
 }

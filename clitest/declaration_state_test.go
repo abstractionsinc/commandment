@@ -113,7 +113,11 @@ func TestStaticDeclarationExpectationsUsePublicArtifacts(t *testing.T) {
 		EnvironmentInputByID(env).Sensitive(),
 		FactByID(fact).HasResolver(),
 	}
-	(SchemaResult{state: &schemaResultState{observation: *schema}}).Require(t, exps...)
+	(SchemaResult{
+		state: &schemaResultState{
+			observation: *schema,
+		},
+	}).Require(t, exps...)
 
 	_ = command
 }
@@ -175,13 +179,22 @@ func TestStaticDeclarationEffectiveStateUsesReferenceAndInspectionOwners(t *test
 	}
 
 	flag := FlagByID(flagID)
-	(SchemaResult{state: &schemaResultState{observation: schema}}).Require(t,
+	(SchemaResult{
+		state: &schemaResultState{
+			observation: schema,
+		},
+	}).Require(t,
 		flag.Exists(),
 		flag.Hidden(),
 		flag.Sensitive(),
 		flag.Lifecycle(cli.LifecycleStateDeprecated),
 		flag.ReplacedBy(FlagByID(99)))
-	(ReferenceResult{state: &referenceResultState{observation: reference, err: nil}}).Require(t,
+	(ReferenceResult{
+		state: &referenceResultState{
+			observation: reference,
+			err:         nil,
+		},
+	}).Require(t,
 		flag.Exists(),
 		flag.Hidden(),
 		flag.Sensitive(),
@@ -190,7 +203,12 @@ func TestStaticDeclarationEffectiveStateUsesReferenceAndInspectionOwners(t *test
 		flag.Available(),
 		flag.NotVisible(),
 		FactByID(factID).Available())
-	(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t,
+	(InspectionResult{
+		state: &inspectionResultState{
+			observation: inspection,
+			err:         nil,
+		},
+	}).Require(t,
 		flag.Exists(),
 		flag.Hidden(),
 		flag.Sensitive(),
@@ -380,10 +398,16 @@ func TestCommandInspectionPropertyPreservesPropertyTruth(t *testing.T) {
 
 func requireStaticValueSchemaProperty(t *testing.T, expectation StaticDeclarationExpectation, value cli.ValueSchema, label string) {
 	t.Helper()
-	schema := cli.Schema{Values: map[cli.ValueID]cli.ValueSchema{value.ID: value}}
-	reference := cli.Reference{Values: map[cli.ValueID]cli.ValueReference{
-		value.ID: {ValueSchema: value},
-	}}
+	schema := cli.Schema{
+		Values: map[cli.ValueID]cli.ValueSchema{value.ID: value},
+	}
+	reference := cli.Reference{
+		Values: map[cli.ValueID]cli.ValueReference{
+			value.ID: {
+				ValueSchema: value,
+			},
+		},
+	}
 	if got := schemaExpectationOutcome(t, expectation, &schema); got.status != evaluationProved {
 		t.Fatalf("schema %s = %#v", label, got)
 	}
@@ -416,7 +440,9 @@ func TestSchemaValueResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Parallel()
 	valueID := cli.ValueID(3)
 	schema := &cli.Schema{
-		Values: map[cli.ValueID]cli.ValueSchema{valueID: {ID: valueID}},
+		Values: map[cli.ValueID]cli.ValueSchema{valueID: {
+			ID: valueID,
+		}},
 	}
 	resolved := resolveSchemaValueLocator(ValueByID(valueID).state, schema)
 	if resolved.status != locatorResolutionFound || resolved.value.ID != valueID {

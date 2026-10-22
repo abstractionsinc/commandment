@@ -23,7 +23,7 @@ type authoringReplacementNameConfig struct{ Name string }
 func TestReplacementAuthoringProjectsDeclaredSemantics(t *testing.T) {
 	t.Parallel()
 	type config = authoringReplacementNameConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -45,7 +45,8 @@ func TestReplacementAuthoringProjectsDeclaredSemantics(t *testing.T) {
 				a.ReplacedBy(b).EndOfOptions()
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().FlagAt(0).Spelling("--old").ReplacedBy(clitest.RootCommand().FlagAt(0).Spelling("--new")),
 		clitest.RootCommand().FlagAt(0).Spelling("--old").Hidden(),
@@ -67,7 +68,7 @@ func TestReplacementAuthoringProjectsDistinctReplacementCarriers(t *testing.T) {
 		legacy := b.Alias("legacy", modern)
 		legacy.ReplacedBy(modern).Hidden()
 	})
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -118,7 +119,8 @@ func TestReplacementAuthoringProjectsDistinctReplacementCarriers(t *testing.T) {
 				})
 			oldForm.ReplacedBy(newForm).VisibleWhen(visible)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	oldForm, newForm := root.ArgumentFormAt(0), root.ArgumentFormAt(1)
 	domainLocator := root.Flag("--mode").Value().Domain(cli.ValueDomainUseDestination)
@@ -145,24 +147,31 @@ func TestReplacementAuthoringRejectsDuplicateAndCyclicRelations(t *testing.T) {
 	t.Run("duplicate source", func(t *testing.T) {
 		t.Parallel()
 		type config struct{ Old, Current, Other string }
-		clitest.CompileFails(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name:    "tool",
 			Release: cli.Release.Ordered("2", "1", "2"),
 			Declare: func(root *cli.CommandBuilder[config]) {
-				old := root.Flags.String(&root.Config.Old).Release(cli.ReleaseLifecycle{DeprecatedIn: "2"})
+				old := root.Flags.String(&root.Config.Old).Release(cli.ReleaseLifecycle{
+					DeprecatedIn: "2",
+				})
 				old.Long("old")
-				current := root.Flags.String(&root.Config.Current).Release(cli.ReleaseLifecycle{IntroducedIn: "1"})
+				current := root.Flags.String(&root.Config.Current).Release(cli.ReleaseLifecycle{
+					IntroducedIn: "1",
+				})
 				current.Long("current")
-				other := root.Flags.String(&root.Config.Other).Release(cli.ReleaseLifecycle{IntroducedIn: "1"})
+				other := root.Flags.String(&root.Config.Other).Release(cli.ReleaseLifecycle{
+					IntroducedIn: "1",
+				})
 				other.Long("other")
 				old.ReplacedBy(current).ReplacedBy(other)
 			},
-		}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
+		}
+		clitest.CompileFails(t, definition).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 	})
 	t.Run("cycle", func(t *testing.T) {
 		t.Parallel()
 		type config struct{ First, Second string }
-		clitest.CompileFails(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name:    "tool",
 			Release: cli.Release.Ordered("2", "1", "2"),
 			Declare: func(root *cli.CommandBuilder[config]) {
@@ -179,14 +188,15 @@ func TestReplacementAuthoringRejectsDuplicateAndCyclicRelations(t *testing.T) {
 				first.ReplacedBy(second)
 				second.ReplacedBy(first)
 			},
-		}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
+		}
+		clitest.CompileFails(t, definition).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 	})
 }
 
 func TestReplacedByPublishesReplacementRelation(t *testing.T) {
 	t.Parallel()
 	type config = authoringReplacementNameConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -199,7 +209,8 @@ func TestReplacedByPublishesReplacementRelation(t *testing.T) {
 			})
 			legacy.ReplacedBy(current)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Schema(app).
 		Require(t, clitest.RootCommand().FlagAt(0).Spelling("--legacy").ReplacedBy(clitest.RootCommand().FlagAt(0).Spelling("--current")))
 }
@@ -214,16 +225,10 @@ type commandEntryProjectionFixture struct {
 	page *cli.HelpPage
 }
 
-func newStaticCommandEntryProjectionFixture(
-	t *testing.T,
-	targetHidden bool,
-	targetRelease cli.ReleaseLifecycle,
-	entryHidden bool,
-	entryRelease cli.ReleaseLifecycle,
-) commandEntryProjectionFixture {
+func newStaticCommandEntryProjectionFixture(t *testing.T, targetHidden bool, targetRelease cli.ReleaseLifecycle, entryHidden bool, entryRelease cli.ReleaseLifecycle) commandEntryProjectionFixture {
 	t.Helper()
 	var page cli.HelpPage
-	app, err := cli.Compile(cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("2.0.0"),
 		Help: cli.HelpConfig{
@@ -253,14 +258,16 @@ func newStaticCommandEntryProjectionFixture(
 				Run: func(context.Context, *struct{}) error { return nil },
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile(): %v", err)
 	}
-	return commandEntryProjectionFixture{
+	fixture := commandEntryProjectionFixture{
 		app:  app,
 		page: &page,
 	}
+	return fixture
 }
 
 func TestCommandEntryProjectionNeverBroadensStaticCanonicalTarget(t *testing.T) {
@@ -489,14 +496,10 @@ func TestProviderCommandEntryProjectionNarrowsCompleteCanonicalTargetPath(t *tes
 	})
 }
 
-func newProviderCommandEntryProjectionFixture(
-	t *testing.T,
-	parentHidden bool,
-	parentRelease cli.ReleaseLifecycle,
-) commandEntryProjectionFixture {
+func newProviderCommandEntryProjectionFixture(t *testing.T, parentHidden bool, parentRelease cli.ReleaseLifecycle) commandEntryProjectionFixture {
 	t.Helper()
 	var page cli.HelpPage
-	app, err := cli.Compile(cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("2.0.0"),
 		Help: cli.HelpConfig{
@@ -528,14 +531,16 @@ func newProviderCommandEntryProjectionFixture(
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile(): %v", err)
 	}
-	return commandEntryProjectionFixture{
+	fixture := commandEntryProjectionFixture{
 		app:  app,
 		page: &page,
 	}
+	return fixture
 }
 
 func commandEntryProjectionReferenceEntry(t *testing.T, app cli.Application, name string) cli.CommandEntryReference {
@@ -647,7 +652,7 @@ type lifecycleValueConfig struct{ Value string }
 func TestAuthoringAcceptanceUsesEvaluatedReleaseForFiniteDomainMembership(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleValueConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "release-domain",
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -666,7 +671,8 @@ func TestAuthoringAcceptanceUsesEvaluatedReleaseForFiniteDomainMembership(t *tes
 			})
 			root.Values.Value(&root.Config.Value, domain)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	schema := app.Schema()
 	root := schema.Commands[schema.Root]
 	if len(root.Values) != 1 {
@@ -684,12 +690,7 @@ func TestAuthoringAcceptanceUsesEvaluatedReleaseForFiniteDomainMembership(t *tes
 	)
 }
 
-func valueDomainEntryIDsForUse(
-	t *testing.T,
-	schema cli.Schema,
-	destination cli.ValueID,
-	kind cli.ValueDomainUseKind,
-) map[string]cli.ValueDomainEntryID {
+func valueDomainEntryIDsForUse(t *testing.T, schema cli.Schema, destination cli.ValueID, kind cli.ValueDomainUseKind) map[string]cli.ValueDomainEntryID {
 	t.Helper()
 	for _, domain := range schema.ValueDomains {
 		for _, use := range domain.Uses {
@@ -714,7 +715,7 @@ func valueDomainEntryIDsForUse(
 func TestAuthoringAcceptanceRejectsEffectiveAliasToLifecycleInactiveCanonicalValue(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleValueConfig
-	clitest.CompileFails(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "bad-alias",
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -726,13 +727,14 @@ func TestAuthoringAcceptanceRejectsEffectiveAliasToLifecycleInactiveCanonicalVal
 			})
 			root.Values.Value(&root.Config.Value, domain)
 		},
-	}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
+	}
+	clitest.CompileFails(t, definition).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 }
 
 func TestAuthoringAcceptanceRejectsLifecycleInactiveStaticDomainDefault(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleValueConfig
-	_ = clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "domain-default-current",
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -745,8 +747,9 @@ func TestAuthoringAcceptanceRejectsLifecycleInactiveStaticDomainDefault(t *testi
 			d := root.Values.Value(&root.Config.Value, domain)
 			root.Values.Default(d, "current")
 		},
-	})
-	clitest.CompileFails(t, cli.Definition[config]{
+	}
+	_ = clitest.Compile(t, definition)
+	definitionUnderTest := cli.Definition[config]{
 		Name:    "domain-default-removed",
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -759,7 +762,8 @@ func TestAuthoringAcceptanceRejectsLifecycleInactiveStaticDomainDefault(t *testi
 			d := root.Values.Value(&root.Config.Value, domain)
 			root.Values.Default(d, "removed")
 		},
-	}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
+	}
+	clitest.CompileFails(t, definitionUnderTest).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 }
 
 func TestCompileClassifiesActiveBuilderLifecycleMisuse(t *testing.T) {
@@ -777,7 +781,7 @@ func TestCompileClassifiesActiveBuilderLifecycleMisuse(t *testing.T) {
 func TestDefinitionAuthoringRejectsLifecycleInactiveDomainShortcutDefault(t *testing.T) {
 	t.Parallel()
 	type rootConfig = lifecycleRegionRootConfig
-	clitest.CompileFails(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name:    "commandment",
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
@@ -799,7 +803,8 @@ func TestDefinitionAuthoringRejectsLifecycleInactiveDomainShortcutDefault(t *tes
 				},
 			})
 		},
-	}).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
+	}
+	clitest.CompileFails(t, definition).Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
 }
 
 func TestReleaseSchemeConstructorsSnapshotAndReuseCanonicalSemanticAuthority(t *testing.T) {
@@ -871,9 +876,11 @@ type releaseValueConfig struct{ Value string }
 func TestTReleasePreservesReleaseSemantics(t *testing.T) {
 	t.Parallel()
 	type config = releaseValueConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "release-env",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "release-env",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			value := root.Values.String(&root.Config.Value)
@@ -882,7 +889,8 @@ func TestTReleasePreservesReleaseSemantics(t *testing.T) {
 				Reason:       "use NEW",
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Env: cli.Env{{
 			Name:  "LEGACY",
@@ -897,7 +905,7 @@ func TestTReleasePreservesReleaseSemantics(t *testing.T) {
 
 func TestArgumentFormDeclarationReleasePreservesReleaseSemantics(t *testing.T) {
 	t.Parallel()
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name:    "release-form",
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -906,7 +914,8 @@ func TestArgumentFormDeclarationReleasePreservesReleaseSemantics(t *testing.T) {
 					DeprecatedIn: "2.0.0",
 				})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"old"},
 	}).Require(t,
@@ -919,9 +928,11 @@ func TestArgumentFormDeclarationReleasePreservesReleaseSemantics(t *testing.T) {
 func TestDomainAliasDeclarationReleasePreservesReleaseSemantics(t *testing.T) {
 	t.Parallel()
 	type config = releaseValueConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "release-alias",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "release-alias",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := cli.Value.Domain(cli.Value.Assign[string](), func(builder *cli.ValueDomainBuilder[string]) {
@@ -932,7 +943,8 @@ func TestDomainAliasDeclarationReleasePreservesReleaseSemantics(t *testing.T) {
 			})
 			root.Flags.Value(&root.Config.Value, domain).Long("value")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().Flag("--value").Value()
 	alias := value.Domain(cli.ValueDomainUseDestination).Entry("old")
 	notice := clitest.Notice(cli.NoticeDeprecatedValue).On(alias)

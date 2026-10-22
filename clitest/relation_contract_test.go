@@ -300,8 +300,10 @@ func TestIdentityRelationFailuresDoNotExposeRawIDs(t *testing.T) {
 		},
 		CommandEntries: map[cli.CommandEntryID]cli.CommandEntrySchema{
 			shortcutEntryID: {
-				ID:       shortcutEntryID,
-				Defaults: []cli.CommandShortcutDefaultSchema{{Destination: actualShortcutValueID}},
+				ID: shortcutEntryID,
+				Defaults: []cli.CommandShortcutDefaultSchema{{
+					Destination: actualShortcutValueID,
+				}},
 			},
 		},
 		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormSchema{
@@ -629,8 +631,10 @@ func TestRelationFailuresRenderAcrossCarriers(t *testing.T) {
 		},
 		CommandEntries: map[cli.CommandEntryID]cli.CommandEntrySchema{
 			shortcutEntryID: {
-				ID:       shortcutEntryID,
-				Defaults: []cli.CommandShortcutDefaultSchema{{Destination: actualShortcutValue}},
+				ID: shortcutEntryID,
+				Defaults: []cli.CommandShortcutDefaultSchema{{
+					Destination: actualShortcutValue,
+				}},
 			},
 		},
 		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormSchema{
@@ -697,8 +701,10 @@ func TestRelationFailuresRenderAcrossCarriers(t *testing.T) {
 		},
 		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryReference{
 			shortcutEntryID: {
-				ID:       shortcutEntryID,
-				Defaults: []cli.CommandShortcutDefaultReference{{Destination: actualShortcutValue}},
+				ID: shortcutEntryID,
+				Defaults: []cli.CommandShortcutDefaultReference{{
+					Destination: actualShortcutValue,
+				}},
 			},
 		},
 		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormReference{
@@ -764,8 +770,10 @@ func TestRelationFailuresRenderAcrossCarriers(t *testing.T) {
 		},
 		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryInspection{
 			shortcutEntryID: {
-				ID:       shortcutEntryID,
-				Defaults: []cli.CommandShortcutDefaultInspection{{Destination: actualShortcutValue}},
+				ID: shortcutEntryID,
+				Defaults: []cli.CommandShortcutDefaultInspection{{
+					Destination: actualShortcutValue,
+				}},
 			},
 		},
 		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyInspection{
@@ -806,140 +814,143 @@ func TestRelationFailuresRenderAcrossCarriers(t *testing.T) {
 		forbidden []string
 	}{
 		{
-			"condition reference",
-			referenceExpectationOutcome(
+			name: "condition reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				RootCommand().ConditionAt(0).Expression().Destination(ValueByID(expectedConditionValue)),
 				reference,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualConditionValue)), idText(uint32(expectedConditionValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualConditionValue)), idText(uint32(expectedConditionValue))},
 		},
 		{
-			"condition inspection",
-			inspectionExpectationOutcome(
+			name: "condition inspection",
+			outcome: inspectionExpectationOutcome(
 				t,
 				RootCommand().ConditionAt(0).Expression().Destination(ValueByID(expectedConditionValue)),
 				inspection,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualConditionValue)), idText(uint32(expectedConditionValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualConditionValue)), idText(uint32(expectedConditionValue))},
 		},
 		{
-			"endpoint reference",
-			referenceExpectationOutcome(
+			name: "endpoint reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).Endpoint(SignalEndpointByID(expectedEndpoint)),
 				reference,
 			),
-			"different signal-endpoint identity",
-			[]string{idText(uint32(actualEndpoint)), idText(uint32(expectedEndpoint))},
+			semantic:  "different signal-endpoint identity",
+			forbidden: []string{idText(uint32(actualEndpoint)), idText(uint32(expectedEndpoint))},
 		},
 		{
-			"endpoint inspection",
-			inspectionExpectationOutcome(
+			name: "endpoint inspection",
+			outcome: inspectionExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).Endpoint(SignalEndpointByID(expectedEndpoint)),
 				inspection,
 			),
-			"different signal-endpoint identity",
-			[]string{idText(uint32(actualEndpoint)), idText(uint32(expectedEndpoint))},
+			semantic:  "different signal-endpoint identity",
+			forbidden: []string{idText(uint32(actualEndpoint)), idText(uint32(expectedEndpoint))},
 		},
 		{
-			"signal value reference",
-			referenceExpectationOutcome(
+			name: "signal value reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).SignalValue(ValueByID(expectedSignalValue)),
 				reference,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualSignalValue)), idText(uint32(expectedSignalValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualSignalValue)), idText(uint32(expectedSignalValue))},
 		},
 		{
-			"signal value inspection",
-			inspectionExpectationOutcome(
+			name: "signal value inspection",
+			outcome: inspectionExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).SignalValue(ValueByID(expectedSignalValue)),
 				inspection,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualSignalValue)), idText(uint32(expectedSignalValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualSignalValue)), idText(uint32(expectedSignalValue))},
 		},
 		{
-			"delay value reference",
-			referenceExpectationOutcome(
+			name: "delay value reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).DelayValue(ValueByID(expectedDelayValue)),
 				reference,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualDelayValue)), idText(uint32(expectedDelayValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualDelayValue)), idText(uint32(expectedDelayValue))},
 		},
 		{
-			"delay value inspection",
-			inspectionExpectationOutcome(
+			name: "delay value inspection",
+			outcome: inspectionExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).DelayValue(ValueByID(expectedDelayValue)),
 				inspection,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualDelayValue)), idText(uint32(expectedDelayValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualDelayValue)), idText(uint32(expectedDelayValue))},
 		},
 		{
-			"shortcut reference",
-			referenceExpectationOutcome(
+			name: "shortcut reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				CommandEntryByID(shortcutEntryID).ShortcutDefaultAt(0).Destination(ValueByID(expectedShortcutValue)),
 				reference,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualShortcutValue)), idText(uint32(expectedShortcutValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualShortcutValue)), idText(uint32(expectedShortcutValue))},
 		},
 		{
-			"shortcut inspection",
-			inspectionExpectationOutcome(
+			name: "shortcut inspection",
+			outcome: inspectionExpectationOutcome(
 				t,
 				CommandEntryByID(shortcutEntryID).ShortcutDefaultAt(0).Destination(ValueByID(expectedShortcutValue)),
 				inspection,
 			),
-			"different value identity",
-			[]string{idText(uint32(actualShortcutValue)), idText(uint32(expectedShortcutValue))},
+			semantic:  "different value identity",
+			forbidden: []string{idText(uint32(actualShortcutValue)), idText(uint32(expectedShortcutValue))},
 		},
 		{
-			"argument profile reference",
-			referenceExpectationOutcome(
+			name: "argument profile reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				ArgumentFormByID(argumentFormID).GrammarProfile(GrammarProfileByID(expectedFormProfile)),
 				reference,
 			),
-			"different identity",
-			[]string{idText(uint32(actualFormProfile)), idText(uint32(expectedFormProfile))},
+			semantic:  "different identity",
+			forbidden: []string{idText(uint32(actualFormProfile)), idText(uint32(expectedFormProfile))},
 		},
 		{
-			"default profile reference",
-			referenceExpectationOutcome(
+			name: "default profile reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				CommandByID(rootID).DefaultGrammarProfile(GrammarProfileByID(expectedDefaultProfile)),
 				reference,
 			),
-			"different identity",
-			[]string{idText(uint32(actualDefaultProfile)), idText(uint32(expectedDefaultProfile))},
+			semantic:  "different identity",
+			forbidden: []string{idText(uint32(actualDefaultProfile)), idText(uint32(expectedDefaultProfile))},
 		},
 		{
-			"profile sequence reference",
-			referenceExpectationOutcome(
+			name: "profile sequence reference",
+			outcome: referenceExpectationOutcome(
 				t,
 				CommandByID(
 					rootID,
 				).GrammarProfilesExactly(GrammarProfileByID(caseProfileB), GrammarProfileByID(caseProfileA)),
 				reference,
 			),
-			"different identity sequence",
-			[]string{idText(uint32(caseProfileA)), idText(uint32(caseProfileB))},
+			semantic:  "different identity sequence",
+			forbidden: []string{idText(uint32(caseProfileA)), idText(uint32(caseProfileB))},
 		},
 	}
 	for _, tc := range directCases {
-		t.Run(tc.name, func(_ *testing.T) { assertFailure(tc.name, tc.outcome, tc.semantic, tc.forbidden...) })
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assertFailure(tc.name, tc.outcome, tc.semantic, tc.forbidden...)
+		})
 	}
 
 	ambiguousValue := RootCommand().Flag("--dup").Value()
@@ -953,134 +964,134 @@ func TestRelationFailuresRenderAcrossCarriers(t *testing.T) {
 		forbidden []string
 	}{
 		{
-			"condition schema ambiguous expected value",
-			schemaExpectationOutcome(t, RootCommand().ConditionAt(0).Expression().Destination(ambiguousValue), &schema),
-			ambiguousFlagIDs,
+			name:      "condition schema ambiguous expected value",
+			outcome:   schemaExpectationOutcome(t, RootCommand().ConditionAt(0).Expression().Destination(ambiguousValue), &schema),
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"condition reference ambiguous expected value",
-			referenceExpectationOutcome(
+			name: "condition reference ambiguous expected value",
+			outcome: referenceExpectationOutcome(
 				t,
 				RootCommand().ConditionAt(0).Expression().Destination(ambiguousValue),
 				reference,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"condition inspection ambiguous expected value",
-			inspectionExpectationOutcome(
+			name: "condition inspection ambiguous expected value",
+			outcome: inspectionExpectationOutcome(
 				t,
 				RootCommand().ConditionAt(0).Expression().Destination(ambiguousValue),
 				inspection,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"signal value schema ambiguous expected value",
-			schemaExpectationOutcome(t, SignalPolicyByID(policyID).ActionAt(0).SignalValue(ambiguousValue), &schema),
-			ambiguousFlagIDs,
+			name:      "signal value schema ambiguous expected value",
+			outcome:   schemaExpectationOutcome(t, SignalPolicyByID(policyID).ActionAt(0).SignalValue(ambiguousValue), &schema),
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"signal value reference ambiguous expected value",
-			referenceExpectationOutcome(
+			name: "signal value reference ambiguous expected value",
+			outcome: referenceExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).SignalValue(ambiguousValue),
 				reference,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"signal value inspection ambiguous expected value",
-			inspectionExpectationOutcome(
+			name: "signal value inspection ambiguous expected value",
+			outcome: inspectionExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).SignalValue(ambiguousValue),
 				inspection,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"delay value schema ambiguous expected value",
-			schemaExpectationOutcome(t, SignalPolicyByID(policyID).ActionAt(0).DelayValue(ambiguousValue), &schema),
-			ambiguousFlagIDs,
+			name:      "delay value schema ambiguous expected value",
+			outcome:   schemaExpectationOutcome(t, SignalPolicyByID(policyID).ActionAt(0).DelayValue(ambiguousValue), &schema),
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"delay value reference ambiguous expected value",
-			referenceExpectationOutcome(
+			name: "delay value reference ambiguous expected value",
+			outcome: referenceExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).DelayValue(ambiguousValue),
 				reference,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"delay value inspection ambiguous expected value",
-			inspectionExpectationOutcome(
+			name: "delay value inspection ambiguous expected value",
+			outcome: inspectionExpectationOutcome(
 				t,
 				SignalPolicyByID(policyID).ActionAt(0).DelayValue(ambiguousValue),
 				inspection,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"shortcut schema ambiguous expected value",
-			schemaExpectationOutcome(
+			name: "shortcut schema ambiguous expected value",
+			outcome: schemaExpectationOutcome(
 				t,
 				CommandEntryByID(shortcutEntryID).ShortcutDefaultAt(0).Destination(ambiguousValue),
 				&schema,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"shortcut reference ambiguous expected value",
-			referenceExpectationOutcome(
+			name: "shortcut reference ambiguous expected value",
+			outcome: referenceExpectationOutcome(
 				t,
 				CommandEntryByID(shortcutEntryID).ShortcutDefaultAt(0).Destination(ambiguousValue),
 				reference,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"shortcut inspection ambiguous expected value",
-			inspectionExpectationOutcome(
+			name: "shortcut inspection ambiguous expected value",
+			outcome: inspectionExpectationOutcome(
 				t,
 				CommandEntryByID(shortcutEntryID).ShortcutDefaultAt(0).Destination(ambiguousValue),
 				inspection,
 			),
-			ambiguousFlagIDs,
+			forbidden: ambiguousFlagIDs,
 		},
 		{
-			"argument profile schema ambiguous expected profile",
-			schemaExpectationOutcome(t, ArgumentFormByID(argumentFormID).GrammarProfile(ambiguousProfile), &schema),
-			ambiguousProfileIDs,
+			name:      "argument profile schema ambiguous expected profile",
+			outcome:   schemaExpectationOutcome(t, ArgumentFormByID(argumentFormID).GrammarProfile(ambiguousProfile), &schema),
+			forbidden: ambiguousProfileIDs,
 		},
 		{
-			"argument profile reference ambiguous expected profile",
-			referenceExpectationOutcome(
+			name: "argument profile reference ambiguous expected profile",
+			outcome: referenceExpectationOutcome(
 				t,
 				ArgumentFormByID(argumentFormID).GrammarProfile(ambiguousProfile),
 				reference,
 			),
-			ambiguousProfileIDs,
+			forbidden: ambiguousProfileIDs,
 		},
 		{
-			"default profile schema ambiguous expected profile",
-			schemaExpectationOutcome(t, CommandByID(rootID).DefaultGrammarProfile(ambiguousProfile), &schema),
-			ambiguousProfileIDs,
+			name:      "default profile schema ambiguous expected profile",
+			outcome:   schemaExpectationOutcome(t, CommandByID(rootID).DefaultGrammarProfile(ambiguousProfile), &schema),
+			forbidden: ambiguousProfileIDs,
 		},
 		{
-			"default profile reference ambiguous expected profile",
-			referenceExpectationOutcome(t, CommandByID(rootID).DefaultGrammarProfile(ambiguousProfile), reference),
-			ambiguousProfileIDs,
+			name:      "default profile reference ambiguous expected profile",
+			outcome:   referenceExpectationOutcome(t, CommandByID(rootID).DefaultGrammarProfile(ambiguousProfile), reference),
+			forbidden: ambiguousProfileIDs,
 		},
 		{
-			"profile sequence schema ambiguous expected profile",
-			schemaExpectationOutcome(t, CommandByID(rootID).GrammarProfilesExactly(ambiguousProfile), &schema),
-			ambiguousProfileIDs,
+			name:      "profile sequence schema ambiguous expected profile",
+			outcome:   schemaExpectationOutcome(t, CommandByID(rootID).GrammarProfilesExactly(ambiguousProfile), &schema),
+			forbidden: ambiguousProfileIDs,
 		},
 		{
-			"profile sequence reference ambiguous expected profile",
-			referenceExpectationOutcome(t, CommandByID(rootID).GrammarProfilesExactly(ambiguousProfile), reference),
-			ambiguousProfileIDs,
+			name:      "profile sequence reference ambiguous expected profile",
+			outcome:   referenceExpectationOutcome(t, CommandByID(rootID).GrammarProfilesExactly(ambiguousProfile), reference),
+			forbidden: ambiguousProfileIDs,
 		},
 	}
 	for _, tc := range ambiguousCases {
@@ -1172,7 +1183,9 @@ func TestDeclarationLiteralTextFailureRedactsSensitivePayload(t *testing.T) {
 			root: {
 				ID: root,
 				Conditions: []cli.ConditionSchema{{
-					Expression: cli.ConditionExpression{Operands: []cli.ValueLiteral{literal}},
+					Expression: cli.ConditionExpression{
+						Operands: []cli.ValueLiteral{literal},
+					},
 				}},
 			},
 		},
@@ -1212,7 +1225,9 @@ func TestDiagnosticGraphCompletenessAndRepairOrder(t *testing.T) {
 		t.Fatal("DiagnosticInputGraphClosed must satisfy diagnosticEvaluator")
 	}
 	openReport := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{RepairIndexes: []int{0}}},
+		Diagnostics: []cli.Diagnostic{{
+			RepairIndexes: []int{0},
+		}},
 	}
 	open := openEvaluator.evaluateDiagnosticReport(openReport)
 	if open.status != evaluationDisproved {
@@ -1259,7 +1274,9 @@ func TestResolveDeclarationExactBindingIsIndependent(t *testing.T) {
 		},
 	}
 	result := SchemaResult{
-		state: &schemaResultState{observation: schema},
+		state: &schemaResultState{
+			observation: schema,
+		},
 	}
 
 	exact := ResolveDeclaration(t, result, ActionEntryByID(actionID))
@@ -1295,7 +1312,7 @@ func TestResolveDeclarationFailureModes(t *testing.T) {
 	for _, mode := range []string{"missing", "ambiguous"} {
 		t.Run(mode, func(t *testing.T) {
 			t.Parallel()
-			commandCtx, commandCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			commandCtx, commandCancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer commandCancel()
 			//nolint:gosec // The test deliberately launches the current test binary with test-owned arguments.
 			cmd := exec.CommandContext(commandCtx, os.Args[0], "-test.run=^TestResolveDeclarationFailureProbe$")
@@ -1338,7 +1355,9 @@ func TestResolveDeclarationFailureProbe(t *testing.T) {
 		return
 	case "missing":
 		schemaResult := SchemaResult{
-			state: &schemaResultState{observation: cli.Schema{}},
+			state: &schemaResultState{
+				observation: cli.Schema{},
+			},
 		}
 		ResolveDeclaration(t, schemaResult, ActionEntryByID(704000099))
 	case "ambiguous":
@@ -1381,7 +1400,9 @@ func TestResolveDeclarationFailureProbe(t *testing.T) {
 			},
 		}
 		schemaResult := SchemaResult{
-			state: &schemaResultState{observation: schema},
+			state: &schemaResultState{
+				observation: schema,
+			},
 		}
 		ResolveDeclaration(t, schemaResult, RootCommand().Flag("--same"))
 	default:
@@ -1626,7 +1647,9 @@ func TestHelpValueDomainEntryLocatorsAggregateSameKindUsesInOrder(t *testing.T) 
 	}
 	page := cli.HelpPage{
 		ArgumentForms: []cli.HelpArgumentForm{{
-			Terms: []cli.HelpArgumentTerm{{ValueDomainUses: uses}},
+			Terms: []cli.HelpArgumentTerm{{
+				ValueDomainUses: uses,
+			}},
 		}},
 		FlagGroups: []cli.HelpFlagGroup{{
 			Title: "flags",

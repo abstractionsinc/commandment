@@ -69,7 +69,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	request := cli.InspectionRequest{Args: os.Args[1:]}
+	request := cli.InspectionRequest{
+		Args: os.Args[1:],
+	}
 	inspection, err := app.Inspect(context.Background(), request)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

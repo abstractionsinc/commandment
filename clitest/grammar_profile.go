@@ -39,46 +39,51 @@ func (locator CommandLocator) GrammarProfilesExactly(expected ...GrammarProfileL
 	for index, profile := range expected {
 		profiles[index] = profile.state
 	}
-	return commandGrammarProfilesExactlyExpectation{
+	expectation := commandGrammarProfilesExactlyExpectation{
 		command:  locator.state,
 		profiles: profiles,
 	}
+	return expectation
 }
 
 // Exists returns an expectation that checks the located grammar profile exists. Positive existence
 // may be satisfied by truthful partial output when the subject is present.
 func (locator GrammarProfileLocator) Exists() StaticDeclarationExpectation {
-	return grammarProfileExistenceExpectationValue{
+	value := grammarProfileExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located grammar profile does not exist; an
 // incomplete observation cannot establish absence.
 func (locator GrammarProfileLocator) DoesNotExist() StaticDeclarationExpectation {
-	return grammarProfileExistenceExpectationValue{
+	value := grammarProfileExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the located grammar profile has the expected
 // public reachability state.
 func (locator GrammarProfileLocator) Reachability(v cli.Reachability) StaticDeclarationExpectation {
-	return grammarProfileReachabilityExpectationValue{
+	value := grammarProfileReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Origin returns an expectation that checks the located grammar profile has the
 // framework-established DeclarationOrigin expected.
 func (locator GrammarProfileLocator) Origin(expected cli.DeclarationOrigin) StaticDeclarationExpectation {
-	return grammarProfileOriginExpectationValue{
+	value := grammarProfileOriginExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 type grammarProfileLocatorMode uint8
@@ -130,19 +135,27 @@ type grammarProfileOriginExpectationValue struct {
 }
 
 func commandGrammarProfileLocator(parent CommandLocator, value string) GrammarProfileLocator {
-	return GrammarProfileLocator{state: &grammarProfileLocatorState{
+	state := &grammarProfileLocatorState{
 		mode:    grammarProfileLocatorValue,
 		command: parent.state,
 		value:   value,
-	}}
+	}
+	locator := GrammarProfileLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandGrammarProfileAtLocator(parent CommandLocator, index int) GrammarProfileLocator {
-	return GrammarProfileLocator{state: &grammarProfileLocatorState{
+	state := &grammarProfileLocatorState{
 		mode:    grammarProfileLocatorIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := GrammarProfileLocator{
+		state: state,
+	}
+	return locator
 }
 
 func grammarProfileLocatorLabel(state *grammarProfileLocatorState) evaluationField {

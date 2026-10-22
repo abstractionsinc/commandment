@@ -37,7 +37,10 @@ func prepareExecutionConfigurations(model *effectiveModel, path []CommandID) (*e
 		}
 		values[command] = configuration
 	}
-	return &executionConfigurations{values: values}, true
+	configurations := &executionConfigurations{
+		values: values,
+	}
+	return configurations, true
 }
 
 func (configurations *executionConfigurations) configuration(command CommandID) (any, bool) {
@@ -150,10 +153,11 @@ func acceptCommandExecution(middleware []commandMiddleware, handler commandHandl
 			panic("semantic: nil command middleware")
 		}
 	}
-	return commandExecution{
+	execution := commandExecution{
 		middleware: append([]commandMiddleware(nil), middleware...),
 		handler:    handler,
 	}
+	return execution
 }
 
 func (execution commandExecution) Middleware() []commandMiddleware {

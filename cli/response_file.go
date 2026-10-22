@@ -154,7 +154,7 @@ func responseFileDiagnosticFailure(operation *invocation, err error) error {
 	if responseErr.Kind == responseFileErrorLimit {
 		projectedDiagnostic.Reason = responseErr.Limit
 	}
-	payload := payload{
+	failurePayload := payload{
 		Diagnostics:  []diagnostic{projectedDiagnostic},
 		Presentation: operation.FrameworkPresentation(),
 	}
@@ -175,12 +175,12 @@ func responseFileDiagnosticFailure(operation *invocation, err error) error {
 			Start:  responseFilePosition(failureSource.Content, failureSource.Start),
 			End:    responseFilePosition(failureSource.Content, failureSource.End),
 		}
-		payload.Sources = map[sourceID]source{1: projectSource}
-		payload.Diagnostics[0].Source = 1
-		payload.Diagnostics[0].Span = &span
-		payload.Diagnostics[0].Sensitive = failureSource.Sensitive
+		failurePayload.Sources = map[sourceID]source{1: projectSource}
+		failurePayload.Diagnostics[0].Source = 1
+		failurePayload.Diagnostics[0].Span = &span
+		failurePayload.Diagnostics[0].Sensitive = failureSource.Sensitive
 	}
-	return retainDiagnosticFailure(payload, err)
+	return retainDiagnosticFailure(failurePayload, err)
 }
 
 func responseFilePosition(content []byte, offset int) analysisPosition {

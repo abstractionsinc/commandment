@@ -12,7 +12,10 @@ func TestMissingCallSignProducesStructuredDiagnostic(t *testing.T) {
 	t.Parallel()
 
 	app := clitest.Compile(t, definition)
-	request := cli.RunRequest{Args: []string{"contact"}, Stdout: io.Discard}
+	request := cli.RunRequest{
+		Args:   []string{"contact"},
+		Stdout: io.Discard,
+	}
 	err := app.Run(t.Context(), request)
 	if err == nil {
 		t.Fatal("Run() error = nil, want rule violation")

@@ -14,16 +14,56 @@ func TestTypedDeclarationLocatorLabels(t *testing.T) {
 		got  evaluationField
 		want string
 	}{
-		{"command entry", commandEntryLocatorLabel(CommandEntryByID(1).state), "command entry id 1"},
-		{"action entry", actionEntryLocatorLabel(ActionEntryByID(2).state), "action entry id 2"},
-		{"flag", flagLocatorLabel(FlagByID(3).state), "flag id 3"},
-		{"flag spelling", flagSpellingLocatorLabel(FlagSpellingByID(4).state), "flag spelling id 4"},
-		{"argument form", argumentFormLocatorLabel(ArgumentFormByID(5).state), "argument form id 5"},
-		{"argument term", argumentTermLocatorLabel(ArgumentTermByID(6).state), "argument term id 6"},
-		{"environment", environmentInputLocatorLabel(EnvironmentInputByID(7).state), "environment input id 7"},
-		{"fact", factLocatorLabel(FactByID(8).state), "fact value id 8"},
-		{"value", valueLocatorLabel(ValueByID(9).state), "value id 9"},
-		{"value domain entry", valueDomainEntryLocatorLabel(ValueDomainEntryByID(10).state), "value-domain entry id 10"},
+		{
+			name: "command entry",
+			got:  commandEntryLocatorLabel(CommandEntryByID(1).state),
+			want: "command entry id 1",
+		},
+		{
+			name: "action entry",
+			got:  actionEntryLocatorLabel(ActionEntryByID(2).state),
+			want: "action entry id 2",
+		},
+		{
+			name: "flag",
+			got:  flagLocatorLabel(FlagByID(3).state),
+			want: "flag id 3",
+		},
+		{
+			name: "flag spelling",
+			got:  flagSpellingLocatorLabel(FlagSpellingByID(4).state),
+			want: "flag spelling id 4",
+		},
+		{
+			name: "argument form",
+			got:  argumentFormLocatorLabel(ArgumentFormByID(5).state),
+			want: "argument form id 5",
+		},
+		{
+			name: "argument term",
+			got:  argumentTermLocatorLabel(ArgumentTermByID(6).state),
+			want: "argument term id 6",
+		},
+		{
+			name: "environment",
+			got:  environmentInputLocatorLabel(EnvironmentInputByID(7).state),
+			want: "environment input id 7",
+		},
+		{
+			name: "fact",
+			got:  factLocatorLabel(FactByID(8).state),
+			want: "fact value id 8",
+		},
+		{
+			name: "value",
+			got:  valueLocatorLabel(ValueByID(9).state),
+			want: "value id 9",
+		},
+		{
+			name: "value domain entry",
+			got:  valueDomainEntryLocatorLabel(ValueDomainEntryByID(10).state),
+			want: "value-domain entry id 10",
+		},
 	}
 
 	for _, tc := range cases {
@@ -47,15 +87,30 @@ func TestTypedFlagResolutionPreservesClosure(t *testing.T) {
 
 	schema := &cli.Schema{
 		Commands: map[cli.CommandID]cli.CommandSchema{
-			commandID: {ID: commandID, Flags: []cli.FlagID{firstFlagID, secondFlagID}},
+			commandID: {
+				ID:    commandID,
+				Flags: []cli.FlagID{firstFlagID, secondFlagID},
+			},
 		},
 		Flags: map[cli.FlagID]cli.FlagSchema{
-			firstFlagID:  {ID: firstFlagID, Command: commandID, Spellings: []cli.FlagSpellingID{firstSpellingID}},
-			secondFlagID: {ID: secondFlagID, Command: commandID, Spellings: []cli.FlagSpellingID{secondSpellingID}},
+			firstFlagID: {
+				ID:        firstFlagID,
+				Command:   commandID,
+				Spellings: []cli.FlagSpellingID{firstSpellingID},
+			},
+			secondFlagID: {
+				ID:        secondFlagID,
+				Command:   commandID,
+				Spellings: []cli.FlagSpellingID{secondSpellingID},
+			},
 		},
 		FlagSpellings: map[cli.FlagSpellingID]cli.FlagSpellingSchema{
-			firstSpellingID:  {ID: firstSpellingID, Flag: firstFlagID, Spelling: cli.FlagSpelling{Text: "--mode"}},
-			secondSpellingID: {ID: secondSpellingID, Flag: secondFlagID, Spelling: cli.FlagSpelling{Text: "--mode"}},
+			firstSpellingID: {ID: firstSpellingID, Flag: firstFlagID, Spelling: cli.FlagSpelling{
+				Text: "--mode",
+			}},
+			secondSpellingID: {ID: secondSpellingID, Flag: secondFlagID, Spelling: cli.FlagSpelling{
+				Text: "--mode",
+			}},
 		},
 	}
 
@@ -71,19 +126,33 @@ func TestTypedFlagResolutionPreservesClosure(t *testing.T) {
 
 	inspection := cli.Inspection{
 		Commands: map[cli.CommandID]cli.CommandInspection{
-			commandID: {ID: commandID, Flags: []cli.FlagID{firstFlagID}, NamespaceCompleteness: cli.CommandNamespaceIncomplete},
+			commandID: {
+				ID:                    commandID,
+				Flags:                 []cli.FlagID{firstFlagID},
+				NamespaceCompleteness: cli.CommandNamespaceIncomplete,
+			},
 		},
 		Flags: map[cli.FlagID]cli.FlagInspection{
-			firstFlagID: {ID: firstFlagID, Command: commandID, Spellings: []cli.FlagSpellingID{firstSpellingID}},
+			firstFlagID: {
+				ID:        firstFlagID,
+				Command:   commandID,
+				Spellings: []cli.FlagSpellingID{firstSpellingID},
+			},
 		},
 		FlagSpellings: map[cli.FlagSpellingID]cli.FlagSpellingInspection{
-			firstSpellingID: {ID: firstSpellingID, Flag: firstFlagID, Spelling: cli.FlagSpelling{Text: "--known"}},
+			firstSpellingID: {ID: firstSpellingID, Flag: firstFlagID, Spelling: cli.FlagSpelling{
+				Text: "--known",
+			}},
 		},
 	}
 	if resolution := resolveInspectionFlagLocator(RootCommand().Flag("--missing").state, inspection); resolution.status != locatorResolutionNotProvable {
 		t.Fatalf("incomplete inspection absence = %#v", resolution)
 	}
-	inspection.Commands[commandID] = cli.CommandInspection{ID: commandID, Flags: []cli.FlagID{firstFlagID}, NamespaceCompleteness: cli.CommandNamespaceComplete}
+	inspection.Commands[commandID] = cli.CommandInspection{
+		ID:                    commandID,
+		Flags:                 []cli.FlagID{firstFlagID},
+		NamespaceCompleteness: cli.CommandNamespaceComplete,
+	}
 	if resolution := resolveInspectionFlagLocator(RootCommand().Flag("--missing").state, inspection); resolution.status != locatorResolutionAbsent {
 		t.Fatalf("closed inspection absence = %#v", resolution)
 	}
@@ -93,7 +162,11 @@ func TestTypedDeclarationExistenceTruthTable(t *testing.T) {
 	t.Parallel()
 
 	flagID := cli.FlagID(1)
-	schema := cli.Schema{Flags: map[cli.FlagID]cli.FlagSchema{flagID: {ID: flagID}}}
+	schema := cli.Schema{
+		Flags: map[cli.FlagID]cli.FlagSchema{flagID: {
+			ID: flagID,
+		}},
+	}
 
 	exists := requireSchemaEvaluator(t, FlagByID(flagID).Exists())
 	absent := requireSchemaEvaluator(t, FlagByID(flagID).DoesNotExist())
@@ -123,7 +196,9 @@ func TestTypedDeclarationInspectionAbsenceRequiresClosure(t *testing.T) {
 	flagID := cli.FlagID(7)
 	expectation := requireInspectionEvaluator(t, FlagByID(flagID).DoesNotExist())
 
-	if got := expectation.evaluateInspection(cli.Inspection{Truncated: true}, nil); got.status != evaluationNotProvable {
+	if got := expectation.evaluateInspection(cli.Inspection{
+		Truncated: true,
+	}, nil); got.status != evaluationNotProvable {
 		t.Fatalf("truncated absence = %#v", got)
 	}
 	if got := expectation.evaluateInspection(cli.Inspection{}, nil); got.status != evaluationProved {
@@ -149,8 +224,18 @@ func TestTypedCommandEntryResolutionPreservesLocalClosure(t *testing.T) {
 			},
 		},
 		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryInspection{
-			canonicalID: {ID: canonicalID, Parent: commandID, Kind: cli.CommandEntryCanonical, Name: "root"},
-			aliasID:     {ID: aliasID, Parent: commandID, Kind: cli.CommandEntryAlias, Name: "serve"},
+			canonicalID: {
+				ID:     canonicalID,
+				Parent: commandID,
+				Kind:   cli.CommandEntryCanonical,
+				Name:   "root",
+			},
+			aliasID: {
+				ID:     aliasID,
+				Parent: commandID,
+				Kind:   cli.CommandEntryAlias,
+				Name:   "serve",
+			},
 		},
 	}
 	if resolution := resolveInspectionCommandEntryLocator(locator.state, inspection); resolution.status != locatorResolutionFound || resolution.value.ID != aliasID {
@@ -179,8 +264,12 @@ func TestTypedDeclarationIdentityResolution(t *testing.T) {
 	flagID := cli.FlagID(2)
 	entryID := cli.CommandEntryID(3)
 	schema := &cli.Schema{
-		Flags:          map[cli.FlagID]cli.FlagSchema{flagID: {ID: flagID}},
-		CommandEntries: map[cli.CommandEntryID]cli.CommandEntrySchema{entryID: {ID: entryID}},
+		Flags: map[cli.FlagID]cli.FlagSchema{flagID: {
+			ID: flagID,
+		}},
+		CommandEntries: map[cli.CommandEntryID]cli.CommandEntrySchema{entryID: {
+			ID: entryID,
+		}},
 	}
 
 	cases := []struct {
@@ -188,8 +277,22 @@ func TestTypedDeclarationIdentityResolution(t *testing.T) {
 		loc  DeclarationIdentityLocator
 		want cli.DeclarationIdentity
 	}{
-		{"flag", FlagByID(flagID), cli.DeclarationIdentity{Kind: cli.DeclarationKindFlag, Flag: flagID}},
-		{"command entry", CommandEntryByID(entryID), cli.DeclarationIdentity{Kind: cli.DeclarationKindCommandEntry, CommandEntry: entryID}},
+		{
+			name: "flag",
+			loc:  FlagByID(flagID),
+			want: cli.DeclarationIdentity{
+				Kind: cli.DeclarationKindFlag,
+				Flag: flagID,
+			},
+		},
+		{
+			name: "command entry",
+			loc:  CommandEntryByID(entryID),
+			want: cli.DeclarationIdentity{
+				Kind:         cli.DeclarationKindCommandEntry,
+				CommandEntry: entryID,
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -206,16 +309,18 @@ func TestTypedDeclarationMetadataExpectations(t *testing.T) {
 	t.Parallel()
 
 	flagID := cli.FlagID(1)
-	schema := &cli.Schema{Flags: map[cli.FlagID]cli.FlagSchema{
-		flagID: {
-			ID:             flagID,
-			Origin:         cli.DeclarationOrigin(0),
-			Hidden:         true,
-			Sensitive:      true,
-			Required:       true,
-			LifecycleState: cli.LifecycleState(0),
+	schema := &cli.Schema{
+		Flags: map[cli.FlagID]cli.FlagSchema{
+			flagID: {
+				ID:             flagID,
+				Origin:         cli.DeclarationOrigin(0),
+				Hidden:         true,
+				Sensitive:      true,
+				Required:       true,
+				LifecycleState: cli.LifecycleState(0),
+			},
 		},
-	}}
+	}
 
 	expectations := []SchemaExpectation{
 		FlagByID(flagID).Exists(),
@@ -238,9 +343,15 @@ func TestTypedEffectiveDeclarationExpectations(t *testing.T) {
 	t.Parallel()
 
 	flagID := cli.FlagID(1)
-	reference := cli.Reference{Flags: map[cli.FlagID]cli.FlagReference{
-		flagID: {ID: flagID, Available: true, Visible: false},
-	}}
+	reference := cli.Reference{
+		Flags: map[cli.FlagID]cli.FlagReference{
+			flagID: {
+				ID:        flagID,
+				Available: true,
+				Visible:   false,
+			},
+		},
+	}
 
 	available := requireReferenceEvaluator(t, FlagByID(flagID).Available())
 	notVisible := requireReferenceEvaluator(t, FlagByID(flagID).NotVisible())

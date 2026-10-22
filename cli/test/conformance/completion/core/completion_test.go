@@ -187,9 +187,10 @@ func TestApplyValueCompletionContribution(t *testing.T) {
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
+					contribution := cli.CompletionContribution{
 						Spacing: cli.CompletionSpacing(255),
-					}, nil
+					}
+					return contribution, nil
 				}).
 					Long("path")
 			},
@@ -211,17 +212,19 @@ func TestApplyValueCompletionContribution(t *testing.T) {
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
-						Native: &cli.CompletionNativeIntent{
-							Kind: cli.CompletionNativeFiles,
-							Mode: cli.CompletionNativeAlways,
-						},
-					}, nil
+					intent := &cli.CompletionNativeIntent{
+						Kind: cli.CompletionNativeFiles,
+						Mode: cli.CompletionNativeAlways,
+					}
+					contribution := cli.CompletionContribution{
+						Native: intent,
+					}
+					return contribution, nil
 				}).FallbackTo(cli.CompletionNativeFiles).
 					Long("path")
 			},
 		})
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--path", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -233,7 +236,8 @@ func TestApplyValueCompletionContribution(t *testing.T) {
 					},
 				},
 			},
-		}).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()), clitest.CompletionPartial())
+		}
+		clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()), clitest.CompletionPartial())
 	})
 
 	t.Run("callback native request", func(t *testing.T) {
@@ -243,12 +247,14 @@ func TestApplyValueCompletionContribution(t *testing.T) {
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
-						Native: &cli.CompletionNativeIntent{
-							Kind: cli.CompletionNativeFiles,
-							Mode: cli.CompletionNativeAlways,
-						},
-					}, nil
+					intent := &cli.CompletionNativeIntent{
+						Kind: cli.CompletionNativeFiles,
+						Mode: cli.CompletionNativeAlways,
+					}
+					contribution := cli.CompletionContribution{
+						Native: intent,
+					}
+					return contribution, nil
 				}).
 					Long("path")
 			},
@@ -313,7 +319,7 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			Name:    "tool",
 			Declare: declareCompletionContributionFixture,
 		})
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"@pre"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -321,15 +327,18 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			},
 			ResponseFiles: cli.ResponseFileAccess{
 				Complete: func(context.Context, cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
-						Replace: &cli.CompletionRange{
-							Start: 0,
-							End:   4,
-						},
-					}, nil
+					completionRange := &cli.CompletionRange{
+						Start: 0,
+						End:   4,
+					}
+					contribution := cli.CompletionContribution{
+						Replace: completionRange,
+					}
+					return contribution, nil
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(
 			t,
 			clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()),
@@ -343,7 +352,7 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			Name:    "tool",
 			Declare: declareCompletionContributionFixture,
 		})
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"@pre"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -351,12 +360,14 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			},
 			ResponseFiles: cli.ResponseFileAccess{
 				Complete: func(context.Context, cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
+					contribution := cli.CompletionContribution{
 						Spacing: cli.CompletionSpacing(255),
-					}, nil
+					}
+					return contribution, nil
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(
 			t,
 			clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()),
@@ -370,7 +381,7 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			Name:    "tool",
 			Declare: declareCompletionContributionFixture,
 		})
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"@pre"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -378,12 +389,13 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			},
 			ResponseFiles: cli.ResponseFileAccess{
 				Complete: func(context.Context, cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
+					contribution := cli.CompletionContribution{
 						Candidates: []cli.CompletionCandidate{{
 							Value: "other",
 							Kind:  cli.CompletionCandidateFile,
 						}},
-					}, nil
+					}
+					return contribution, nil
 				},
 			},
 			Client: cli.CompletionClient{
@@ -392,7 +404,8 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 					Case: cli.CompletionCaseSensitive,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItemsExactly())
 	})
 
@@ -402,7 +415,7 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			Name:    "tool",
 			Declare: declareCompletionContributionFixture,
 		})
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"@pre"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -410,7 +423,7 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 			},
 			ResponseFiles: cli.ResponseFileAccess{
 				Complete: func(context.Context, cli.ResponseFileCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
+					contribution := cli.CompletionContribution{
 						Candidates: []cli.CompletionCandidate{
 							{
 								Value:        "prefix",
@@ -425,7 +438,8 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 							},
 						},
 						RefreshOnInput: true,
-					}, nil
+					}
+					return contribution, nil
 				},
 			},
 			Client: cli.CompletionClient{
@@ -438,7 +452,8 @@ func TestApplyResponseFileCompletionContribution(t *testing.T) {
 					RefreshOnInput: true,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		item := clitest.CompletionItem("prefix")
 		proof.Require(t,
 			clitest.CompletionItemsExactly(item), item.FallbackOnly(),
@@ -456,7 +471,11 @@ func TestNormalizeCompletionGroups(t *testing.T) {
 
 	for _, groups := range [][]cli.CompletionGroup{
 		{{}},
-		{{ID: "same"}, {ID: "same"}},
+		{{
+			ID: "same",
+		}, {
+			ID: "same",
+		}},
 	} {
 		t.Run("reject invalid group set", func(t *testing.T) {
 			t.Parallel()
@@ -465,14 +484,15 @@ func TestNormalizeCompletionGroups(t *testing.T) {
 				Name: "tool",
 				Declare: func(root *cli.CommandBuilder[config]) {
 					root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-						return cli.CompletionContribution{
+						contribution := cli.CompletionContribution{
 							Groups: groups,
-						}, nil
+						}
+						return contribution, nil
 					}).
 						Long("path")
 				},
 			})
-			proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: []string{"--path", ""},
 				Cursor: cli.CompletionCursor{
 					Argument: 1,
@@ -482,7 +502,8 @@ func TestNormalizeCompletionGroups(t *testing.T) {
 						Groups: true,
 					},
 				},
-			})
+			}
+			proof := clitest.Complete(t.Context(), app, completionRequest)
 			proof.Require(
 				t,
 				clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()),
@@ -498,19 +519,20 @@ func TestNormalizeCompletionGroups(t *testing.T) {
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
+					contribution := cli.CompletionContribution{
 						Groups: []cli.CompletionGroup{{
 							ID:        "secret",
 							Label:     "classified",
 							Sensitive: true,
 						}},
-					}, nil
+					}
+					return contribution, nil
 				}).
 					Long("path")
 			},
 		})
 		group := clitest.CompletionGroup("secret")
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--path", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -520,7 +542,8 @@ func TestNormalizeCompletionGroups(t *testing.T) {
 					Groups: true,
 				},
 			},
-		}).Require(t,
+		}
+		clitest.Complete(t.Context(), app, completionRequest).Require(t,
 			clitest.CompletionGroupsExactly(group), group.Label(""), group.Sensitive(),
 		)
 	})
@@ -536,14 +559,15 @@ func TestNormalizeValueCompletionCandidate(t *testing.T) {
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
+					contribution := cli.CompletionContribution{
 						Candidates: []cli.CompletionCandidate{
 							{
 								Value: "bad",
 								Kind:  cli.CompletionCandidateKind("invalid"),
 							},
 						},
-					}, nil
+					}
+					return contribution, nil
 				}).
 					Long("path")
 			},
@@ -568,7 +592,7 @@ func TestNormalizeValueCompletionCandidate(t *testing.T) {
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-					return cli.CompletionContribution{
+					contribution := cli.CompletionContribution{
 						Groups: []cli.CompletionGroup{{
 							ID:    "paths",
 							Label: "Paths",
@@ -580,7 +604,8 @@ func TestNormalizeValueCompletionCandidate(t *testing.T) {
 								GroupID: "paths",
 							},
 						},
-					}, nil
+					}
+					return contribution, nil
 				}).
 					Long("path")
 			},
@@ -604,7 +629,7 @@ func TestNormalizeCompletionMessages(t *testing.T) {
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Messages: []cli.CompletionMessage{
 						{
 							Kind:      cli.CompletionMessageInformation,
@@ -612,12 +637,13 @@ func TestNormalizeCompletionMessages(t *testing.T) {
 							Sensitive: true,
 						},
 					},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("path")
 		},
 	})
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"--path", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -627,7 +653,8 @@ func TestNormalizeCompletionMessages(t *testing.T) {
 				Messages: true,
 			},
 		},
-	}).Require(t, clitest.CompletionMessagesExactly(cli.CompletionMessage{
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.CompletionMessagesExactly(cli.CompletionMessage{
 		Kind:      cli.CompletionMessageInformation,
 		Text:      "",
 		Sensitive: true,
@@ -724,7 +751,7 @@ func TestInheritedStaticFlagCompletionRetainsOwningClassification(t *testing.T) 
 	})
 
 	groupID := func(args []string, cursor int) string {
-		result, err := app.Complete(t.Context(), cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: args,
 			Cursor: cli.CompletionCursor{
 				Argument: cursor,
@@ -734,7 +761,8 @@ func TestInheritedStaticFlagCompletionRetainsOwningClassification(t *testing.T) 
 					Groups: true,
 				},
 			},
-		})
+		}
+		result, err := app.Complete(t.Context(), completionRequest)
 		if err != nil {
 			t.Fatalf("Complete(%v) error = %v", args, err)
 		}
@@ -788,7 +816,7 @@ func TestCompleteFreshTokenUsesCompiledStaticSyntaxWithoutExecution(t *testing.T
 	type childConfig = completionChildConfig
 
 	runs := 0
-	app, err := cli.Compile(cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -813,13 +841,14 @@ func TestCompleteFreshTokenUsesCompiledStaticSyntaxWithoutExecution(t *testing.T
 				Hidden: true,
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
 
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{""},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -832,7 +861,8 @@ func TestCompleteFreshTokenUsesCompiledStaticSyntaxWithoutExecution(t *testing.T
 					CandidateKinds: true,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t,
 			clitest.CompletionTargetAt(0).Present(),
 			clitest.CompletionReplace(cli.CompletionSpan{
@@ -926,7 +956,7 @@ func TestCompleteRejectsInvalidCursor(t *testing.T) {
 func TestCompleteAppliesDeterministicLimitAfterRanking(t *testing.T) {
 	t.Parallel()
 	type config = completionConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Disabled: true,
@@ -939,8 +969,9 @@ func TestCompleteAppliesDeterministicLimitAfterRanking(t *testing.T) {
 				Name: "alpha",
 			})
 		},
-	})
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	}
+	app := clitest.Compile(t, definition)
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -952,7 +983,8 @@ func TestCompleteAppliesDeterministicLimitAfterRanking(t *testing.T) {
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t, clitest.CompletionObservedItemsExactly(clitest.CompletionItem("alpha")), clitest.CompletionTruncated())
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.CompletionObservedItemsExactly(clitest.CompletionItem("alpha")), clitest.CompletionTruncated())
 }
 
 func TestCompleteAllInvocableIncludesHiddenEntriesWithoutChangingPublicVisibility(t *testing.T) {
@@ -1007,7 +1039,7 @@ func TestCompleteNativeIntentHonorsClientCapability(t *testing.T) {
 func TestCompleteNonemptyCursorAppliesClientPrefixAfterSemanticGeneration(t *testing.T) {
 	t.Parallel()
 	type config = completionVerboseConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Help: cli.HelpConfig{
 			Disabled: true,
@@ -1021,7 +1053,8 @@ func TestCompleteNonemptyCursorAppliesClientPrefixAfterSemanticGeneration(t *tes
 			})
 			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	client := cli.CompletionClient{
 		Match: cli.CompletionMatchOptions{
 			Mode:   cli.CompletionMatchModePrefix,
@@ -1034,14 +1067,15 @@ func TestCompleteNonemptyCursorAppliesClientPrefixAfterSemanticGeneration(t *tes
 		},
 	}
 	serve := clitest.CompletionItem("serve")
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"se"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
 			Byte:     2,
 		},
 		Client: client,
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionReplace(cli.CompletionSpan{
 			Argument: 0,
 			Start:    0,
@@ -1055,14 +1089,15 @@ func TestCompleteNonemptyCursorAppliesClientPrefixAfterSemanticGeneration(t *tes
 		}),
 	)
 	verbose := clitest.CompletionItem("--verbose")
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequestUnderTest := cli.CompletionRequest{
 		Args: []string{"--v"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
 			Byte:     3,
 		},
 		Client: client,
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequestUnderTest).Require(t,
 		clitest.CompletionReplace(cli.CompletionSpan{
 			Argument: 0,
 			Start:    0,
@@ -1085,7 +1120,7 @@ func TestCompleteClientMatchingDoesNotExposeSensitiveCandidateText(t *testing.T)
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Secret).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Candidates: []cli.CompletionCandidate{
 						{
 							Value:       "prefix-secret",
@@ -1093,13 +1128,14 @@ func TestCompleteClientMatchingDoesNotExposeSensitiveCandidateText(t *testing.T)
 							Sensitive:   true,
 						},
 					},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("secret")
 		},
 	})
 	item := clitest.CompletionItemAt(0)
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"--secret", "pre"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1114,7 +1150,8 @@ func TestCompleteClientMatchingDoesNotExposeSensitiveCandidateText(t *testing.T)
 				MatchRanges: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionItemsExactly(item),
 		item.Sensitive(),
 		item.Value(""),
@@ -1132,17 +1169,19 @@ func TestCompleteRejectsCallbackReplacementOutsideCurrentArgument(t *testing.T) 
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
-					Replace: &cli.CompletionRange{
-						Start: 0,
-						End:   4,
-					},
-				}, nil
+				completionRange := &cli.CompletionRange{
+					Start: 0,
+					End:   4,
+				}
+				contribution := cli.CompletionContribution{
+					Replace: completionRange,
+				}
+				return contribution, nil
 			}).
 				Long("path")
 		},
 	})
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"--path", "pre"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1154,7 +1193,8 @@ func TestCompleteRejectsCallbackReplacementOutsideCurrentArgument(t *testing.T) 
 				Case: cli.CompletionCaseSensitive,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()),
 		clitest.CompletionPartial(),
 		clitest.CompletionObservedTargetsExactly(clitest.CompletionTargetAt(0)),
@@ -1173,7 +1213,7 @@ func TestCompleteRejectsLateInvalidValueContributionAtomically(t *testing.T) {
 					Start: 1,
 					End:   2,
 				}
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Replace: &replace,
 					Candidates: []cli.CompletionCandidate{{
 						Value:   "prefix",
@@ -1189,12 +1229,13 @@ func TestCompleteRejectsLateInvalidValueContributionAtomically(t *testing.T) {
 					}},
 					Spacing:   cli.CompletionSpacingNoSpace,
 					Truncated: true,
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("path")
 		},
 	})
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"--path", "pre"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1210,7 +1251,8 @@ func TestCompleteRejectsLateInvalidValueContributionAtomically(t *testing.T) {
 				Messages: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidCompletionContribution).Present()),
 		clitest.CompletionPartial(),
 		clitest.CompletionReplace(cli.CompletionSpan{
@@ -1243,10 +1285,11 @@ func TestCompleteDelegatesOnlyAfterAuthoritativeRemainderOwnership(t *testing.T)
 				).DelegateCompletionBy(
 					func(_ context.Context, _ *config, request cli.CompletionDelegationRequest) (cli.CompletionDelegation, error) {
 						observed = request
-						return cli.CompletionDelegation{
+						delegation := cli.CompletionDelegation{
 							Args:   append([]string(nil), request.Args...),
 							Cursor: request.Cursor,
-						}, nil
+						}
+						return delegation, nil
 					},
 				)
 			})
@@ -1299,9 +1342,12 @@ func TestCompletePositionalTargetFailurePreservesValidPeerAsPartial(t *testing.T
 					"left",
 				).CompleteBy(
 					func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-						return cli.CompletionContribution{
-							Candidates: []cli.CompletionCandidate{{Value: "discarded"}},
-						}, failed
+						contribution := cli.CompletionContribution{
+							Candidates: []cli.CompletionCandidate{{
+								Value: "discarded",
+							}},
+						}
+						return contribution, failed
 					},
 				)
 			})
@@ -1311,9 +1357,12 @@ func TestCompletePositionalTargetFailurePreservesValidPeerAsPartial(t *testing.T
 					"right",
 				).CompleteBy(
 					func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-						return cli.CompletionContribution{
-							Candidates: []cli.CompletionCandidate{{Value: "retained"}},
-						}, nil
+						contribution := cli.CompletionContribution{
+							Candidates: []cli.CompletionCandidate{{
+								Value: "retained",
+							}},
+						}
+						return contribution, nil
 					},
 				)
 			})
@@ -1356,9 +1405,12 @@ func TestCompleteDefaultChildOwnsUnknownCursorWhileParentCommandCandidateRemains
 						).CompleteBy(
 							func(_ context.Context, _ *config, request cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 								observed = request
-								return cli.CompletionContribution{
-									Candidates: []cli.CompletionCandidate{{Value: "value"}},
-								}, nil
+								contribution := cli.CompletionContribution{
+									Candidates: []cli.CompletionCandidate{{
+										Value: "value",
+									}},
+								}
+								return contribution, nil
 							},
 						)
 					})
@@ -1370,7 +1422,7 @@ func TestCompleteDefaultChildOwnsUnknownCursorWhileParentCommandCandidateRemains
 		t.Fatal(err)
 	}
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"v"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -1382,7 +1434,8 @@ func TestCompleteDefaultChildOwnsUnknownCursorWhileParentCommandCandidateRemains
 					Case: cli.CompletionCaseSensitive,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionTargetAt(0).Present())
 		return proof.Completion()
 	}()
@@ -1449,9 +1502,10 @@ func TestCompleteAdvancedMatchingModesThroughPublicCompletion(t *testing.T) {
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Dessert).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Candidates: []cli.CompletionCandidate{candidate},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("dessert")
 		},
@@ -1612,7 +1666,7 @@ func TestCompleteAdvancedMatchingModesThroughPublicCompletion(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			item := clitest.CompletionItem("CrèmeBrulee")
-			clitest.Complete(t.Context(), app, cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: []string{"--dessert", test.query},
 				Cursor: cli.CompletionCursor{
 					Argument: 1,
@@ -1624,7 +1678,8 @@ func TestCompleteAdvancedMatchingModesThroughPublicCompletion(t *testing.T) {
 						MatchRanges: true,
 					},
 				},
-			}).Require(t,
+			}
+			clitest.Complete(t.Context(), app, completionRequest).Require(t,
 				clitest.CompletionItemsExactly(item),
 				item.Match(test.kind),
 				item.MatchField(test.field),
@@ -1637,7 +1692,7 @@ func TestCompleteAdvancedMatchingModesThroughPublicCompletion(t *testing.T) {
 
 	t.Run("smart uppercase is sensitive", func(t *testing.T) {
 		t.Parallel()
-		clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--dessert", "CREME"},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -1650,7 +1705,8 @@ func TestCompleteAdvancedMatchingModesThroughPublicCompletion(t *testing.T) {
 					IgnoreDiacritics: true,
 				},
 			},
-		}).Require(t, clitest.CompletionItemsExactly())
+		}
+		clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.CompletionItemsExactly())
 	})
 }
 
@@ -1664,9 +1720,10 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Value).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Candidates: []cli.CompletionCandidate{candidate},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("value")
 		},
@@ -1690,7 +1747,7 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			item := clitest.CompletionItem("alpha")
-			clitest.Complete(t.Context(), app, cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: []string{"--value", test.query},
 				Cursor: cli.CompletionCursor{
 					Argument: 1,
@@ -1705,7 +1762,8 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 						MatchRanges: true,
 					},
 				},
-			}).Require(t,
+			}
+			clitest.Complete(t.Context(), app, completionRequest).Require(t,
 				clitest.CompletionItemsExactly(item),
 				item.Match(cli.CompletionMatchKindUnknown),
 				item.MatchField(cli.CompletionMatchFieldUnknown), item.MatchRangesExactly(), item.MatchEdits(0),
@@ -1714,7 +1772,7 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 	}
 
 	item := clitest.CompletionItem("alpha")
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"--value", "al"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1726,22 +1784,26 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 				Case: cli.CompletionCaseSensitive,
 			},
 		},
-	}).Require(t, clitest.CompletionItemsExactly(item), item.Match(cli.CompletionMatchKindPrefix), item.MatchRangesExactly())
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t, clitest.CompletionItemsExactly(item), item.Match(cli.CompletionMatchKindPrefix), item.MatchRangesExactly())
 
 	invalid := string([]byte{'x', 0xff, 'y'})
 	invalidApp := clitest.Compile(t, cli.Definition[config]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Value).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
-					Candidates: []cli.CompletionCandidate{{Value: invalid}},
-				}, nil
+				contribution := cli.CompletionContribution{
+					Candidates: []cli.CompletionCandidate{{
+						Value: invalid,
+					}},
+				}
+				return contribution, nil
 			}).
 				Long("value")
 		},
 	})
 	invalidItem := clitest.CompletionItem(invalid)
-	clitest.Complete(t.Context(), invalidApp, cli.CompletionRequest{
+	completionRequestUnderTest := cli.CompletionRequest{
 		Args: []string{"--value", invalid},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1753,10 +1815,11 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 				Case: cli.CompletionCaseInsensitive,
 			},
 		},
-	}).Require(t, clitest.CompletionItemsExactly(invalidItem), invalidItem.Match(cli.CompletionMatchKindExact))
+	}
+	clitest.Complete(t.Context(), invalidApp, completionRequestUnderTest).Require(t, clitest.CompletionItemsExactly(invalidItem), invalidItem.Match(cli.CompletionMatchKindExact))
 
 	other := string([]byte{'x', 0xfe, 'y'})
-	clitest.Complete(t.Context(), invalidApp, cli.CompletionRequest{
+	completionRequestUnderTest2 := cli.CompletionRequest{
 		Args: []string{"--value", other},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1768,9 +1831,10 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 				Case: cli.CompletionCaseInsensitive,
 			},
 		},
-	}).Require(t, clitest.CompletionItemsExactly())
+	}
+	clitest.Complete(t.Context(), invalidApp, completionRequestUnderTest2).Require(t, clitest.CompletionItemsExactly())
 
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequestUnderTest3 := cli.CompletionRequest{
 		Args: []string{"--value", "\u0301"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1783,7 +1847,8 @@ func TestCompleteMatchingUnfilteredRangeCapabilityAndOpaqueBytes(t *testing.T) {
 				IgnoreDiacritics: true,
 			},
 		},
-	}).Require(t, clitest.CompletionItemsExactly())
+	}
+	clitest.Complete(t.Context(), app, completionRequestUnderTest3).Require(t, clitest.CompletionItemsExactly())
 }
 
 func TestCompletionPreservesExplicitCapabilitiesForBuiltInShellFamily(t *testing.T) {
@@ -1801,7 +1866,7 @@ func TestCompletionPreservesExplicitCapabilitiesForBuiltInShellFamily(t *testing
 		},
 	})
 
-	result, err := app.Complete(t.Context(), cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -1815,7 +1880,8 @@ func TestCompletionPreservesExplicitCapabilitiesForBuiltInShellFamily(t *testing
 				Descriptions: true,
 			},
 		},
-	})
+	}
+	result, err := app.Complete(t.Context(), completionRequest)
 	if err != nil {
 		t.Fatalf("Complete() error = %v", err)
 	}
@@ -1842,7 +1908,7 @@ func TestCompletionRejectsShellVersionWithoutFamily(t *testing.T) {
 	app := clitest.Compile(t, cli.Definition[struct{}]{
 		Name: "tool",
 	})
-	_, err := app.Complete(t.Context(), cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -1852,7 +1918,8 @@ func TestCompletionRejectsShellVersionWithoutFamily(t *testing.T) {
 				Version: "1",
 			},
 		},
-	})
+	}
+	_, err := app.Complete(t.Context(), completionRequest)
 	if err == nil {
 		t.Fatal("Complete() error = nil, want invalid shell client facts")
 	}
@@ -1881,7 +1948,7 @@ func TestCompleteTrailingRequiredFlagValueProjectsNativeTarget(t *testing.T) {
 		},
 	})
 	target := clitest.CompletionTarget(cli.CompletionTargetFlagValue)
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"--path", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -1894,7 +1961,8 @@ func TestCompleteTrailingRequiredFlagValueProjectsNativeTarget(t *testing.T) {
 				},
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionTargetsExactly(clitest.CompletionTargetAt(0)),
 		clitest.CompletionTargetAt(0).Kind(cli.CompletionTargetFlagValue),
 		clitest.CompletionTargetAt(0).Name("path"),
@@ -1922,7 +1990,7 @@ func TestCompleteValueCallbackSeesOnlyPriorResolvedDependencyAndComposesFallback
 	type config = completionValueModePathConfig
 	var callbackCalls int
 	var observedRequest cli.ValueCompletionRequest
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -1945,7 +2013,7 @@ func TestCompleteValueCallbackSeesOnlyPriorResolvedDependencyAndComposesFallback
 				if !ok || state.State() != cli.ResolutionStateResolved {
 					t.Fatalf("dependency state = %#v, ok=%v", state, ok)
 				}
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Candidates: []cli.CompletionCandidate{
 						{
 							Value:            "primary",
@@ -1977,18 +2045,20 @@ func TestCompleteValueCallbackSeesOnlyPriorResolvedDependencyAndComposesFallback
 							Text: "choose a path",
 						},
 					},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				From(mode).
 				FallbackTo(cli.CompletionNativeFiles).Long("path")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--mode", "fast", "--path", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 3,
@@ -2006,7 +2076,8 @@ func TestCompleteValueCallbackSeesOnlyPriorResolvedDependencyAndComposesFallback
 					},
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t,
 			clitest.CompletionItemsExactly(clitest.CompletionItem("primary")),
 			clitest.CompletionItem("primary").Kind(cli.CompletionCandidateFile),
@@ -2086,9 +2157,12 @@ func TestCompleteValueCallbackFailureDiscardsContributionAndReturnsPartialResult
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Path).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-				return cli.CompletionContribution{
-					Candidates: []cli.CompletionCandidate{{Value: "must-not-commit"}},
-				}, callbackFailure
+				contribution := cli.CompletionContribution{
+					Candidates: []cli.CompletionCandidate{{
+						Value: "must-not-commit",
+					}},
+				}
+				return contribution, callbackFailure
 			}).
 				Long("path")
 		},
@@ -2127,12 +2201,13 @@ func TestCompleteTokenLanguageCallbackReceivesOnlyOwnedPriorChildTokens(t *testi
 			destination := root.Values.String(&root.Config.Pair)
 			root.Flags.Tokens(destination, language).CompleteTokensBy(func(_ context.Context, _ *config, observed cli.TokenLanguageCompletionRequest) (cli.CompletionContribution, error) {
 				request = observed
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Candidates: []cli.CompletionCandidate{{
 						Value: "right",
 						Kind:  cli.CompletionCandidateValue,
 					}},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("pair")
 		},
@@ -2142,7 +2217,7 @@ func TestCompleteTokenLanguageCallbackReceivesOnlyOwnedPriorChildTokens(t *testi
 	}
 
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--pair", "left", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 2,
@@ -2152,7 +2227,8 @@ func TestCompleteTokenLanguageCallbackReceivesOnlyOwnedPriorChildTokens(t *testi
 					CandidateKinds: true,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("right").Present())
 		return proof.Completion()
 	}()
@@ -2181,11 +2257,12 @@ func TestCompleteNonemptyFlagValueCallbackOwnsTextRangeAndFallbackAfterClientMat
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.String(&root.Config.Path).CompleteBy(func(_ context.Context, _ *config, request cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 				observed = request
-				return cli.CompletionContribution{
-					Replace: &cli.CompletionRange{
-						Start: 1,
-						End:   3,
-					},
+				completionRange := &cli.CompletionRange{
+					Start: 1,
+					End:   3,
+				}
+				contribution := cli.CompletionContribution{
+					Replace: completionRange,
 					Candidates: []cli.CompletionCandidate{
 						{
 							Value: "other",
@@ -2197,7 +2274,8 @@ func TestCompleteNonemptyFlagValueCallbackOwnsTextRangeAndFallbackAfterClientMat
 							FallbackOnly: true,
 						},
 					},
-				}, nil
+				}
+				return contribution, nil
 			}).FallbackTo(cli.CompletionNativeFiles).
 				Long("path")
 		},
@@ -2207,7 +2285,7 @@ func TestCompleteNonemptyFlagValueCallbackOwnsTextRangeAndFallbackAfterClientMat
 	}
 
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--path", "pre"},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -2226,7 +2304,8 @@ func TestCompleteNonemptyFlagValueCallbackOwnsTextRangeAndFallbackAfterClientMat
 					},
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("prefix-fallback").Present())
 		return proof.Completion()
 	}()
@@ -2270,15 +2349,18 @@ func TestCompleteNonemptyTokenLanguageCallbackReceivesCurrentOwnedChild(t *testi
 			destination := root.Values.String(&root.Config.Pair)
 			root.Flags.Tokens(destination, language).CompleteTokensBy(func(_ context.Context, _ *config, request cli.TokenLanguageCompletionRequest) (cli.CompletionContribution, error) {
 				observed = request
-				return cli.CompletionContribution{
+				contribution := cli.CompletionContribution{
 					Candidates: []cli.CompletionCandidate{
 						{
 							Value: "right",
 							Kind:  cli.CompletionCandidateValue,
 						},
-						{Value: "left"},
+						{
+							Value: "left",
+						},
 					},
-				}, nil
+				}
+				return contribution, nil
 			}).
 				Long("pair")
 		},
@@ -2288,7 +2370,7 @@ func TestCompleteNonemptyTokenLanguageCallbackReceivesCurrentOwnedChild(t *testi
 	}
 
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--pair", "left", "ri"},
 			Cursor: cli.CompletionCursor{
 				Argument: 2,
@@ -2303,7 +2385,8 @@ func TestCompleteNonemptyTokenLanguageCallbackReceivesCurrentOwnedChild(t *testi
 					CandidateKinds: true,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("right").Present())
 		return proof.Completion()
 	}()
@@ -2336,14 +2419,15 @@ func TestCompletePositionalValueUsesAuthoritativeArgumentOwner(t *testing.T) {
 				).CompleteBy(
 					func(_ context.Context, _ *config, request cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 						observed = request
-						return cli.CompletionContribution{
+						contribution := cli.CompletionContribution{
 							Candidates: []cli.CompletionCandidate{
 								{
 									Value: "alpha",
 									Kind:  cli.CompletionCandidateValue,
 								},
 							},
-						}, nil
+						}
+						return contribution, nil
 					},
 				)
 			})
@@ -2353,7 +2437,7 @@ func TestCompletePositionalValueUsesAuthoritativeArgumentOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"al"},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -2368,7 +2452,8 @@ func TestCompletePositionalValueUsesAuthoritativeArgumentOwner(t *testing.T) {
 					CandidateKinds: true,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionTarget(cli.CompletionTargetArgument).Present())
 		return proof.Completion()
 	}()
@@ -2417,9 +2502,12 @@ func TestCompletePositionalTokenLanguageReceivesOnlyTermOwnedPriorTokens(t *test
 				).CompleteTokensBy(
 					func(_ context.Context, _ *config, request cli.TokenLanguageCompletionRequest) (cli.CompletionContribution, error) {
 						observed = request
-						return cli.CompletionContribution{
-							Candidates: []cli.CompletionCandidate{{Value: "right"}},
-						}, nil
+						contribution := cli.CompletionContribution{
+							Candidates: []cli.CompletionCandidate{{
+								Value: "right",
+							}},
+						}
+						return contribution, nil
 					},
 				)
 			})
@@ -2429,7 +2517,7 @@ func TestCompletePositionalTokenLanguageReceivesOnlyTermOwnedPriorTokens(t *test
 		t.Fatal(err)
 	}
 	result, err := func() (cli.Completion, error) {
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"left", "ri"},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -2441,7 +2529,8 @@ func TestCompletePositionalTokenLanguageReceivesOnlyTermOwnedPriorTokens(t *test
 					Case: cli.CompletionCaseSensitive,
 				},
 			},
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItem("right").Present())
 		return proof.Completion()
 	}()
@@ -2473,8 +2562,10 @@ func TestCompletionCarriesGrammarDiagnosticsAndTruncation(t *testing.T) {
 		root.Flags.Bool(&root.Config.Verbose).Long("verbose")
 	}
 	definition := cli.Definition[config]{
-		Name:    "alienctl",
-		Help:    cli.HelpConfig{Disabled: true},
+		Name: "alienctl",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: declare,
 	}
 	app := clitest.Compile(t, definition)
@@ -2483,7 +2574,9 @@ func TestCompletionCarriesGrammarDiagnosticsAndTruncation(t *testing.T) {
 		Cursor: cli.CompletionCursor{
 			Argument: 2,
 		},
-		Limits: cli.AnalysisLimits{Diagnostics: 1},
+		Limits: cli.AnalysisLimits{
+			Diagnostics: 1,
+		},
 	}
 
 	proof := clitest.Complete(t.Context(), app, request)

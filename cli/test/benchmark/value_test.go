@@ -79,7 +79,9 @@ func valueDependencyFixture(tb testing.TB, placement declarationPlacement, desti
 	tb.Helper()
 	definition := cli.Definition[stringConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[stringConfig]) {
 			root.Subcommands.Command(cli.Command[stringConfig]{
 				Name: "target",
@@ -103,7 +105,9 @@ func valueDependencyFixture(tb testing.TB, placement declarationPlacement, desti
 	if err != nil {
 		tb.Fatalf("value dependency compile: %v", err)
 	}
-	request := cli.InspectionRequest{Args: []string{"target"}}
+	request := cli.InspectionRequest{
+		Args: []string{"target"},
+	}
 	return app, request
 }
 
@@ -161,7 +165,9 @@ func valueGraphFixture(tb testing.TB, values int, shape valueGraphShape) cli.App
 	tb.Helper()
 	definition := cli.Definition[stringConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[stringConfig]) {
 			var previous cli.Destination[stringConfig, string]
 			for index := range values {
@@ -221,7 +227,9 @@ func dynamicDomainFixture(tb testing.TB, domains, demanded, entriesPerDomain int
 	}
 	definition := cli.Definition[stringConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[stringConfig]) {
 			root.Subcommands.Command(cli.Command[stringConfig]{
 				Name: "target",
@@ -248,7 +256,9 @@ func dynamicDomainFixture(tb testing.TB, domains, demanded, entriesPerDomain int
 	if err != nil {
 		tb.Fatalf("dynamic-domain compile: %v", err)
 	}
-	request := cli.InspectionRequest{Args: args}
+	request := cli.InspectionRequest{
+		Args: args,
+	}
 	return app, request
 }
 

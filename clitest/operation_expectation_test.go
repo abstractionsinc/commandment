@@ -47,11 +47,13 @@ func TestFailurePreservesSemanticStatus(t *testing.T) {
 	})
 	t.Run("semantic result", func(t *testing.T) {
 		t.Parallel()
-		nested := fixedDiagnosticReportExpectation{result: notProvableResult(
-			evaluationText("diagnostic"),
-			evaluationText("observable"),
-			evaluationText("observation is incomplete"),
-		)}
+		nested := fixedDiagnosticReportExpectation{
+			result: notProvableResult(
+				evaluationText("diagnostic"),
+				evaluationText("observable"),
+				evaluationText("observation is incomplete"),
+			),
+		}
 		expectation, ok := failureExpectation([]DiagnosticReportExpectation{nested}).(failureExpectationValue)
 		if !ok {
 			t.Fatal("failureExpectation must return failureExpectationValue")
@@ -66,11 +68,13 @@ func TestFailurePreservesSemanticStatus(t *testing.T) {
 	})
 	t.Run("expected structured failure diagnostics: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
-		nested := fixedDiagnosticReportExpectation{result: disprovedResult(
-			evaluationText("diagnostic"),
-			evaluationText("expected"),
-			evaluationText("actual"),
-		)}
+		nested := fixedDiagnosticReportExpectation{
+			result: disprovedResult(
+				evaluationText("diagnostic"),
+				evaluationText("expected"),
+				evaluationText("actual"),
+			),
+		}
 		expectation, ok := failureExpectation([]DiagnosticReportExpectation{nested}).(failureExpectationValue)
 		if !ok {
 			t.Fatal("failureExpectation must return failureExpectationValue")

@@ -816,9 +816,10 @@ type memoValue struct {
 }
 
 func memoizeValue(fn func() (any, error)) *memoValue {
-	return &memoValue{
+	value := &memoValue{
 		fn: fn,
 	}
+	return value
 }
 
 func (memo *memoValue) get() (any, error) {
@@ -838,9 +839,10 @@ type memoSequence struct {
 }
 
 func memoizeSequence(fn func() ([]any, error)) *memoSequence {
-	return &memoSequence{
+	sequence := &memoSequence{
 		fn: fn,
 	}
+	return sequence
 }
 
 func (memo *memoSequence) get() ([]any, error) {

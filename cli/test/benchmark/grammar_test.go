@@ -167,7 +167,9 @@ func grammarNormalizationFixture(tb testing.TB, normalization cli.NameNormalizat
 	flagName := "f" + strings.Repeat("a", nameBytes-1)
 	definition := cli.Definition[inputConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[inputConfig]) {
 			switch normalization {
 			case cli.NameNormalizationExact:
@@ -195,7 +197,9 @@ func grammarNormalizationFixture(tb testing.TB, normalization cli.NameNormalizat
 		commandInput = strings.ToUpper(commandName)
 		flagInput = strings.ToUpper(flagName)
 	}
-	request := cli.InspectionRequest{Args: []string{commandInput, "--" + flagInput, "value"}}
+	request := cli.InspectionRequest{
+		Args: []string{commandInput, "--" + flagInput, "value"},
+	}
 	return app, request, commandName, flagName
 }
 
@@ -204,14 +208,18 @@ func commandAliasFixture(tb testing.TB, commands, aliases int) (cli.Application,
 	definition := cli.Definition[emptyConfig]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("1.0.0"),
-		Help:    cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
 			for index := range commands {
 				commandAliases := make([]cli.CommandAlias, 0)
 				for alias := index; alias < aliases; alias += commands {
 					commandAliases = append(commandAliases, cli.CommandAlias{
-						Name:    fmt.Sprintf("alias-%04d", alias),
-						Release: cli.ReleaseLifecycle{IntroducedIn: "1.0.0"},
+						Name: fmt.Sprintf("alias-%04d", alias),
+						Release: cli.ReleaseLifecycle{
+							IntroducedIn: "1.0.0",
+						},
 					})
 				}
 				root.Subcommands.Command(cli.Command[emptyConfig]{
@@ -229,7 +237,10 @@ func commandAliasFixture(tb testing.TB, commands, aliases int) (cli.Application,
 	if aliases != 0 {
 		selected = "alias-0000"
 	}
-	return app, cli.InspectionRequest{Args: []string{selected}}
+	request := cli.InspectionRequest{
+		Args: []string{selected},
+	}
+	return app, request
 }
 
 func preflightCanonicalCommandSelection(tb testing.TB, app cli.Application, request cli.InspectionRequest) {
@@ -250,7 +261,9 @@ func preflightCommandAlias(tb testing.TB, app cli.Application, request cli.Inspe
 		clitest.SelectionPathExactly(clitest.RootCommand(), target),
 		entry.Exists(),
 		entry.Targets(target),
-		entry.ReleaseLifecycle(cli.ReleaseLifecycle{IntroducedIn: "1.0.0"}),
+		entry.ReleaseLifecycle(cli.ReleaseLifecycle{
+			IntroducedIn: "1.0.0",
+		}),
 		entry.Lifecycle(cli.LifecycleStateCurrent),
 	)
 }
@@ -264,7 +277,9 @@ func grammarLocalityFixture(tb testing.TB, placement declarationPlacement, flags
 	}
 	definition := cli.Definition[flagConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[flagConfig]) {
 			root.Subcommands.Command(cli.Command[flagConfig]{
 				Name: "target",
@@ -288,7 +303,9 @@ func grammarLocalityFixture(tb testing.TB, placement declarationPlacement, flags
 	if err != nil {
 		tb.Fatalf("grammar locality compile: %v", err)
 	}
-	request := cli.InspectionRequest{Args: []string{"target"}}
+	request := cli.InspectionRequest{
+		Args: []string{"target"},
+	}
 	return app, request
 }
 
@@ -318,10 +335,14 @@ func commandSelectionBreadthFixture(tb testing.TB, siblings, target int) (cli.Ap
 	tb.Helper()
 	definition := cli.Definition[emptyConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
 			for index := range siblings {
-				root.Subcommands.Command(cli.Command[emptyConfig]{Name: fmt.Sprintf("command-%04d", index)})
+				root.Subcommands.Command(cli.Command[emptyConfig]{
+					Name: fmt.Sprintf("command-%04d", index),
+				})
 			}
 		},
 	}
@@ -329,14 +350,19 @@ func commandSelectionBreadthFixture(tb testing.TB, siblings, target int) (cli.Ap
 	if err != nil {
 		tb.Fatalf("command breadth compile: %v", err)
 	}
-	return app, cli.InspectionRequest{Args: []string{fmt.Sprintf("command-%04d", target)}}
+	request := cli.InspectionRequest{
+		Args: []string{fmt.Sprintf("command-%04d", target)},
+	}
+	return app, request
 }
 
 func flagMatchingFixture(tb testing.TB, flags, target int, kind cli.FlagSpellingKind) (cli.Application, cli.InspectionRequest) {
 	tb.Helper()
 	definition := cli.Definition[flagConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[flagConfig]) {
 			shortName := '\uE000'
 			for index := range flags {
@@ -365,5 +391,8 @@ func flagMatchingFixture(tb testing.TB, flags, target int, kind cli.FlagSpelling
 		}
 		spelling = "-" + string(shortName)
 	}
-	return app, cli.InspectionRequest{Args: []string{spelling}}
+	request := cli.InspectionRequest{
+		Args: []string{spelling},
+	}
+	return app, request
 }

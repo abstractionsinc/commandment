@@ -374,10 +374,11 @@ func declareCommandShortcut[C any](command *CommandBuilder[C], shortcut CommandS
 		valid:       shortcut.Name != "",
 	}
 	state := stageCommandShortcut(command.session, command.profile, staged)
-	return CommandShortcutDeclaration[C]{
+	declaration := CommandShortcutDeclaration[C]{
 		state:    command.session,
 		shortcut: state,
 	}
+	return declaration
 }
 
 func commandShortcutDefault[C, O, T any](shortcut CommandShortcutDeclaration[C], destination destinationLike[O, T], value T, options []SourceOption) CommandShortcutDeclaration[C] {

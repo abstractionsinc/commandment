@@ -62,14 +62,15 @@ func TestProcessResponseFileAccessPreservesProcessContract(t *testing.T) {
 	if isProcessTestChild(testName) {
 		type config = processAdapterFlagConfig
 		var got config
-		app, err := cli.Compile(cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "commandment",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Dialect.ResponseFiles(true)
 				root.Flags.String(&root.Config.Flag).Long("flag")
 			},
 			Run: func(_ context.Context, cfg *config) error { got = *cfg; return nil },
-		})
+		}
+		app, err := cli.Compile(definition)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -122,7 +123,7 @@ func TestRunFromProcessSuppliesCurrentWorkingDirectory(t *testing.T) {
 	if isProcessTestChild(testName) {
 		type config = processAdapterWorkingDirectoryConfig
 		var got string
-		app := clitest.Compile(t, cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "commandment",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Access.WorkingDirectory(&root.Config.WorkingDirectory)
@@ -131,7 +132,8 @@ func TestRunFromProcessSuppliesCurrentWorkingDirectory(t *testing.T) {
 				got = cfg.WorkingDirectory
 				return nil
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		os.Args = []string{"commandment"}
 		if err := app.RunFromProcess(t.Context()); err != nil {
 			t.Fatalf("RunFromProcess() error = %v", err)
@@ -155,7 +157,7 @@ func TestRunFromProcessSuppliesSignalIntegrationToSharedRunPipeline(t *testing.T
 	if isProcessTestChild(testName) {
 		type config = processAdapterConfig
 		handlerCalled := false
-		app, err := cli.Compile(cli.Definition[config]{
+		definition := cli.Definition[config]{
 			Name: "commandment",
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Signals.Policy(
@@ -164,7 +166,8 @@ func TestRunFromProcessSuppliesSignalIntegrationToSharedRunPipeline(t *testing.T
 				)
 			},
 			Run: func(context.Context, *config) error { handlerCalled = true; return nil },
-		})
+		}
+		app, err := cli.Compile(definition)
 		if err != nil {
 			t.Fatalf("Compile() error = %v", err)
 		}
@@ -242,11 +245,12 @@ func TestProcessSignalSourceDescriptionSupportsSharedRunPlanner(t *testing.T) {
 		default:
 			t.Fatalf("unknown isolated process case %q", name)
 		}
-		app := processMustCompilePublic(t, cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name:    "tool",
 			Run:     func(context.Context, *struct{}) error { return nil },
 			Declare: declare,
-		})
+		}
+		app := processMustCompilePublic(t, definition)
 		os.Args = []string{"tool"}
 		semanticErr := runSignalApplicationTest(t, func() error { return app.RunFromProcess(t.Context()) })
 		clitest.Diagnostics(semanticErr).Require(t, clitest.DiagnosticsExactly())

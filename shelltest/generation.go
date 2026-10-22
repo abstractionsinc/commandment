@@ -23,20 +23,22 @@ type generatedCompletion struct {
 func generateCompletion(app cli.Application, provider cli.ShellCompletionProvider, workspace string) (generatedCompletion, error) {
 	integration, err := app.ShellCompletionScript(provider)
 	if err != nil {
-		return generatedCompletion{}, &failureError{
+		failure := &failureError{
 			subject: "production completion generation",
 			cause:   err,
 		}
+		return generatedCompletion{}, failure
 	}
 	generation, err := observeGeneration(app)
 	if err != nil {
 		return generatedCompletion{}, err
 	}
 	if generation.TargetVersion != "" {
-		return generatedCompletion{}, &failureError{
+		failure := &failureError{
 			subject: "observed completion generation target mismatch",
 			detail:  strconv.Quote(generation.TargetVersion),
 		}
+		return generatedCompletion{}, failure
 	}
 	return validateGeneratedCompletion(workspace, []byte(integration), generation)
 }
@@ -44,20 +46,22 @@ func generateCompletion(app cli.Application, provider cli.ShellCompletionProvide
 func generateCompletionForVersion(app cli.Application, provider cli.ShellCompletionProvider, generationTarget, workspace string) (generatedCompletion, error) {
 	integration, err := app.ShellCompletionScriptForVersion(provider, generationTarget)
 	if err != nil {
-		return generatedCompletion{}, &failureError{
+		failure := &failureError{
 			subject: "production completion generation",
 			cause:   err,
 		}
+		return generatedCompletion{}, failure
 	}
 	generation, err := observeGenerationForVersion(app, generationTarget)
 	if err != nil {
 		return generatedCompletion{}, err
 	}
 	if generation.TargetVersion != generationTarget {
-		return generatedCompletion{}, &failureError{
+		failure := &failureError{
 			subject: "observed completion generation target mismatch",
 			detail:  strconv.Quote(generation.TargetVersion) + " != " + strconv.Quote(generationTarget),
 		}
+		return generatedCompletion{}, failure
 	}
 	return validateGeneratedCompletion(workspace, []byte(integration), generation)
 }
@@ -71,16 +75,18 @@ func observeGeneration(app cli.Application) (cli.ShellCompletionGeneration, erro
 		return "", nil
 	})
 	if _, err := app.ShellCompletionScript(provider); err != nil {
-		return cli.ShellCompletionGeneration{}, &failureError{
+		failure := &failureError{
 			subject: generationObservationSubject,
 			cause:   err,
 		}
+		return cli.ShellCompletionGeneration{}, failure
 	}
 	if calls != 1 {
-		return cli.ShellCompletionGeneration{}, &failureError{
+		failure := &failureError{
 			subject: generationObservationSubject,
 			detail:  "provider invocation count=" + strconv.Itoa(calls),
 		}
+		return cli.ShellCompletionGeneration{}, failure
 	}
 	return observed, nil
 }
@@ -94,16 +100,18 @@ func observeGenerationForVersion(app cli.Application, target string) (cli.ShellC
 		return "", nil
 	})
 	if _, err := app.ShellCompletionScriptForVersion(provider, target); err != nil {
-		return cli.ShellCompletionGeneration{}, &failureError{
+		failure := &failureError{
 			subject: generationObservationSubject,
 			cause:   err,
 		}
+		return cli.ShellCompletionGeneration{}, failure
 	}
 	if calls != 1 {
-		return cli.ShellCompletionGeneration{}, &failureError{
+		failure := &failureError{
 			subject: generationObservationSubject,
 			detail:  "provider invocation count=" + strconv.Itoa(calls),
 		}
+		return cli.ShellCompletionGeneration{}, failure
 	}
 	return observed, nil
 }
@@ -113,13 +121,17 @@ func validateGeneratedCompletion(workspace string, integration []byte, generatio
 		return generatedCompletion{}, err
 	}
 	if !validEnvironmentName(generation.ActivationEnvironment) {
-		return generatedCompletion{}, &failureError{
+		failure := &failureError{
 			subject: "invalid completion activation environment",
 			detail:  strconv.Quote(generation.ActivationEnvironment),
 		}
+		return generatedCompletion{}, failure
 	}
 	if generation.ActivationValue == "" || strings.IndexByte(generation.ActivationValue, 0) >= 0 {
-		return generatedCompletion{}, &failureError{subject: "invalid completion activation value"}
+		failure := &failureError{
+			subject: "invalid completion activation value",
+		}
+		return generatedCompletion{}, failure
 	}
 
 	helper := filepath.Join("bin", generation.ApplicationName)
@@ -139,16 +151,18 @@ func validateGeneratedCompletion(workspace string, integration []byte, generatio
 func validateApplicationName(name string) error {
 	invalid := name == "" || name == "." || name == ".." || strings.IndexByte(name, 0) >= 0 || filepath.IsAbs(name) || filepath.VolumeName(name) != "" || strings.ContainsAny(name, `/\\`)
 	if invalid {
-		return &failureError{
+		failure := &failureError{
 			subject: "application command name cannot be materialized",
 			detail:  strconv.Quote(name),
 		}
+		return failure
 	}
 	if runtime.GOOS == windowsOS && !validWindowsFileComponent(name) {
-		return &failureError{
+		failure := &failureError{
 			subject: "application command name cannot be materialized on Windows",
 			detail:  strconv.Quote(name),
 		}
+		return failure
 	}
 	return nil
 }
@@ -181,25 +195,28 @@ func probeFrameworkNames(workspace string, names ...string) error {
 		relative := filepath.Join(directory, name)
 		if err := createWorkspaceFile(workspace, relative, nil, privateFileMode); err != nil {
 			_ = removeWorkspaceDirectory(workspace, directory)
-			return &failureError{
+			failure := &failureError{
 				subject: "probe application helper name",
 				detail:  strconv.Quote(name),
 				cause:   err,
 			}
+			return failure
 		}
 		if err := removeWorkspaceFile(workspace, relative); err != nil {
-			return &failureError{
+			failure := &failureError{
 				subject: "remove application helper name probe",
 				detail:  strconv.Quote(name),
 				cause:   err,
 			}
+			return failure
 		}
 	}
 	if err := removeWorkspaceDirectory(workspace, directory); err != nil {
-		return &failureError{
+		failure := &failureError{
 			subject: "remove framework name probe directory",
 			cause:   err,
 		}
+		return failure
 	}
 	return nil
 }

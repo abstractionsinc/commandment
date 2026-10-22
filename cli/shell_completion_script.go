@@ -78,10 +78,11 @@ func generateShellCompletionScript(applicationName string, descriptor shellCompl
 		return "", errInvalidShellCompletionProvider
 	}
 	if targetVersion != "" && descriptor.family != "" && !descriptor.versionSensitive {
-		return "", &shellCompletionError{
+		failure := &shellCompletionError{
 			kind:   errUnsupportedShellCompletionTarget,
 			detail: string(descriptor.family),
 		}
+		return "", failure
 	}
 	return descriptor.generator(shellCompletionGeneration(applicationName, targetVersion))
 }
@@ -111,10 +112,11 @@ func generateBuiltInShellCompletionScript(family ShellFamily, generation ShellCo
 	case ShellFamilyNushell:
 		return generateNushellCompletionScript(request)
 	default:
-		return "", &shellCompletionError{
+		failure := &shellCompletionError{
 			kind:   errUnsupportedShellCompletionTarget,
 			detail: "built-in shell completion family " + strconv.Quote(string(request.Family)),
 		}
+		return "", failure
 	}
 }
 
@@ -132,10 +134,11 @@ func validateShellCompletionScriptRequest(request shellCompletionScriptRequest) 
 		return errInvalidShellCompletionGeneration
 	}
 	if request.TargetVersion != "" && request.Family != ShellFamilyElvish && request.Family != ShellFamilyNushell {
-		return &shellCompletionError{
+		failure := &shellCompletionError{
 			kind:   errUnsupportedShellCompletionTarget,
 			detail: string(request.Family),
 		}
+		return failure
 	}
 	return nil
 }

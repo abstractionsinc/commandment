@@ -19,10 +19,11 @@ const (
 
 func prepareOperationWorkspace(workspace string) error {
 	if err := os.Chmod(workspace, privateDirectoryMode); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "make operation workspace private",
 			cause:   err,
 		}
+		return failure
 	}
 	return nil
 }
@@ -30,10 +31,11 @@ func prepareOperationWorkspace(workspace string) error {
 func createWorkspaceFile(workspace, relative string, content []byte, mode os.FileMode) error {
 	root, err := unix.Open(workspace, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: workspaceOpenSubject,
 			cause:   err,
 		}
+		return failure
 	}
 	defer func() { _ = unix.Close(root) }()
 
@@ -45,19 +47,21 @@ func createWorkspaceFile(workspace, relative string, content []byte, mode os.Fil
 
 	fd, err := unix.Openat(parent, leaf, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_CLOEXEC|unix.O_NOFOLLOW, uint32(mode.Perm()))
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "create workspace file",
 			detail:  relative,
 			cause:   err,
 		}
+		return failure
 	}
 	file := os.NewFile(uintptr(fd), leaf)
 	if file == nil {
 		_ = unix.Close(fd)
-		return failureError{
+		failure := failureError{
 			subject: "create workspace file handle",
 			detail:  relative,
 		}
+		return failure
 	}
 	remove := true
 	defer func() {
@@ -67,18 +71,20 @@ func createWorkspaceFile(workspace, relative string, content []byte, mode os.Fil
 		}
 	}()
 	if _, err := file.Write(content); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "write workspace file",
 			detail:  relative,
 			cause:   err,
 		}
+		return failure
 	}
 	if err := file.Close(); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "close workspace file",
 			detail:  relative,
 			cause:   err,
 		}
+		return failure
 	}
 	remove = false
 	return nil
@@ -87,10 +93,11 @@ func createWorkspaceFile(workspace, relative string, content []byte, mode os.Fil
 func copyWorkspaceExecutable(workspace, relative, source string) error {
 	root, err := unix.Open(workspace, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: workspaceOpenSubject,
 			cause:   err,
 		}
+		return failure
 	}
 	defer func() { _ = unix.Close(root) }()
 
@@ -102,28 +109,31 @@ func copyWorkspaceExecutable(workspace, relative, source string) error {
 
 	input, err := os.Open(source) // #nosec G304 -- source is os.Executable(), not caller-authored workspace input.
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "open helper executable source",
 			cause:   err,
 		}
+		return failure
 	}
 	defer func() { _ = input.Close() }()
 
 	fd, err := unix.Openat(parent, leaf, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_CLOEXEC|unix.O_NOFOLLOW, privateExecutableMode)
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "create helper executable",
 			detail:  relative,
 			cause:   err,
 		}
+		return failure
 	}
 	output := os.NewFile(uintptr(fd), leaf)
 	if output == nil {
 		_ = unix.Close(fd)
-		return failureError{
+		failure := failureError{
 			subject: "create helper executable handle",
 			detail:  relative,
 		}
+		return failure
 	}
 	remove := true
 	defer func() {
@@ -133,18 +143,20 @@ func copyWorkspaceExecutable(workspace, relative, source string) error {
 		}
 	}()
 	if _, err := io.Copy(output, input); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "copy helper executable",
 			detail:  relative,
 			cause:   err,
 		}
+		return failure
 	}
 	if err := output.Close(); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "close helper executable",
 			detail:  relative,
 			cause:   err,
 		}
+		return failure
 	}
 	remove = false
 	return nil
@@ -161,10 +173,11 @@ func removeWorkspaceDirectory(workspace, relative string) error {
 func removeWorkspacePath(workspace, relative string, flags int) error {
 	root, err := unix.Open(workspace, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: workspaceOpenSubject,
 			cause:   err,
 		}
+		return failure
 	}
 	defer func() { _ = unix.Close(root) }()
 
@@ -174,11 +187,12 @@ func removeWorkspacePath(workspace, relative string, flags int) error {
 	}
 	defer cleanup()
 	if err := unix.Unlinkat(parent, leaf, flags); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "remove workspace path",
 			detail:  relative,
 			cause:   err,
 		}
+		return failure
 	}
 	return nil
 }
@@ -186,7 +200,10 @@ func removeWorkspacePath(workspace, relative string, flags int) error {
 func openWorkspaceParent(root int, relative string) (int, string, func(), error) {
 	parts := strings.Split(filepath.Clean(relative), string(filepath.Separator))
 	if len(parts) == 0 || parts[len(parts)-1] == "" {
-		return -1, "", func() {}, failureError{subject: "invalid empty workspace path"}
+		failure := failureError{
+			subject: "invalid empty workspace path",
+		}
+		return -1, "", func() {}, failure
 	}
 
 	parent := root
@@ -201,21 +218,23 @@ func openWorkspaceParent(root int, relative string) (int, string, func(), error)
 		if errors.Is(err, unix.ENOENT) {
 			if err := unix.Mkdirat(parent, component, privateDirectoryMode); err != nil {
 				cleanup()
-				return -1, "", func() {}, failureError{
+				failure := failureError{
 					subject: "create workspace directory",
 					detail:  component,
 					cause:   err,
 				}
+				return -1, "", func() {}, failure
 			}
 			descriptor, err = unix.Openat(parent, component, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 		}
 		if err != nil {
 			cleanup()
-			return -1, "", func() {}, failureError{
+			failure := failureError{
 				subject: "open workspace directory",
 				detail:  component,
 				cause:   err,
 			}
+			return -1, "", func() {}, failure
 		}
 		opened = append(opened, descriptor)
 		parent = descriptor

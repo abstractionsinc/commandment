@@ -212,7 +212,10 @@ func (draft *declarationDraft) rejectionError() error {
 	if draft == nil || len(draft.rejections) == 0 {
 		return nil
 	}
-	return declarationRejectionError{rejections: slices.Clone(draft.rejections)}
+	failure := declarationRejectionError{
+		rejections: slices.Clone(draft.rejections),
+	}
+	return failure
 }
 
 type declarationContribution struct {

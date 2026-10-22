@@ -6,8 +6,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,12 +69,12 @@ func TestExportedSurfaceIsExact(t *testing.T) {
 	for name := range exports {
 		gotExports = append(gotExports, name)
 	}
-	sort.Strings(gotExports)
+	slices.Sort(gotExports)
 	wantExports := []string{
 		"Complete", "CompleteForGenerationTarget", "Input", "InterpretFunc", "Observation",
 		"PrepareFunc", "Runtime", "RuntimeVersionParser", "Setup", "Target",
 	}
-	if !reflect.DeepEqual(gotExports, wantExports) {
+	if !slices.Equal(gotExports, wantExports) {
 		t.Fatalf("exported declarations = %#v, want %#v", gotExports, wantExports)
 	}
 	wantFields := map[string][]string{
@@ -84,27 +83,40 @@ func TestExportedSurfaceIsExact(t *testing.T) {
 		"Input":   {"AfterCursor", "BeforeCursor"},
 	}
 	for name := range fields {
-		sort.Strings(fields[name])
+		slices.Sort(fields[name])
 	}
 	for name := range wantFields {
-		sort.Strings(wantFields[name])
+		slices.Sort(wantFields[name])
 	}
-	if !reflect.DeepEqual(fields, wantFields) {
+	if !equalStringSliceMaps(fields, wantFields) {
 		t.Fatalf("exported fields = %#v, want %#v", fields, wantFields)
 	}
 	for name := range methods {
-		sort.Strings(methods[name])
+		slices.Sort(methods[name])
 	}
 	wantMethods := map[string][]string{
 		"Observation": {"EditorInput", "ScreenLines", "Version"},
 		"Setup":       {"Args", "Env", "Executable", "File", "IntegrationFile", "Version"},
 	}
 	for name := range wantMethods {
-		sort.Strings(wantMethods[name])
+		slices.Sort(wantMethods[name])
 	}
-	if !reflect.DeepEqual(methods, wantMethods) {
+	if !equalStringSliceMaps(methods, wantMethods) {
 		t.Fatalf("exported methods = %#v, want %#v", methods, wantMethods)
 	}
+}
+
+func equalStringSliceMaps(left, right map[string][]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key, leftValues := range left {
+		rightValues, ok := right[key]
+		if !ok || !slices.Equal(leftValues, rightValues) {
+			return false
+		}
+	}
+	return true
 }
 
 func receiverName(expr ast.Expr) string {
@@ -139,9 +151,21 @@ func TestExportedSignaturesMatchAcceptedGrammar(t *testing.T) {
 	requireSignature[func(Observation) (Input, bool)](Observation.EditorInput)
 	requireSignature[func(Observation) []string](Observation.ScreenLines)
 
-	_ = Runtime{Executable: "runtime", VersionArgs: []string{"--version"}, ParseVersion: func(string) (string, error) { return "1", nil }}
-	_ = Target[int]{Provider: cli.Shell.Bash, Runtime: Runtime{}, Prepare: nil, Interpret: nil}
-	_ = Input{BeforeCursor: "before", AfterCursor: "after"}
+	_ = Runtime{
+		Executable:   "runtime",
+		VersionArgs:  []string{"--version"},
+		ParseVersion: func(string) (string, error) { return "1", nil },
+	}
+	_ = Target[int]{
+		Provider:  cli.Shell.Bash,
+		Runtime:   Runtime{},
+		Prepare:   nil,
+		Interpret: nil,
+	}
+	_ = Input{
+		BeforeCursor: "before",
+		AfterCursor:  "after",
+	}
 }
 
 func requireSignature[T any](_ T) {}

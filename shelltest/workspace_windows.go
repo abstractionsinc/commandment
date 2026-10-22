@@ -28,10 +28,11 @@ type fileCaseSensitiveInfo struct {
 func prepareOperationWorkspace(workspace string) error {
 	root, err := openWorkspaceRoot(workspace)
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "open operation workspace",
 			cause:   err,
 		}
+		return failure
 	}
 	defer func() { _ = windows.CloseHandle(root) }()
 	if err := rejectWorkspaceReparse(root); err != nil {
@@ -42,21 +43,23 @@ func prepareOperationWorkspace(workspace string) error {
 
 func createWorkspaceFile(workspace, relative string, content []byte, _ os.FileMode) error {
 	return withWorkspaceParent(workspace, relative, func(parent windows.Handle, name string) error {
-		handle, err := createWorkspaceChild(parent, name, false)
+		handle, err := createWorkspaceFileChild(parent, name)
 		if err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "create workspace file",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		file := os.NewFile(uintptr(handle), name)
 		if file == nil {
 			_ = windows.CloseHandle(handle)
-			return failureError{
+			failure := failureError{
 				subject: "create workspace file handle",
 				detail:  relative,
 			}
+			return failure
 		}
 		remove := true
 		defer func() {
@@ -66,25 +69,28 @@ func createWorkspaceFile(workspace, relative string, content []byte, _ os.FileMo
 			_ = file.Close()
 		}()
 		if _, err := file.Write(content); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "write workspace file",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		if err := file.Sync(); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "flush workspace file",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		if err := file.Close(); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "close workspace file",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		remove = false
 		return nil
@@ -94,29 +100,32 @@ func createWorkspaceFile(workspace, relative string, content []byte, _ os.FileMo
 func copyWorkspaceExecutable(workspace, relative, source string) error {
 	input, err := os.Open(source) // #nosec G304 -- source is os.Executable(), not caller-authored workspace input.
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "open helper executable source",
 			cause:   err,
 		}
+		return failure
 	}
 	defer func() { _ = input.Close() }()
 
 	return withWorkspaceParent(workspace, relative, func(parent windows.Handle, name string) error {
-		handle, err := createWorkspaceChild(parent, name, false)
+		handle, err := createWorkspaceFileChild(parent, name)
 		if err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "create helper executable",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		output := os.NewFile(uintptr(handle), name)
 		if output == nil {
 			_ = windows.CloseHandle(handle)
-			return failureError{
+			failure := failureError{
 				subject: "create helper executable handle",
 				detail:  relative,
 			}
+			return failure
 		}
 		remove := true
 		defer func() {
@@ -126,25 +135,28 @@ func copyWorkspaceExecutable(workspace, relative, source string) error {
 			_ = output.Close()
 		}()
 		if _, err := io.Copy(output, input); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "copy helper executable",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		if err := output.Sync(); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "flush helper executable",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		if err := output.Close(); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "close helper executable",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		remove = false
 		return nil
@@ -152,30 +164,48 @@ func copyWorkspaceExecutable(workspace, relative, source string) error {
 }
 
 func removeWorkspaceFile(workspace, relative string) error {
-	return removeWorkspacePath(workspace, relative, false)
-}
-
-func removeWorkspaceDirectory(workspace, relative string) error {
-	return removeWorkspacePath(workspace, relative, true)
-}
-
-func removeWorkspacePath(workspace, relative string, directory bool) error {
 	return withWorkspaceParent(workspace, relative, func(parent windows.Handle, name string) error {
-		handle, err := openWorkspaceChild(parent, name, directory)
+		handle, err := openWorkspaceFileChild(parent, name)
 		if err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "open workspace path for removal",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
 		}
 		defer func() { _ = windows.CloseHandle(handle) }()
 		if err := markWorkspacePathForDeletion(handle); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: "remove workspace path",
 				detail:  relative,
 				cause:   err,
 			}
+			return failure
+		}
+		return nil
+	})
+}
+
+func removeWorkspaceDirectory(workspace, relative string) error {
+	return withWorkspaceParent(workspace, relative, func(parent windows.Handle, name string) error {
+		handle, err := openWorkspaceDirectoryChild(parent, name)
+		if err != nil {
+			failure := failureError{
+				subject: "open workspace path for removal",
+				detail:  relative,
+				cause:   err,
+			}
+			return failure
+		}
+		defer func() { _ = windows.CloseHandle(handle) }()
+		if err := markWorkspacePathForDeletion(handle); err != nil {
+			failure := failureError{
+				subject: "remove workspace path",
+				detail:  relative,
+				cause:   err,
+			}
+			return failure
 		}
 		return nil
 	})
@@ -184,10 +214,11 @@ func removeWorkspacePath(workspace, relative string, directory bool) error {
 func withWorkspaceParent(workspace, relative string, operation func(windows.Handle, string) error) error {
 	root, err := openWorkspaceRoot(workspace)
 	if err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "open operation workspace",
 			cause:   err,
 		}
+		return failure
 	}
 	defer func() { _ = windows.CloseHandle(root) }()
 	if err := rejectWorkspaceReparse(root); err != nil {
@@ -196,7 +227,10 @@ func withWorkspaceParent(workspace, relative string, operation func(windows.Hand
 
 	parts := strings.Split(filepath.Clean(relative), string(filepath.Separator))
 	if len(parts) == 0 || parts[len(parts)-1] == "" {
-		return failureError{subject: "invalid empty workspace path"}
+		failure := failureError{
+			subject: "invalid empty workspace path",
+		}
+		return failure
 	}
 	parent := root
 	owned := make([]windows.Handle, 0, len(parts)-1)
@@ -207,22 +241,24 @@ func withWorkspaceParent(workspace, relative string, operation func(windows.Hand
 	}()
 
 	for _, component := range parts[:len(parts)-1] {
-		directory, openErr := openWorkspaceChild(parent, component, true)
+		directory, openErr := openWorkspaceDirectoryChild(parent, component)
 		if openErr != nil {
 			if !workspaceObjectMissing(openErr) {
-				return failureError{
+				failure := failureError{
 					subject: "open workspace directory",
 					detail:  component,
 					cause:   openErr,
 				}
+				return failure
 			}
-			directory, openErr = createWorkspaceChild(parent, component, true)
+			directory, openErr = createWorkspaceDirectoryChild(parent, component)
 			if openErr != nil {
-				return failureError{
+				failure := failureError{
 					subject: "create workspace directory",
 					detail:  component,
 					cause:   openErr,
 				}
+				return failure
 			}
 		}
 		if err := rejectWorkspaceReparse(directory); err != nil {
@@ -251,10 +287,10 @@ func openWorkspaceRoot(workspace string) (windows.Handle, error) {
 	if err != nil {
 		return 0, err
 	}
-	return ntOpenWorkspaceObject(&attributes, true, windows.FILE_OPEN)
+	return ntOpenWorkspaceDirectoryObject(&attributes, windows.FILE_OPEN)
 }
 
-func openWorkspaceChild(parent windows.Handle, name string, directory bool) (windows.Handle, error) {
+func openWorkspaceFileChild(parent windows.Handle, name string) (windows.Handle, error) {
 	objectName, err := windows.NewNTUnicodeString(name)
 	if err != nil {
 		return 0, err
@@ -263,10 +299,10 @@ func openWorkspaceChild(parent windows.Handle, name string, directory bool) (win
 	if err != nil {
 		return 0, err
 	}
-	return ntOpenWorkspaceObject(&attributes, directory, windows.FILE_OPEN)
+	return ntOpenWorkspaceFileObject(&attributes, windows.FILE_OPEN)
 }
 
-func createWorkspaceChild(parent windows.Handle, name string, directory bool) (windows.Handle, error) {
+func openWorkspaceDirectoryChild(parent windows.Handle, name string) (windows.Handle, error) {
 	objectName, err := windows.NewNTUnicodeString(name)
 	if err != nil {
 		return 0, err
@@ -275,7 +311,39 @@ func createWorkspaceChild(parent windows.Handle, name string, directory bool) (w
 	if err != nil {
 		return 0, err
 	}
-	handle, err := ntOpenWorkspaceObject(&attributes, directory, windows.FILE_CREATE)
+	return ntOpenWorkspaceDirectoryObject(&attributes, windows.FILE_OPEN)
+}
+
+func createWorkspaceFileChild(parent windows.Handle, name string) (windows.Handle, error) {
+	objectName, err := windows.NewNTUnicodeString(name)
+	if err != nil {
+		return 0, err
+	}
+	attributes, err := workspaceObjectAttributes(parent, objectName)
+	if err != nil {
+		return 0, err
+	}
+	handle, err := ntOpenWorkspaceFileObject(&attributes, windows.FILE_CREATE)
+	if err != nil {
+		return 0, err
+	}
+	if err := rejectWorkspaceReparse(handle); err != nil {
+		_ = windows.CloseHandle(handle)
+		return 0, err
+	}
+	return handle, nil
+}
+
+func createWorkspaceDirectoryChild(parent windows.Handle, name string) (windows.Handle, error) {
+	objectName, err := windows.NewNTUnicodeString(name)
+	if err != nil {
+		return 0, err
+	}
+	attributes, err := workspaceObjectAttributes(parent, objectName)
+	if err != nil {
+		return 0, err
+	}
+	handle, err := ntOpenWorkspaceDirectoryObject(&attributes, windows.FILE_CREATE)
 	if err != nil {
 		return 0, err
 	}
@@ -311,25 +379,27 @@ func workspaceObjectAttributes(parent windows.Handle, name *windows.NTUnicodeStr
 func workspaceDirectoryCaseSensitive(handle windows.Handle) (bool, error) {
 	var info fileCaseSensitiveInfo
 	if err := windows.GetFileInformationByHandleEx(handle, windows.FileCaseSensitiveInfo, (*byte)(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info))); err != nil {
-		return false, failureError{
+		failure := failureError{
 			subject: "inspect workspace directory case semantics",
 			cause:   err,
 		}
+		return false, failure
 	}
 	return info.flags&windows.FILE_CS_FLAG_CASE_SENSITIVE_DIR != 0, nil
 }
 
-func ntOpenWorkspaceObject(attributes *windows.OBJECT_ATTRIBUTES, directory bool, disposition uint32) (windows.Handle, error) {
-	options := uint32(windows.FILE_OPEN_REPARSE_POINT | windows.FILE_SYNCHRONOUS_IO_NONALERT)
-	fileAttributes := uint32(windows.FILE_ATTRIBUTE_NORMAL)
-	share := uint32(0)
-	if directory {
-		options |= windows.FILE_DIRECTORY_FILE
-		fileAttributes = windows.FILE_ATTRIBUTE_DIRECTORY
-		share = windows.FILE_SHARE_READ | windows.FILE_SHARE_WRITE | windows.FILE_SHARE_DELETE
-	} else {
-		options |= windows.FILE_NON_DIRECTORY_FILE
-	}
+func ntOpenWorkspaceFileObject(attributes *windows.OBJECT_ATTRIBUTES, disposition uint32) (windows.Handle, error) {
+	options := uint32(windows.FILE_OPEN_REPARSE_POINT | windows.FILE_SYNCHRONOUS_IO_NONALERT | windows.FILE_NON_DIRECTORY_FILE)
+	return ntOpenWorkspaceObject(attributes, windows.FILE_ATTRIBUTE_NORMAL, 0, disposition, options)
+}
+
+func ntOpenWorkspaceDirectoryObject(attributes *windows.OBJECT_ATTRIBUTES, disposition uint32) (windows.Handle, error) {
+	options := uint32(windows.FILE_OPEN_REPARSE_POINT | windows.FILE_SYNCHRONOUS_IO_NONALERT | windows.FILE_DIRECTORY_FILE)
+	share := uint32(windows.FILE_SHARE_READ | windows.FILE_SHARE_WRITE | windows.FILE_SHARE_DELETE)
+	return ntOpenWorkspaceObject(attributes, windows.FILE_ATTRIBUTE_DIRECTORY, share, disposition, options)
+}
+
+func ntOpenWorkspaceObject(attributes *windows.OBJECT_ATTRIBUTES, fileAttributes, share, disposition, options uint32) (windows.Handle, error) {
 	access := uint32(windows.FILE_GENERIC_READ | windows.FILE_GENERIC_WRITE | windows.DELETE)
 	var status windows.IO_STATUS_BLOCK
 	var handle windows.Handle
@@ -344,13 +414,17 @@ func ntOpenWorkspaceObject(attributes *windows.OBJECT_ATTRIBUTES, directory bool
 func rejectWorkspaceReparse(handle windows.Handle) error {
 	var info fileAttributeTagInfo
 	if err := windows.GetFileInformationByHandleEx(handle, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info))); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: "inspect workspace filesystem object",
 			cause:   err,
 		}
+		return failure
 	}
 	if info.attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-		return failureError{subject: "workspace path contains a reparse point"}
+		failure := failureError{
+			subject: "workspace path contains a reparse point",
+		}
+		return failure
 	}
 	return nil
 }
@@ -364,6 +438,8 @@ func workspaceObjectMissing(err error) bool {
 }
 
 func markWorkspacePathForDeletion(handle windows.Handle) error {
-	info := fileDispositionInfo{deleteFile: 1}
+	info := fileDispositionInfo{
+		deleteFile: 1,
+	}
 	return windows.SetFileInformationByHandle(handle, windows.FileDispositionInfo, (*byte)(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)))
 }

@@ -144,9 +144,10 @@ func (values *Values[C]) Value[T any](storage *T, language ValueLanguage[T]) Des
 		valid:              storage != nil && bindingOK && languageErr == nil,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, T]{
+	destination := Destination[C, T]{
 		handle: state,
 	}
+	return destination
 }
 
 // String declares a string destination using the built-in string value language.
@@ -165,9 +166,10 @@ func (values *Values[C]) String(storage *string) Destination[C, string] {
 		valid:              storage != nil && bindingOK,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, string]{
+	destination := Destination[C, string]{
 		handle: state,
 	}
+	return destination
 }
 
 // Int declares an int destination using the built-in integer value language.
@@ -186,9 +188,10 @@ func (values *Values[C]) Int(storage *int) Destination[C, int] {
 		valid:              storage != nil && bindingOK,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, int]{
+	destination := Destination[C, int]{
 		handle: state,
 	}
+	return destination
 }
 
 // Uint declares a uint destination using the built-in unsigned-integer value language.
@@ -207,9 +210,10 @@ func (values *Values[C]) Uint(storage *uint) Destination[C, uint] {
 		valid:              storage != nil && bindingOK,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, uint]{
+	destination := Destination[C, uint]{
 		handle: state,
 	}
+	return destination
 }
 
 // Bool declares a bool destination using the built-in Boolean value language.
@@ -228,9 +232,10 @@ func (values *Values[C]) Bool(storage *bool) Destination[C, bool] {
 		valid:              storage != nil && bindingOK,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, bool]{
+	destination := Destination[C, bool]{
 		handle: state,
 	}
+	return destination
 }
 
 // Sequence declares an ordered sequence destination whose element values use the supplied element language and preserve
@@ -250,9 +255,10 @@ func (values *Values[C]) Sequence[T any](storage *[]T, element ValueLanguage[T])
 		valid:              storage != nil && bindingOK && languageErr == nil,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, []T]{
+	destination := Destination[C, []T]{
 		handle: state,
 	}
+	return destination
 }
 
 // Keyed declares a keyed destination using the supplied key/value language.
@@ -271,9 +277,10 @@ func (values *Values[C]) Keyed[K comparable, V any](storage *map[K]V, language K
 		valid:              valid,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, map[K]V]{
+	destination := Destination[C, map[K]V]{
 		handle: state,
 	}
+	return destination
 }
 
 // Destination declares an opaque typed destination for semantic producers that do not parse CLI
@@ -299,9 +306,10 @@ func (values *Values[C]) Destination[T any](storage *T, snapshot func(T) T) Dest
 		valid:              storage != nil && bindingOK && snapshot != nil,
 	}
 	state := stageDestination(values.session, values.profile, destinationValue)
-	return Destination[C, T]{
+	destination := Destination[C, T]{
 		handle: state,
 	}
+	return destination
 }
 
 // staticDefaultDeclaration is the inferred fluent owner for one static default producer.
@@ -338,10 +346,11 @@ func (values *Values[C]) Default[T any](destination destinationLike[C, T], value
 		directive,
 		state,
 	)
-	return staticDefaultDeclaration{
+	declaration := staticDefaultDeclaration{
 		state:    values.session,
 		producer: producer,
 	}
+	return declaration
 }
 
 // ResolveWith sets the explicit resolution policy sequence for destination.
@@ -419,30 +428,34 @@ var Value valueConstructors
 
 // Bool returns the built-in boolean value language.
 func (valueConstructors) Bool() ValueLanguage[bool] {
-	return builtinValueLanguage[bool]{
+	language := builtinValueLanguage[bool]{
 		name: builtinValueLanguageNameBool,
 	}
+	return language
 }
 
 // Int returns the built-in signed-integer value language.
 func (valueConstructors) Int() ValueLanguage[int] {
-	return builtinValueLanguage[int]{
+	language := builtinValueLanguage[int]{
 		name: builtinValueLanguageNameInt,
 	}
+	return language
 }
 
 // Uint returns the built-in unsigned-integer value language.
 func (valueConstructors) Uint() ValueLanguage[uint] {
-	return builtinValueLanguage[uint]{
+	language := builtinValueLanguage[uint]{
 		name: builtinValueLanguageNameUint,
 	}
+	return language
 }
 
 // String returns the built-in string value language.
 func (valueConstructors) String() ValueLanguage[string] {
-	return builtinValueLanguage[string]{
+	language := builtinValueLanguage[string]{
 		name: builtinValueLanguageNameString,
 	}
+	return language
 }
 
 // Assign returns the identity snapshot policy for immutable or value-semantic T values.
@@ -461,36 +474,43 @@ func (valueConstructors) Keyed[K comparable, V any](key ValueLanguage[K], value 
 }
 
 func stageKeyValueLanguage[K comparable, V any](key ValueLanguage[K], value ValueLanguage[V]) KeyValueLanguage[K, V] {
-	return KeyValueLanguage[K, V]{state: &keyValueLanguageState{
+	state := &keyValueLanguageState{
 		key:       key,
 		value:     value,
 		separator: "=",
 		valid:     key != nil && value != nil,
-	}}
+	}
+	language := KeyValueLanguage[K, V]{
+		state: state,
+	}
+	return language
 }
 
 // KeepFirst selects the first contributing source value when multiple resolution tiers contribute a value.
 func (valueConstructors) KeepFirst() ResolutionPolicy {
-	return ResolutionPolicy{
+	policy := ResolutionPolicy{
 		kind:  resolutionPolicyKeepFirst,
 		valid: true,
 	}
+	return policy
 }
 
 // KeepLast selects the last contributing source value when multiple resolution tiers contribute a value.
 func (valueConstructors) KeepLast() ResolutionPolicy {
-	return ResolutionPolicy{
+	policy := ResolutionPolicy{
 		kind:  resolutionPolicyKeepLast,
 		valid: true,
 	}
+	return policy
 }
 
 // RejectMultipleTiers rejects resolution when more than one resolution tier contributes a value.
 func (valueConstructors) RejectMultipleTiers() ResolutionPolicy {
-	return ResolutionPolicy{
+	policy := ResolutionPolicy{
 		kind:  resolutionPolicyRejectMultipleTiers,
 		valid: true,
 	}
+	return policy
 }
 
 // CombineTiers combines values from all contributing resolution tiers in the declared precedence order.
@@ -931,10 +951,11 @@ func acceptValueType(kind ValueKind, name string) ValueType {
 	if kind == ValueKindUnknown || (kind != ValueKindCustom && name != "") {
 		panic("semantic: invalid value type")
 	}
-	return ValueType{
+	valueType := ValueType{
 		Kind: kind,
 		Name: name,
 	}
+	return valueType
 }
 
 func (valueType ValueType) valid() bool {
@@ -1014,10 +1035,11 @@ func acceptValueLanguageWithEvaluation(kind valueLanguageKind, name string, eval
 }
 
 func acceptDynamicDomainValueLanguage() valueLanguage {
-	return valueLanguage{
+	language := valueLanguage{
 		kind:    valueLanguageKindDomain,
 		dynamic: true,
 	}
+	return language
 }
 
 func (language valueLanguage) Valid() bool {
@@ -1309,10 +1331,11 @@ func acceptOpaqueDestinationDefinition(kind destinationKind) destinationDefiniti
 		destinationKindOptionalDerived,
 		destinationKindFactRequired,
 		destinationKindFactResolved:
-		return destinationDefinition{
+		definition := destinationDefinition{
 			kind:     kind,
 			snapshot: func(value any) (any, bool) { return snapshotMutableValue(value), true },
 		}
+		return definition
 	default:
 		panic("semantic: invalid opaque destination kind")
 	}
@@ -1488,10 +1511,11 @@ func acceptSourceAnnotation(kind sourceAnnotationKind, value string) sourceAnnot
 	if kind != sourceAnnotationKindKey && kind != sourceAnnotationKindLocation && kind != sourceAnnotationKindText {
 		panic("semantic: invalid source annotation")
 	}
-	return sourceAnnotation{
+	annotation := sourceAnnotation{
 		kind:  kind,
 		value: value,
 	}
+	return annotation
 }
 
 type semanticProducerSource struct {
@@ -1500,10 +1524,11 @@ type semanticProducerSource struct {
 }
 
 func snapshotProducerSource(annotations []sourceAnnotation, sensitive bool) semanticProducerSource {
-	return semanticProducerSource{
+	source := semanticProducerSource{
 		annotations: append([]sourceAnnotation(nil), annotations...),
 		sensitive:   sensitive,
 	}
+	return source
 }
 
 func (source semanticProducerSource) Annotations() []sourceAnnotation {
@@ -1531,10 +1556,11 @@ type dependencyRequirement struct {
 
 func acceptDependencyRequirement(destination ValueID, optional bool) dependencyRequirement {
 	mustDestination(destination)
-	return dependencyRequirement{
+	requirement := dependencyRequirement{
 		destination: destination,
 		optional:    optional,
 	}
+	return requirement
 }
 
 func (requirement dependencyRequirement) Destination() ValueID { return requirement.destination }
@@ -1547,10 +1573,11 @@ type valueEvaluation struct {
 }
 
 func valuePresent(value any) valueEvaluation {
-	return valueEvaluation{
+	evaluation := valueEvaluation{
 		value:   value,
 		present: true,
 	}
+	return evaluation
 }
 
 func valueOmitted() valueEvaluation { return valueEvaluation{} }

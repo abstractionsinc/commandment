@@ -15,7 +15,10 @@ func TestCustomHelpRendering(t *testing.T) {
 		t.Fatalf("Compile() error = %v", err)
 	}
 	var output bytes.Buffer
-	request := cli.RunRequest{Args: []string{"help", "scan"}, Stdout: &output}
+	request := cli.RunRequest{
+		Args:   []string{"help", "scan"},
+		Stdout: &output,
+	}
 	if err := app.Run(t.Context(), request); err != nil {
 		t.Fatalf("Run(help) error = %v", err)
 	}

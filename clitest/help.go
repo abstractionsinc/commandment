@@ -104,34 +104,40 @@ type HelpPageValueDomainEntryLocator struct {
 
 // HelpLabels returns an expectation that the localized presentation labels in HelpPage.Labels exactly equal expected.
 func HelpLabels(expected cli.HelpLabels) HelpPresentationExpectation {
-	return helpLabelsExpectation{expected: expected}
+	expectation := helpLabelsExpectation{
+		expected: expected,
+	}
+	return expectation
 }
 
 // HelpUsageExactly returns an expectation that HelpPage.Usage exactly equals a snapshot of the supplied lines in
 // presentation order.
 func HelpUsageExactly(expected ...string) HelpPresentationExpectation {
-	return helpPathExpectation{
+	expectation := helpPathExpectation{
 		property: helpUsage,
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // HelpSelectedPathExactly returns an expectation that HelpPage.SelectedPath exactly equals a snapshot of the supplied
 // path components in order.
 func HelpSelectedPathExactly(expected ...string) HelpPresentationExpectation {
-	return helpPathExpectation{
+	expectation := helpPathExpectation{
 		property: helpSelectedPath,
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // HelpRequestedPathExactly returns an expectation that HelpPage.RequestedPath exactly equals a snapshot of the supplied
 // path components in order.
 func HelpRequestedPathExactly(expected ...string) HelpPresentationExpectation {
-	return helpPathExpectation{
+	expectation := helpPathExpectation{
 		property: helpRequestedPath,
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // ResolveDeclaration resolves locator exactly against the supplied SchemaResult and returns the same locator type
@@ -223,296 +229,328 @@ func ResolveDeclaration[L DeclarationIdentityLocator](t testing.TB, schema Schem
 
 // HelpCommandGroup returns a command-group locator that selects an exact title match in HelpPage.CommandGroups.
 func HelpCommandGroup(title string) HelpPageCommandGroupLocator {
-	return HelpPageCommandGroupLocator{
+	locator := HelpPageCommandGroupLocator{
 		selector: helpTextSelector(title),
 	}
+	return locator
 }
 
 // HelpCommandGroupAt returns a command-group locator for the group at index in HelpPage.CommandGroups presentation
 // order.
 func HelpCommandGroupAt(index int) HelpPageCommandGroupLocator {
-	return HelpPageCommandGroupLocator{
+	locator := HelpPageCommandGroupLocator{
 		selector: helpIndexSelectorAt(index),
 	}
+	return locator
 }
 
 // HelpCommand returns a command locator that selects an exact name match across HelpPage command groups and rejects
 // ambiguity.
 func HelpCommand(name string) HelpPageCommandLocator {
-	return HelpPageCommandLocator{
+	locator := HelpPageCommandLocator{
 		selector: helpTextSelector(name),
 		global:   true,
 	}
+	return locator
 }
 
 // HelpArgumentFormAt returns an argument-form locator for index in HelpPage.ArgumentForms presentation order.
 func HelpArgumentFormAt(index int) HelpPageArgumentFormLocator {
-	return HelpPageArgumentFormLocator{
+	locator := HelpPageArgumentFormLocator{
 		index: index,
 		valid: true,
 	}
+	return locator
 }
 
 // HelpFlagGroup returns a flag-group locator that selects an exact title match in HelpPage.FlagGroups.
 func HelpFlagGroup(title string) HelpPageFlagGroupLocator {
-	return HelpPageFlagGroupLocator{
+	locator := HelpPageFlagGroupLocator{
 		selector: helpTextSelector(title),
 	}
+	return locator
 }
 
 // HelpFlagGroupAt returns a flag-group locator for the group at index in HelpPage.FlagGroups presentation order.
 func HelpFlagGroupAt(index int) HelpPageFlagGroupLocator {
-	return HelpPageFlagGroupLocator{
+	locator := HelpPageFlagGroupLocator{
 		selector: helpIndexSelectorAt(index),
 	}
+	return locator
 }
 
 // HelpFlagSpelling returns a flag-spelling locator that requires one exact spelling-text match in the HelpPage spelling
 // map.
 func HelpFlagSpelling(spelling string) HelpPageFlagSpellingLocator {
-	return HelpPageFlagSpellingLocator{
+	locator := HelpPageFlagSpellingLocator{
 		selector: helpTextSelector(spelling),
 	}
+	return locator
 }
 
 // HelpValueDomainEntry returns a value-domain-entry locator that requires one exact name match in the HelpPage
 // value-domain-entry map.
 func HelpValueDomainEntry(name string) HelpPageValueDomainEntryLocator {
-	return HelpPageValueDomainEntryLocator{
+	locator := HelpPageValueDomainEntryLocator{
 		selector: helpTextSelector(name),
 	}
+	return locator
 }
 
 // Exists returns a Help presentation expectation that the located help command group resolves to exactly one row;
 // ambiguous selectors do not count as existence.
 func (locator HelpPageCommandGroupLocator) Exists() HelpPresentationExpectation {
-	return helpCommandGroupExpectation{
+	expectation := helpCommandGroupExpectation{
 		locator:  locator,
 		property: helpCommandGroupExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help command group is absent; ambiguous or
 // invalid selectors fail rather than checking absence.
 func (locator HelpPageCommandGroupLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpCommandGroupExpectation{
+	expectation := helpCommandGroupExpectation{
 		locator:  locator,
 		property: helpCommandGroupExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // Kind returns a Help presentation expectation that the located help command group has Kind exactly equal to expected.
 func (locator HelpPageCommandGroupLocator) Kind(expected cli.HelpGroupKind) HelpPresentationExpectation {
-	return helpCommandGroupExpectation{
+	expectation := helpCommandGroupExpectation{
 		locator:  locator,
 		property: helpCommandGroupKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Title returns a Help presentation expectation that the located help command group has Title exactly equal to
 // expected.
 func (locator HelpPageCommandGroupLocator) Title(expected string) HelpPresentationExpectation {
-	return helpCommandGroupExpectation{
+	expectation := helpCommandGroupExpectation{
 		locator:  locator,
 		property: helpCommandGroupTitle,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Order returns a Help presentation expectation that the located help command group has the requested public
 // presentation Order.
 func (locator HelpPageCommandGroupLocator) Order(expected cli.HelpGroupOrder) HelpPresentationExpectation {
-	return helpCommandGroupExpectation{
+	expectation := helpCommandGroupExpectation{
 		locator:  locator,
 		property: helpCommandGroupOrder,
 		order:    expected,
 	}
+	return expectation
 }
 
 // Command returns a command locator scoped to this command group and requiring one exact command-name match within the
 // group.
 func (locator HelpPageCommandGroupLocator) Command(name string) HelpPageCommandLocator {
 	clone := locator
-	return HelpPageCommandLocator{
+	helpPageCommandLocator := HelpPageCommandLocator{
 		group:    &clone,
 		selector: helpTextSelector(name),
 	}
+	return helpPageCommandLocator
 }
 
 // CommandAt returns a locator for the command at index in the located help command group's public presentation order.
 func (locator HelpPageCommandGroupLocator) CommandAt(index int) HelpPageCommandLocator {
 	clone := locator
-	return HelpPageCommandLocator{
+	helpPageCommandLocator := HelpPageCommandLocator{
 		group:    &clone,
 		selector: helpIndexSelectorAt(index),
 	}
+	return helpPageCommandLocator
 }
 
 // CommandCount returns a Help presentation expectation that the located help command group has exactly the expected
 // number of command rows.
 func (locator HelpPageCommandGroupLocator) CommandCount(expected int) HelpPresentationExpectation {
-	return helpCommandGroupExpectation{
+	expectation := helpCommandGroupExpectation{
 		locator:  locator,
 		property: helpCommandGroupCommandCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // Exists returns a Help presentation expectation that the located help command row resolves to exactly one row;
 // ambiguous selectors do not count as existence.
 func (locator HelpPageCommandLocator) Exists() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help command row is absent; ambiguous or
 // invalid selectors fail rather than checking absence.
 func (locator HelpPageCommandLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // Kind returns a Help presentation expectation that the located help command row has Kind exactly equal to expected.
 func (locator HelpPageCommandLocator) Kind(expected cli.HelpCommandKind) HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Origin returns a Help presentation expectation that the located help command row has DeclarationOrigin exactly equal
 // to expected.
 func (locator HelpPageCommandLocator) Origin(expected cli.DeclarationOrigin) HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandOrigin,
 		origin:   expected,
 	}
+	return expectation
 }
 
 // Name returns a Help presentation expectation that the located help command row has Name exactly equal to expected.
 func (locator HelpPageCommandLocator) Name(expected string) HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandName,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Description returns a Help presentation expectation that the located help command row has Description exactly equal
 // to expected.
 func (locator HelpPageCommandLocator) Description(expected cli.Description) HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:     locator,
 		property:    helpCommandDescription,
 		description: expected,
 	}
+	return expectation
 }
 
 // Hidden returns a Help presentation expectation that the located help command row is hidden (Hidden is true).
 func (locator HelpPageCommandLocator) Hidden() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandHidden,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // Visible returns a Help presentation expectation that the located help command row is visible (Hidden is false).
 func (locator HelpPageCommandLocator) Visible() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandHidden,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // Default returns a Help presentation expectation that the located help command row is marked default (Default is
 // true).
 func (locator HelpPageCommandLocator) Default() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandDefault,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // NotDefault returns a Help presentation expectation that the located help command row is not marked default (Default
 // is false).
 func (locator HelpPageCommandLocator) NotDefault() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandDefault,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // Runnable returns a Help presentation expectation that the located help command row is runnable in the Help
 // presentation (Runnable is true).
 func (locator HelpPageCommandLocator) Runnable() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandRunnable,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // NotRunnable returns a Help presentation expectation that the located help command row is not runnable in the Help
 // presentation (Runnable is false).
 func (locator HelpPageCommandLocator) NotRunnable() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandRunnable,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // HasSubcommands returns a Help presentation expectation that the located help command row reports subcommands
 // (HasSubcommands is true).
 func (locator HelpPageCommandLocator) HasSubcommands() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandHasSubcommands,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // NoSubcommands returns a Help presentation expectation that the located help command row reports no subcommands
 // (HasSubcommands is false).
 func (locator HelpPageCommandLocator) NoSubcommands() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandHasSubcommands,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // CommandEntryIdentityPresent returns a Help presentation expectation that the located command row carries a nonzero
 // CommandEntry identity.
 func (locator HelpPageCommandLocator) CommandEntryIdentityPresent() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandCommandEntryPresent,
 	}
+	return expectation
 }
 
 // ActionEntryIdentityPresent returns a Help presentation expectation that the located help command row carries a
 // nonzero ActionEntry identity.
 func (locator HelpPageCommandLocator) ActionEntryIdentityPresent() HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:  locator,
 		property: helpCommandActionEntryPresent,
 	}
+	return expectation
 }
 
 // ActionEntry returns a Help presentation expectation that the located help command row's ActionEntry identity equals
@@ -520,345 +558,380 @@ func (locator HelpPageCommandLocator) ActionEntryIdentityPresent() HelpPresentat
 // expected must already be rebound to an exact ActionEntry identity, for example with ResolveDeclaration; the expectation
 // compares the real public identity relationship rather than a presentation spelling.
 func (locator HelpPageCommandLocator) ActionEntry(expected ActionEntryLocator) HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:     locator,
 		property:    helpCommandActionEntry,
 		actionEntry: expected.state,
 	}
+	return expectation
 }
 
 // Lifecycle returns a Help presentation expectation that the located help command row has LifecycleState exactly equal
 // to expected.
 func (locator HelpPageCommandLocator) Lifecycle(expected cli.LifecycleState) HelpPresentationExpectation {
-	return helpCommandExpectation{
+	expectation := helpCommandExpectation{
 		locator:   locator,
 		property:  helpCommandLifecycle,
 		lifecycle: expected,
 	}
+	return expectation
 }
 
 // Exists returns a Help presentation expectation that the located help argument form resolves to exactly one row;
 // ambiguous selectors do not count as existence.
 func (locator HelpPageArgumentFormLocator) Exists() HelpPresentationExpectation {
-	return helpArgumentFormExpectation{
+	expectation := helpArgumentFormExpectation{
 		locator:  locator,
 		property: helpArgumentFormExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help argument form is absent; ambiguous or
 // invalid selectors fail rather than checking absence.
 func (locator HelpPageArgumentFormLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpArgumentFormExpectation{
+	expectation := helpArgumentFormExpectation{
 		locator:  locator,
 		property: helpArgumentFormExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // TermCount returns a Help presentation expectation that the located help argument form has exactly the expected number
 // of terms.
 func (locator HelpPageArgumentFormLocator) TermCount(expected int) HelpPresentationExpectation {
-	return helpArgumentFormExpectation{
+	expectation := helpArgumentFormExpectation{
 		locator:  locator,
 		property: helpArgumentFormTermCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // TermAt returns a locator for the term at index in the located help argument form's public presentation order.
 func (locator HelpPageArgumentFormLocator) TermAt(index int) HelpPageArgumentTermLocator {
-	return HelpPageArgumentTermLocator{
+	helpPageArgumentTermLocator := HelpPageArgumentTermLocator{
 		form:  locator,
 		index: index,
 	}
+	return helpPageArgumentTermLocator
 }
 
 // Exists returns a Help presentation expectation that the located help argument term resolves to exactly one row;
 // ambiguous selectors do not count as existence.
 func (locator HelpPageArgumentTermLocator) Exists() HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help argument term is absent; ambiguous or
 // invalid selectors fail rather than checking absence.
 func (locator HelpPageArgumentTermLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // Kind returns a Help presentation expectation that the located help argument term has Kind exactly equal to expected.
 func (locator HelpPageArgumentTermLocator) Kind(expected cli.ArgumentTermKind) HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Name returns a Help presentation expectation that the located help argument term has Name exactly equal to expected.
 func (locator HelpPageArgumentTermLocator) Name(expected string) HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermName,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Literal returns a Help presentation expectation that the located help argument term has Literal exactly equal to
 // expected.
 func (locator HelpPageArgumentTermLocator) Literal(expected string) HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermLiteral,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Type returns a Help presentation expectation that the located help argument term has ValueType exactly equal to
 // expected.
 func (locator HelpPageArgumentTermLocator) Type(expected cli.ValueType) HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:   locator,
 		property:  helpArgumentTermType,
 		valueType: expected,
 	}
+	return expectation
 }
 
 // Count returns a Help presentation expectation that the located help argument term has Count exactly equal to
 // expected.
 func (locator HelpPageArgumentTermLocator) Count(expected cli.CountRange) HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:    locator,
 		property:   helpArgumentTermCount,
 		countRange: expected,
 	}
+	return expectation
 }
 
 // Hidden returns a Help presentation expectation that the located help argument term is hidden (Hidden is true).
 func (locator HelpPageArgumentTermLocator) Hidden() HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermHidden,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // Visible returns a Help presentation expectation that the located help argument term is visible (Hidden is false).
 func (locator HelpPageArgumentTermLocator) Visible() HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermHidden,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // Sensitive returns a Help presentation expectation that the located help argument term is marked sensitive (Sensitive
 // is true).
 // It checks the public presentation sensitivity marker and does not attempt to recover any suppressed sensitive value.
 func (locator HelpPageArgumentTermLocator) Sensitive() HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermSensitive,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // NotSensitive returns a Help presentation expectation that the located help argument term is not marked sensitive
 // (Sensitive is false).
 // It tests the public marker only; absence of the marker is not a license to reinterpret unrelated value checknance.
 func (locator HelpPageArgumentTermLocator) NotSensitive() HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermSensitive,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // TokenLanguageFragmentCount returns a Help presentation expectation that the located help argument term has exactly
 // the expected number of token-language fragments.
 func (locator HelpPageArgumentTermLocator) TokenLanguageFragmentCount(expected int) HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:  locator,
 		property: helpArgumentTermTokenLanguageFragmentCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // ValueDomainEntryCount returns a Help presentation expectation for the number of value-domain entries referenced by
 // all help argument term uses of kind, preserving each use's public entry order for related At selection.
 func (locator HelpPageArgumentTermLocator) ValueDomainEntryCount(kind cli.ValueDomainUseKind, expected int) HelpPresentationExpectation {
-	return helpArgumentTermExpectation{
+	expectation := helpArgumentTermExpectation{
 		locator:    locator,
 		property:   helpArgumentTermValueDomainEntryCount,
 		domainKind: kind,
 		count:      expected,
 	}
+	return expectation
 }
 
 // ValueDomainEntryAt returns a value-domain-entry locator for index among the located help argument term's public
 // domain-use entries of kind, in their retained use order.
 func (locator HelpPageArgumentTermLocator) ValueDomainEntryAt(kind cli.ValueDomainUseKind, index int) HelpPageValueDomainEntryLocator {
 	clone := locator
-	return HelpPageValueDomainEntryLocator{
+	helpPageValueDomainEntryLocator := HelpPageValueDomainEntryLocator{
 		term:  &clone,
 		kind:  kind,
 		index: index,
 		byUse: true,
 	}
+	return helpPageValueDomainEntryLocator
 }
 
 // Exists returns a Help presentation expectation that the located help flag group resolves to exactly one row;
 // ambiguous selectors do not count as existence.
 func (locator HelpPageFlagGroupLocator) Exists() HelpPresentationExpectation {
-	return helpFlagGroupExpectation{
+	expectation := helpFlagGroupExpectation{
 		locator:  locator,
 		property: helpFlagGroupExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help flag group is absent; ambiguous or invalid
 // selectors fail rather than checking absence.
 func (locator HelpPageFlagGroupLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpFlagGroupExpectation{
+	expectation := helpFlagGroupExpectation{
 		locator:  locator,
 		property: helpFlagGroupExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // Kind returns a Help presentation expectation that the located help flag group has Kind exactly equal to expected.
 func (locator HelpPageFlagGroupLocator) Kind(expected cli.HelpGroupKind) HelpPresentationExpectation {
-	return helpFlagGroupExpectation{
+	expectation := helpFlagGroupExpectation{
 		locator:  locator,
 		property: helpFlagGroupKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Title returns a Help presentation expectation that the located help flag group has Title exactly equal to expected.
 func (locator HelpPageFlagGroupLocator) Title(expected string) HelpPresentationExpectation {
-	return helpFlagGroupExpectation{
+	expectation := helpFlagGroupExpectation{
 		locator:  locator,
 		property: helpFlagGroupTitle,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Order returns a Help presentation expectation that the located help flag group has the requested public presentation
 // Order.
 func (locator HelpPageFlagGroupLocator) Order(expected cli.HelpGroupOrder) HelpPresentationExpectation {
-	return helpFlagGroupExpectation{
+	expectation := helpFlagGroupExpectation{
 		locator:  locator,
 		property: helpFlagGroupOrder,
 		order:    expected,
 	}
+	return expectation
 }
 
 // Flag returns an ordinary-flag locator scoped to this flag group and requiring one exact spelling match;
 // ActionEntry-backed rows are excluded.
 func (locator HelpPageFlagGroupLocator) Flag(spelling string) HelpPageFlagLocator {
 	clone := locator
-	return HelpPageFlagLocator{
+	helpPageFlagLocator := HelpPageFlagLocator{
 		group:    &clone,
 		selector: helpTextSelector(spelling),
 	}
+	return helpPageFlagLocator
 }
 
 // ActionFlag returns an action-flag locator scoped to this flag group and requiring one exact action-spelling match;
 // ordinary semantic Flag rows are excluded.
 func (locator HelpPageFlagGroupLocator) ActionFlag(spelling string) HelpPageFlagLocator {
 	clone := locator
-	return HelpPageFlagLocator{
+	helpPageFlagLocator := HelpPageFlagLocator{
 		group:      &clone,
 		selector:   helpTextSelector(spelling),
 		actionOnly: true,
 	}
+	return helpPageFlagLocator
 }
 
 // FlagAt returns a locator for the flag at index in the located help flag group's public presentation order.
 func (locator HelpPageFlagGroupLocator) FlagAt(index int) HelpPageFlagLocator {
 	clone := locator
-	return HelpPageFlagLocator{
+	helpPageFlagLocator := HelpPageFlagLocator{
 		group:    &clone,
 		selector: helpIndexSelectorAt(index),
 	}
+	return helpPageFlagLocator
 }
 
 // FlagCount returns a Help presentation expectation that the located help flag group has exactly the expected number of
 // flag rows.
 func (locator HelpPageFlagGroupLocator) FlagCount(expected int) HelpPresentationExpectation {
-	return helpFlagGroupExpectation{
+	expectation := helpFlagGroupExpectation{
 		locator:  locator,
 		property: helpFlagGroupFlagCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // Exists returns a Help presentation expectation that the located help flag row resolves to exactly one row; ambiguous
 // selectors do not count as existence.
 func (locator HelpPageFlagLocator) Exists() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help flag row is absent; ambiguous or invalid
 // selectors fail rather than checking absence.
 func (locator HelpPageFlagLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // Origin returns a Help presentation expectation that the located help flag row has DeclarationOrigin exactly equal to
 // expected.
 func (locator HelpPageFlagLocator) Origin(expected cli.DeclarationOrigin) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagOrigin,
 		origin:   expected,
 	}
+	return expectation
 }
 
 // Ordinary returns a Help presentation expectation that the located help flag row is an ordinary semantic Flag row
 // (ActionEntry is zero).
 func (locator HelpPageFlagLocator) Ordinary() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagOrdinary,
 	}
+	return expectation
 }
 
 // Action returns a Help presentation expectation that the located help flag row is ActionEntry-backed help syntax
 // (ActionEntry is nonzero).
 func (locator HelpPageFlagLocator) Action() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagAction,
 	}
+	return expectation
 }
 
 // ActionEntryIdentityPresent returns a Help presentation expectation that the located help flag row carries a nonzero
 // ActionEntry identity.
 func (locator HelpPageFlagLocator) ActionEntryIdentityPresent() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagActionEntryPresent,
 	}
+	return expectation
 }
 
 // ActionEntry returns a Help presentation expectation that the located help flag row's ActionEntry identity equals
@@ -866,298 +939,328 @@ func (locator HelpPageFlagLocator) ActionEntryIdentityPresent() HelpPresentation
 // expected must already be rebound to an exact ActionEntry identity, for example with ResolveDeclaration; the expectation
 // compares the real public identity relationship rather than a presentation spelling.
 func (locator HelpPageFlagLocator) ActionEntry(expected ActionEntryLocator) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:     locator,
 		property:    helpFlagActionEntry,
 		actionEntry: expected.state,
 	}
+	return expectation
 }
 
 // SpellingCount returns a Help presentation expectation that the located help flag row has exactly the expected number
 // of ordinary spelling identities.
 func (locator HelpPageFlagLocator) SpellingCount(expected int) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagSpellingCount,
 		count:    expected,
 	}
+	return expectation
 }
 
 // SpellingAt returns a locator for the spelling at index in the located help flag row's public presentation order.
 func (locator HelpPageFlagLocator) SpellingAt(index int) HelpPageFlagSpellingLocator {
 	clone := locator
-	return HelpPageFlagSpellingLocator{
+	helpPageFlagSpellingLocator := HelpPageFlagSpellingLocator{
 		flag:     &clone,
 		selector: helpIndexSelectorAt(index),
 	}
+	return helpPageFlagSpellingLocator
 }
 
 // ActionSpelling returns a Help presentation expectation that the located help flag row has inline action spelling
 // exactly equal to expected.
 func (locator HelpPageFlagLocator) ActionSpelling(expected cli.FlagSpelling) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagActionSpelling,
 		spelling: expected,
 	}
+	return expectation
 }
 
 // Description returns a Help presentation expectation that the located help flag row has Description exactly equal to
 // expected.
 func (locator HelpPageFlagLocator) Description(expected string) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagDescription,
 		text:     expected,
 	}
+	return expectation
 }
 
 // OwnerPathExactly returns a Help presentation expectation that the located help flag row's OwnerPath exactly equals
 // expected in path order.
 func (locator HelpPageFlagLocator) OwnerPathExactly(expected ...string) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagOwnerPath,
 		path:     slices.Clone(expected),
 	}
+	return expectation
 }
 
 // Placement returns a Help presentation expectation that the located help flag row has FlagPlacement exactly equal to
 // expected.
 func (locator HelpPageFlagLocator) Placement(expected cli.FlagPlacement) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:   locator,
 		property:  helpFlagPlacement,
 		placement: expected,
 	}
+	return expectation
 }
 
 // Hidden returns a Help presentation expectation that the located help flag row is hidden (Hidden is true).
 func (locator HelpPageFlagLocator) Hidden() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagHidden,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // Visible returns a Help presentation expectation that the located help flag row is visible (Hidden is false).
 func (locator HelpPageFlagLocator) Visible() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagHidden,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // Sensitive returns a Help presentation expectation that the located help flag row is marked sensitive (Sensitive is
 // true).
 // It checks the public Help sensitivity marker without reconstructing or exposing sensitive value material.
 func (locator HelpPageFlagLocator) Sensitive() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagSensitive,
 		boolean:  true,
 	}
+	return expectation
 }
 
 // NotSensitive returns a Help presentation expectation that the located help flag row is not marked sensitive
 // (Sensitive is false).
 // It tests the public marker only and does not infer sensitivity state for other related declarations or inputs.
 func (locator HelpPageFlagLocator) NotSensitive() HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:  locator,
 		property: helpFlagSensitive,
 		boolean:  false,
 	}
+	return expectation
 }
 
 // Lifecycle returns a Help presentation expectation that the located help flag row has LifecycleState exactly equal to
 // expected.
 func (locator HelpPageFlagLocator) Lifecycle(expected cli.LifecycleState) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:   locator,
 		property:  helpFlagLifecycle,
 		lifecycle: expected,
 	}
+	return expectation
 }
 
 // ValueDomainEntryCount returns a Help presentation expectation for the number of value-domain entries referenced by
 // all help flag row uses of kind, preserving each use's public entry order for related At selection.
 func (locator HelpPageFlagLocator) ValueDomainEntryCount(kind cli.ValueDomainUseKind, expected int) HelpPresentationExpectation {
-	return helpFlagExpectation{
+	expectation := helpFlagExpectation{
 		locator:    locator,
 		property:   helpFlagValueDomainEntryCount,
 		domainKind: kind,
 		count:      expected,
 	}
+	return expectation
 }
 
 // ValueDomainEntryAt returns a value-domain-entry locator for index among the located help flag row's public domain-use
 // entries of kind, in their retained use order.
 func (locator HelpPageFlagLocator) ValueDomainEntryAt(kind cli.ValueDomainUseKind, index int) HelpPageValueDomainEntryLocator {
 	clone := locator
-	return HelpPageValueDomainEntryLocator{
+	helpPageValueDomainEntryLocator := HelpPageValueDomainEntryLocator{
 		flag:  &clone,
 		kind:  kind,
 		index: index,
 		byUse: true,
 	}
+	return helpPageValueDomainEntryLocator
 }
 
 // Exists returns a Help presentation expectation that the located help flag spelling resolves to exactly one row;
 // ambiguous selectors do not count as existence.
 func (locator HelpPageFlagSpellingLocator) Exists() HelpPresentationExpectation {
-	return helpFlagSpellingExpectation{
+	expectation := helpFlagSpellingExpectation{
 		locator:  locator,
 		property: helpFlagSpellingExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help flag spelling is absent; ambiguous or
 // invalid selectors fail rather than checking absence.
 func (locator HelpPageFlagSpellingLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpFlagSpellingExpectation{
+	expectation := helpFlagSpellingExpectation{
 		locator:  locator,
 		property: helpFlagSpellingExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // Spelling returns a Help presentation expectation that the located help flag spelling has exact public FlagSpelling
 // value equal to expected.
 func (locator HelpPageFlagSpellingLocator) Spelling(expected cli.FlagSpelling) HelpPresentationExpectation {
-	return helpFlagSpellingExpectation{
+	expectation := helpFlagSpellingExpectation{
 		locator:  locator,
 		property: helpFlagSpellingValue,
 		spelling: expected,
 	}
+	return expectation
 }
 
 // Lifecycle returns a Help presentation expectation that the located help flag spelling has LifecycleState exactly
 // equal to expected.
 func (locator HelpPageFlagSpellingLocator) Lifecycle(expected cli.LifecycleState) HelpPresentationExpectation {
-	return helpFlagSpellingExpectation{
+	expectation := helpFlagSpellingExpectation{
 		locator:   locator,
 		property:  helpFlagSpellingLifecycle,
 		lifecycle: expected,
 	}
+	return expectation
 }
 
 // Replacement returns a locator that follows the located help flag spelling's direct public Replacement relation. It
 // does not chase beyond the direct replacement relation.
 func (locator HelpPageFlagSpellingLocator) Replacement() HelpPageFlagSpellingLocator {
 	clone := locator
-	return HelpPageFlagSpellingLocator{
+	helpPageFlagSpellingLocator := HelpPageFlagSpellingLocator{
 		replacement: &clone,
 	}
+	return helpPageFlagSpellingLocator
 }
 
 // NotReplaced returns a Help presentation expectation that the located help flag spelling has no direct Replacement
 // relation.
 func (locator HelpPageFlagSpellingLocator) NotReplaced() HelpPresentationExpectation {
-	return helpFlagSpellingExpectation{
+	expectation := helpFlagSpellingExpectation{
 		locator:  locator,
 		property: helpFlagSpellingNotReplaced,
 	}
+	return expectation
 }
 
 // Exists returns a Help presentation expectation that the located help value-domain entry resolves to exactly one row;
 // ambiguous selectors do not count as existence.
 func (locator HelpPageValueDomainEntryLocator) Exists() HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:  locator,
 		property: helpValueDomainEntryExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns a Help presentation expectation that the located help value-domain entry is absent; ambiguous or
 // invalid selectors fail rather than checking absence.
 func (locator HelpPageValueDomainEntryLocator) DoesNotExist() HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:  locator,
 		property: helpValueDomainEntryExists,
 		exists:   false,
 	}
+	return expectation
 }
 
 // Kind returns a Help presentation expectation that the located help value-domain entry has Kind exactly equal to
 // expected.
 func (locator HelpPageValueDomainEntryLocator) Kind(expected cli.ValueDomainEntryKind) HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:  locator,
 		property: helpValueDomainEntryKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Name returns a Help presentation expectation that the located help value-domain entry has Name exactly equal to
 // expected.
 func (locator HelpPageValueDomainEntryLocator) Name(expected string) HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:  locator,
 		property: helpValueDomainEntryName,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Description returns a Help presentation expectation that the located help value-domain entry has Description exactly
 // equal to expected.
 func (locator HelpPageValueDomainEntryLocator) Description(expected string) HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:  locator,
 		property: helpValueDomainEntryDescription,
 		text:     expected,
 	}
+	return expectation
 }
 
 // Lifecycle returns a Help presentation expectation that the located help value-domain entry has LifecycleState exactly
 // equal to expected.
 func (locator HelpPageValueDomainEntryLocator) Lifecycle(expected cli.LifecycleState) HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:   locator,
 		property:  helpValueDomainEntryLifecycle,
 		lifecycle: expected,
 	}
+	return expectation
 }
 
 // Canonical returns a locator that follows the located Help value-domain entry's direct public Canonical relation.
 func (locator HelpPageValueDomainEntryLocator) Canonical() HelpPageValueDomainEntryLocator {
 	clone := locator
-	return HelpPageValueDomainEntryLocator{
+	helpPageValueDomainEntryLocator := HelpPageValueDomainEntryLocator{
 		parent:   &clone,
 		relation: helpValueDomainRelationCanonical,
 	}
+	return helpPageValueDomainEntryLocator
 }
 
 // NoCanonical returns a Help presentation expectation that the located Help value-domain entry has no Canonical
 // relation.
 func (locator HelpPageValueDomainEntryLocator) NoCanonical() HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:  locator,
 		property: helpValueDomainEntryNoCanonical,
 	}
+	return expectation
 }
 
 // Replacement returns a locator that follows the located help value-domain entry's direct public Replacement relation.
 // It does not chase beyond the direct replacement relation.
 func (locator HelpPageValueDomainEntryLocator) Replacement() HelpPageValueDomainEntryLocator {
 	clone := locator
-	return HelpPageValueDomainEntryLocator{
+	helpPageValueDomainEntryLocator := HelpPageValueDomainEntryLocator{
 		parent:   &clone,
 		relation: helpValueDomainRelationReplacement,
 	}
+	return helpPageValueDomainEntryLocator
 }
 
 // NotReplaced returns a Help presentation expectation that the located help value-domain entry has no direct
 // Replacement relation.
 func (locator HelpPageValueDomainEntryLocator) NotReplaced() HelpPresentationExpectation {
-	return helpValueDomainEntryExpectation{
+	expectation := helpValueDomainEntryExpectation{
 		locator:  locator,
 		property: helpValueDomainEntryNotReplaced,
 	}
+	return expectation
 }
 
 type helpIndexSelectorMode uint8
@@ -1441,17 +1544,19 @@ func schemaContainsDeclaration(schema cli.Schema, identity cli.DeclarationIdenti
 }
 
 func helpTextSelector(text string) helpIndexSelector {
-	return helpIndexSelector{
+	selector := helpIndexSelector{
 		mode: helpIndexSelectorText,
 		text: text,
 	}
+	return selector
 }
 
 func helpIndexSelectorAt(index int) helpIndexSelector {
-	return helpIndexSelector{
+	selector := helpIndexSelector{
 		index: index,
 		mode:  helpIndexSelectorIndex,
 	}
+	return selector
 }
 
 //nolint:dupl // Command and flag Help groups intentionally keep direct typed resolution instead of a callback-driven generic selector.
@@ -1826,7 +1931,13 @@ func (expectation helpLabelsExpectation) evaluateHelp(page cli.HelpPage) evaluat
 	if page.Labels == expectation.expected {
 		return provedResult()
 	}
-	return disprovedResult(evaluationText("help labels"), property(evaluationText("labels"), helpLabelsField{value: expectation.expected}), property(evaluationText("labels"), helpLabelsField{value: page.Labels}))
+	field := helpLabelsField{
+		value: expectation.expected,
+	}
+	observedField := helpLabelsField{
+		value: page.Labels,
+	}
+	return disprovedResult(evaluationText("help labels"), property(evaluationText("labels"), field), property(evaluationText("labels"), observedField))
 }
 
 func (helpPathExpectation) helpPresentationExpectation() {}
@@ -1891,7 +2002,13 @@ func (expectation helpCommandExpectation) evaluateHelp(page cli.HelpPage) evalua
 		if command.Description == expectation.description {
 			return provedResult()
 		}
-		return helpPropertyMismatch(subject, "description", descriptionField{value: expectation.description}, descriptionField{value: command.Description})
+		field := descriptionField{
+			value: expectation.description,
+		}
+		observedField := descriptionField{
+			value: command.Description,
+		}
+		return helpPropertyMismatch(subject, "description", field, observedField)
 	case helpCommandHidden:
 		if command.Hidden == expectation.boolean {
 			return provedResult()
@@ -1946,7 +2063,10 @@ func (expectation helpCommandExpectation) commandExpected() evaluationField {
 	case helpCommandName:
 		return property(evaluationText("name"), evaluationText(expectation.text))
 	case helpCommandDescription:
-		return property(evaluationText("description"), descriptionField{value: expectation.description})
+		field := descriptionField{
+			value: expectation.description,
+		}
+		return property(evaluationText("description"), field)
 	case helpCommandHidden:
 		return property(evaluationText("hidden"), evaluationText(strconv.FormatBool(expectation.boolean)))
 	case helpCommandDefault:

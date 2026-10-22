@@ -17,7 +17,9 @@ func TestSurveyAliasTargetsScan(t *testing.T) {
 		root.Alias("survey").Exists(),
 		root.Alias("survey").Targets(scan),
 	)
-	aliasRequest := cli.InspectionRequest{Args: []string{"survey", "mars"}}
+	aliasRequest := cli.InspectionRequest{
+		Args: []string{"survey", "mars"},
+	}
 	clitest.Inspect(t.Context(), app, aliasRequest).Require(t,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(root, scan),

@@ -15,7 +15,10 @@ func TestVersionUsesDefinitionRelease(t *testing.T) {
 		t.Fatalf("Compile() error = %v", err)
 	}
 	var output bytes.Buffer
-	request := cli.RunRequest{Args: []string{"--version"}, Stdout: &output}
+	request := cli.RunRequest{
+		Args:   []string{"--version"},
+		Stdout: &output,
+	}
 	if err := app.Run(t.Context(), request); err != nil {
 		t.Fatalf("Run(version) error = %v", err)
 	}

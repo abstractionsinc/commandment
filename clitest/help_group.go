@@ -39,118 +39,133 @@ func (CommandProviderLocator) helpCommandGroupEntry() {}
 // HelpCommandGroup returns a locator for the unique command help group with title under the
 // located command; duplicate titles remain ambiguous.
 func (locator CommandLocator) HelpCommandGroup(title string) HelpCommandGroupLocator {
-	return HelpCommandGroupLocator{
-		state: &helpCommandGroupLocatorState{
-			command: locator.state,
-			mode:    helpGroupLocatorTitle,
-			title:   title,
-		},
+	state := &helpCommandGroupLocatorState{
+		command: locator.state,
+		mode:    helpGroupLocatorTitle,
+		title:   title,
 	}
+	helpCommandGroupLocator := HelpCommandGroupLocator{
+		state: state,
+	}
+	return helpCommandGroupLocator
 }
 
 // HelpCommandGroupAt returns a locator for the command help group at index in the located
 // command's authoritative public help-group order.
 func (locator CommandLocator) HelpCommandGroupAt(index int) HelpCommandGroupLocator {
-	return HelpCommandGroupLocator{
-		state: &helpCommandGroupLocatorState{
-			command: locator.state,
-			mode:    helpGroupLocatorIndex,
-			index:   index,
-		},
+	state := &helpCommandGroupLocatorState{
+		command: locator.state,
+		mode:    helpGroupLocatorIndex,
+		index:   index,
 	}
+	helpCommandGroupLocator := HelpCommandGroupLocator{
+		state: state,
+	}
+	return helpCommandGroupLocator
 }
 
 // HelpFlagGroup returns a locator for the unique flag help group with title under the located
 // command; duplicate titles remain ambiguous.
 func (locator CommandLocator) HelpFlagGroup(title string) HelpFlagGroupLocator {
-	return HelpFlagGroupLocator{
-		state: &helpFlagGroupLocatorState{
-			command: locator.state,
-			mode:    helpGroupLocatorTitle,
-			title:   title,
-		},
+	state := &helpFlagGroupLocatorState{
+		command: locator.state,
+		mode:    helpGroupLocatorTitle,
+		title:   title,
 	}
+	helpFlagGroupLocator := HelpFlagGroupLocator{
+		state: state,
+	}
+	return helpFlagGroupLocator
 }
 
 // HelpFlagGroupAt returns a locator for the flag help group at index in the located command's
 // authoritative public help-group order.
 func (locator CommandLocator) HelpFlagGroupAt(index int) HelpFlagGroupLocator {
-	return HelpFlagGroupLocator{
-		state: &helpFlagGroupLocatorState{
-			command: locator.state,
-			mode:    helpGroupLocatorIndex,
-			index:   index,
-		},
+	state := &helpFlagGroupLocatorState{
+		command: locator.state,
+		mode:    helpGroupLocatorIndex,
+		index:   index,
 	}
+	helpFlagGroupLocator := HelpFlagGroupLocator{
+		state: state,
+	}
+	return helpFlagGroupLocator
 }
 
 // Exists returns an expectation that checks the located command help group exists in the static
 // public help metadata.
 func (locator HelpCommandGroupLocator) Exists() StaticDeclarationExpectation {
-	return staticHelpCommandGroupExpectation{
+	expectation := staticHelpCommandGroupExpectation{
 		locator:  cloneHelpCommandGroupLocatorState(locator.state),
 		property: staticHelpCommandGroupExpectationExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks no command help group matches this locator in
 // the complete static public help metadata.
 func (locator HelpCommandGroupLocator) DoesNotExist() StaticDeclarationExpectation {
-	return staticHelpCommandGroupExpectation{
+	expectation := staticHelpCommandGroupExpectation{
 		locator:  cloneHelpCommandGroupLocatorState(locator.state),
 		property: staticHelpCommandGroupExpectationExists,
 	}
+	return expectation
 }
 
 // Kind returns an expectation that checks the located command help group has the expected
 // HelpGroupKind.
 func (locator HelpCommandGroupLocator) Kind(expected cli.HelpGroupKind) StaticDeclarationExpectation {
-	return staticHelpCommandGroupExpectation{
+	expectation := staticHelpCommandGroupExpectation{
 		locator:  cloneHelpCommandGroupLocatorState(locator.state),
 		property: staticHelpCommandGroupExpectationKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Title returns an expectation that checks the located command help group has exactly the expected
 // public title.
 func (locator HelpCommandGroupLocator) Title(expected string) StaticDeclarationExpectation {
-	return staticHelpCommandGroupExpectation{
+	expectation := staticHelpCommandGroupExpectation{
 		locator:  cloneHelpCommandGroupLocatorState(locator.state),
 		property: staticHelpCommandGroupExpectationTitle,
 		title:    expected,
 	}
+	return expectation
 }
 
 // Order returns an expectation that checks the located command help group has the expected public
 // HelpGroupOrder metadata.
 func (locator HelpCommandGroupLocator) Order(expected cli.HelpGroupOrder) StaticDeclarationExpectation {
-	return staticHelpCommandGroupExpectation{
+	expectation := staticHelpCommandGroupExpectation{
 		locator:  cloneHelpCommandGroupLocatorState(locator.state),
 		property: staticHelpCommandGroupExpectationOrder,
 		order:    expected,
 	}
+	return expectation
 }
 
 // Profile returns an expectation that checks the located command help group is related to the
 // exact grammar profile identified by expected.
 func (locator HelpCommandGroupLocator) Profile(expected GrammarProfileLocator) StaticDeclarationExpectation {
-	return staticHelpCommandGroupExpectation{
+	expectation := staticHelpCommandGroupExpectation{
 		locator:  cloneHelpCommandGroupLocatorState(locator.state),
 		property: staticHelpCommandGroupExpectationProfile,
 		profile:  expected.state,
 	}
+	return expectation
 }
 
 // NoProfile returns an expectation that checks the located command help group has no
 // grammar-profile relationship.
 func (locator HelpCommandGroupLocator) NoProfile() StaticDeclarationExpectation {
-	return staticHelpCommandGroupExpectation{
+	expectation := staticHelpCommandGroupExpectation{
 		locator:   cloneHelpCommandGroupLocatorState(locator.state),
 		property:  staticHelpCommandGroupExpectationProfile,
 		noProfile: true,
 	}
+	return expectation
 }
 
 // EntriesExactly returns an expectation that checks the command help group entries are exactly
@@ -171,70 +186,77 @@ func (locator HelpCommandGroupLocator) EntriesExactly(expected ...HelpCommandGro
 // Exists returns an expectation that checks the located flag help group exists in the static
 // public help metadata.
 func (locator HelpFlagGroupLocator) Exists() StaticDeclarationExpectation {
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:  cloneHelpFlagGroupLocatorState(locator.state),
 		property: staticHelpFlagGroupExpectationExists,
 		exists:   true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks no flag help group matches this locator in the
 // complete static public help metadata.
 func (locator HelpFlagGroupLocator) DoesNotExist() StaticDeclarationExpectation {
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:  cloneHelpFlagGroupLocatorState(locator.state),
 		property: staticHelpFlagGroupExpectationExists,
 	}
+	return expectation
 }
 
 // Kind returns an expectation that checks the located flag help group has the expected
 // HelpGroupKind.
 func (locator HelpFlagGroupLocator) Kind(expected cli.HelpGroupKind) StaticDeclarationExpectation {
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:  cloneHelpFlagGroupLocatorState(locator.state),
 		property: staticHelpFlagGroupExpectationKind,
 		kind:     expected,
 	}
+	return expectation
 }
 
 // Title returns an expectation that checks the located flag help group has exactly the expected
 // public title.
 func (locator HelpFlagGroupLocator) Title(expected string) StaticDeclarationExpectation {
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:  cloneHelpFlagGroupLocatorState(locator.state),
 		property: staticHelpFlagGroupExpectationTitle,
 		title:    expected,
 	}
+	return expectation
 }
 
 // Order returns an expectation that checks the located flag help group has the expected public
 // HelpGroupOrder metadata.
 func (locator HelpFlagGroupLocator) Order(expected cli.HelpGroupOrder) StaticDeclarationExpectation {
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:  cloneHelpFlagGroupLocatorState(locator.state),
 		property: staticHelpFlagGroupExpectationOrder,
 		order:    expected,
 	}
+	return expectation
 }
 
 // Profile returns an expectation that checks the located flag help group is related to the exact
 // grammar profile identified by expected.
 func (locator HelpFlagGroupLocator) Profile(expected GrammarProfileLocator) StaticDeclarationExpectation {
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:  cloneHelpFlagGroupLocatorState(locator.state),
 		property: staticHelpFlagGroupExpectationProfile,
 		profile:  expected.state,
 	}
+	return expectation
 }
 
 // NoProfile returns an expectation that checks the located flag help group has no grammar-profile
 // relationship.
 func (locator HelpFlagGroupLocator) NoProfile() StaticDeclarationExpectation {
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:   cloneHelpFlagGroupLocatorState(locator.state),
 		property:  staticHelpFlagGroupExpectationProfile,
 		noProfile: true,
 	}
+	return expectation
 }
 
 // FlagsExactly returns an expectation that checks the flag help group members are exactly expected
@@ -244,11 +266,12 @@ func (locator HelpFlagGroupLocator) FlagsExactly(expected ...FlagLocator) Static
 	for i, flag := range expected {
 		states[i] = flag.state
 	}
-	return staticHelpFlagGroupExpectation{
+	expectation := staticHelpFlagGroupExpectation{
 		locator:  cloneHelpFlagGroupLocatorState(locator.state),
 		property: staticHelpFlagGroupExpectationFlags,
 		flags:    states,
 	}
+	return expectation
 }
 
 type helpGroupLocatorMode uint8
@@ -344,31 +367,35 @@ func helpGroupComparableOutcome(status locatorResolutionStatus, label, detail ev
 func snapshotHelpCommandGroupEntry(entry HelpCommandGroupEntry) *helpCommandGroupEntryState {
 	switch value := entry.(type) {
 	case CommandEntryLocator:
-		return &helpCommandGroupEntryState{
+		state := &helpCommandGroupEntryState{
 			kind:  helpCommandGroupEntryEntry,
 			entry: value.state,
 		}
+		return state
 	case *CommandEntryLocator:
 		if value == nil {
 			panic("clitest: nil help command group entry locator")
 		}
-		return &helpCommandGroupEntryState{
+		state := &helpCommandGroupEntryState{
 			kind:  helpCommandGroupEntryEntry,
 			entry: value.state,
 		}
+		return state
 	case CommandProviderLocator:
-		return &helpCommandGroupEntryState{
+		state := &helpCommandGroupEntryState{
 			kind:     helpCommandGroupEntryProvider,
 			provider: value.state,
 		}
+		return state
 	case *CommandProviderLocator:
 		if value == nil {
 			panic("clitest: nil help command group provider locator")
 		}
-		return &helpCommandGroupEntryState{
+		state := &helpCommandGroupEntryState{
 			kind:     helpCommandGroupEntryProvider,
 			provider: value.state,
 		}
+		return state
 	default:
 		panic(fmt.Sprintf("clitest: unsupported help command group entry %T", entry))
 	}

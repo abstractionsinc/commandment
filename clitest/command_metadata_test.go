@@ -194,7 +194,9 @@ func TestCommandMetadataRejectsMissingDialectInvalidAccessAndFieldMismatches(t *
 	t.Parallel()
 
 	schema := &cli.Schema{
-		Commands: map[cli.CommandID]cli.CommandSchema{1: {ID: 1}},
+		Commands: map[cli.CommandID]cli.CommandSchema{1: {
+			ID: 1,
+		}},
 	}
 	if got := schemaExpectationOutcome(
 		t,
@@ -213,7 +215,9 @@ func TestCommandMetadataRejectsMissingDialectInvalidAccessAndFieldMismatches(t *
 	}
 	if got := schemaExpectationOutcome(
 		t,
-		CommandByID(1).ExecutionAccessExactly(ExecutionAccess{Values: []ValueLocator{{}}}),
+		CommandByID(1).ExecutionAccessExactly(ExecutionAccess{
+			Values: []ValueLocator{{}},
+		}),
 		schema,
 	); got.status != evaluationDisproved ||
 		!strings.Contains(renderEvaluationField(got.subject), "execution access") {
@@ -268,7 +272,9 @@ func TestCommandMetadataExpectationsRejectMissingCommands(t *testing.T) {
 		t.Fatalf("reference missing effective dialect = %+v", got)
 	}
 
-	access := ExecutionAccess{Values: []ValueLocator{ValueByID(1)}}
+	access := ExecutionAccess{
+		Values: []ValueLocator{ValueByID(1)},
+	}
 	if got := schemaExpectationOutcome(
 		t,
 		CommandByID(99).ExecutionAccessExactly(access),
@@ -347,15 +353,23 @@ func TestExecutionAccessExactlySurfacesUnresolvableExpectedRelationships(t *test
 	t.Parallel()
 
 	commandID := cli.CommandID(1)
-	expected := ExecutionAccess{Values: []ValueLocator{FlagByID(999).Value()}}
+	expected := ExecutionAccess{
+		Values: []ValueLocator{FlagByID(999).Value()},
+	}
 	schema := &cli.Schema{
-		Commands: map[cli.CommandID]cli.CommandSchema{commandID: {ID: commandID}},
+		Commands: map[cli.CommandID]cli.CommandSchema{commandID: {
+			ID: commandID,
+		}},
 	}
 	reference := cli.Reference{
-		Commands: map[cli.CommandID]cli.CommandReference{commandID: {ID: commandID}},
+		Commands: map[cli.CommandID]cli.CommandReference{commandID: {
+			ID: commandID,
+		}},
 	}
 	inspection := cli.Inspection{
-		Commands: map[cli.CommandID]cli.CommandInspection{commandID: {ID: commandID}},
+		Commands: map[cli.CommandID]cli.CommandInspection{commandID: {
+			ID: commandID,
+		}},
 	}
 
 	if got := schemaExpectationOutcome(

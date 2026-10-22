@@ -177,15 +177,17 @@ func projectObservedValueRepresentation(definition destinationDefinition, observ
 		return projectCanonicalValueRepresentation(definition, observed.Value, sensitive)
 	}
 	if sensitive {
-		return &ValueRepresentation{
+		representation := &ValueRepresentation{
 			Kind:     ValueRepresentationTokens,
 			Redacted: true,
-		}, true
+		}
+		return representation, true
 	}
-	return &ValueRepresentation{
+	representation := &ValueRepresentation{
 		Kind:   ValueRepresentationTokens,
 		Tokens: append([]string(nil), observed.TokenRepresentation...),
-	}, true
+	}
+	return representation, true
 }
 
 func projectValueProducer(producer producerObservation) ValueProducerInspection {
@@ -313,30 +315,33 @@ func projectValueComponent(language valueLanguage, observed valueCandidateCompon
 
 func projectCanonicalValueRepresentation(definition destinationDefinition, value any, sensitive bool) (*ValueRepresentation, bool) {
 	if sensitive {
-		return &ValueRepresentation{
+		representation := &ValueRepresentation{
 			Kind:     ValueRepresentationText,
 			Redacted: true,
-		}, true
+		}
+		return representation, true
 	}
 	if language, ok := definition.Language(); ok {
 		text, err := language.Format(value)
 		if err != nil {
 			return nil, false
 		}
-		return &ValueRepresentation{
+		representation := &ValueRepresentation{
 			Kind: ValueRepresentationText,
 			Text: text,
-		}, true
+		}
+		return representation, true
 	}
 	if valueType, ok := definition.ValueType(); ok && valueType.Kind == ValueKindCount {
 		count, ok := value.(int)
 		if !ok {
 			return nil, false
 		}
-		return &ValueRepresentation{
+		representation := &ValueRepresentation{
 			Kind: ValueRepresentationText,
 			Text: strconv.Itoa(count),
-		}, true
+		}
+		return representation, true
 	}
 	// Opaque, derived, and fact destinations can carry typed runtime values while
 	// deliberately owning no public CLI value language. Absence of a detached
@@ -355,37 +360,43 @@ func projectCanonicalValueRepresentation(definition destinationDefinition, value
 
 func projectValueInput(text string, sensitive bool) *ValueInputInspection {
 	if sensitive {
-		return &ValueInputInspection{
+		inspection := &ValueInputInspection{
 			Redacted: true,
 		}
+		return inspection
 	}
-	return &ValueInputInspection{
+	inspection := &ValueInputInspection{
 		Text: text,
 	}
+	return inspection
 }
 
 func publicCandidateDeclaration(declaration valueCandidateDeclaration) DeclarationIdentity {
 	switch {
 	case declaration.FlagSpelling.present():
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:         DeclarationKindFlagSpelling,
 			FlagSpelling: declaration.FlagSpelling,
 		}
+		return identity
 	case declaration.Flag.present():
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind: DeclarationKindFlag,
 			Flag: declaration.Flag,
 		}
+		return identity
 	case declaration.ArgumentTerm.present():
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:         DeclarationKindArgumentTerm,
 			ArgumentTerm: declaration.ArgumentTerm,
 		}
+		return identity
 	case declaration.EnvironmentInput.present():
-		return DeclarationIdentity{
+		identity := DeclarationIdentity{
 			Kind:             DeclarationKindEnvironmentInput,
 			EnvironmentInput: declaration.EnvironmentInput,
 		}
+		return identity
 	default:
 		return DeclarationIdentity{}
 	}
@@ -773,25 +784,29 @@ func firstValueIssueCause(analysis valueAnalysis) error {
 func privateCandidateDiagnosticDeclaration(declaration valueCandidateDeclaration) analysisDiagnosticDeclarationIdentity {
 	switch {
 	case declaration.FlagSpelling.present():
-		return analysisDiagnosticDeclarationIdentity{
+		identity := analysisDiagnosticDeclarationIdentity{
 			Kind:         diagnosticDeclarationFlagSpelling,
 			FlagSpelling: declaration.FlagSpelling,
 		}
+		return identity
 	case declaration.Flag.present():
-		return analysisDiagnosticDeclarationIdentity{
+		identity := analysisDiagnosticDeclarationIdentity{
 			Kind: diagnosticDeclarationFlag,
 			Flag: declaration.Flag,
 		}
+		return identity
 	case declaration.ArgumentTerm.present():
-		return analysisDiagnosticDeclarationIdentity{
+		identity := analysisDiagnosticDeclarationIdentity{
 			Kind:         diagnosticDeclarationArgumentTerm,
 			ArgumentTerm: declaration.ArgumentTerm,
 		}
+		return identity
 	case declaration.EnvironmentInput.present():
-		return analysisDiagnosticDeclarationIdentity{
+		identity := analysisDiagnosticDeclarationIdentity{
 			Kind:             diagnosticDeclarationEnvironmentInput,
 			EnvironmentInput: declaration.EnvironmentInput,
 		}
+		return identity
 	default:
 		return analysisDiagnosticDeclarationIdentity{}
 	}

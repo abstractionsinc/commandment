@@ -11,9 +11,18 @@ func TestTypedCommandResolutionDistinguishesAllStatuses(t *testing.T) {
 
 	schema := cli.Schema{
 		Commands: map[cli.CommandID]cli.CommandSchema{
-			1: {ID: 1, Children: []cli.CommandID{2, 3}},
-			2: {ID: 2, Name: "child"},
-			3: {ID: 3, Name: "child"},
+			1: {
+				ID:       1,
+				Children: []cli.CommandID{2, 3},
+			},
+			2: {
+				ID:   2,
+				Name: "child",
+			},
+			3: {
+				ID:   3,
+				Name: "child",
+			},
 		},
 	}
 
@@ -32,7 +41,9 @@ func TestTypedCommandResolutionDistinguishesAllStatuses(t *testing.T) {
 
 	inspection := cli.Inspection{
 		Commands: map[cli.CommandID]cli.CommandInspection{
-			1: {ID: 1},
+			1: {
+				ID: 1,
+			},
 		},
 	}
 	if resolution := resolveInspectionCommandLocator(CommandByID(1).Command("missing").state, inspection); resolution.status != locatorResolutionNotProvable {

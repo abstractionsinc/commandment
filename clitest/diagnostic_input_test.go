@@ -1,7 +1,6 @@
 package clitest
 
 import (
-	"context"
 	"testing"
 
 	"github.com/abstractionsinc/commandment/cli"
@@ -54,7 +53,12 @@ func TestNoticeInspectionExpectations(t *testing.T) {
 	}
 	first := Notice(cli.NoticeAdvisory).Advisory(cli.AdvisoryCode("warn")).On(CommandByID(command))
 	second := Notice(cli.NoticeDeprecatedFlag).On(FlagByID(flag))
-	(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t,
+	(InspectionResult{
+		state: &inspectionResultState{
+			observation: inspection,
+			err:         nil,
+		},
+	}).Require(t,
 		first.Present(),
 		first.Code(cli.NoticeAdvisory),
 		first.Severity(cli.NoticeSeverityWarning),
@@ -75,7 +79,9 @@ func TestOutcomeDiagnosticExpectationsUseOperationOwnedDiagnosticCompleteness(t 
 		t.Fatal("DiagnosticsExactly must satisfy diagnosticsExactlyExpectationValue")
 	}
 	inspection := cli.Inspection{
-		Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticInvalidValue,
+		}},
 	}
 	if got := expectation.evaluateInspection(inspection, nil); got.status != evaluationProved {
 		t.Fatalf("inspection diagnostics = %#v", got)
@@ -86,7 +92,9 @@ func TestOutcomeDiagnosticExpectationsUseOperationOwnedDiagnosticCompleteness(t 
 	}
 
 	completion := cli.Completion{
-		Diagnostics:          []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
+		Diagnostics: []cli.Diagnostic{{
+			Code: cli.DiagnosticInvalidValue,
+		}},
 		DiagnosticsTruncated: true,
 	}
 	if got := expectation.evaluateCompletion(completion, nil); got.status != evaluationNotProvable {
@@ -134,8 +142,14 @@ func TestDiagnosticRepairAndInputGraphExpectations(t *testing.T) {
 			Flag: 9,
 		},
 	}
-	actualTextReplacement := cli.InputReplacement{{Literal: "fixed"}, {Copy: &span}}
-	actualEntryReplacement := cli.InputReplacement{{Literal: "entry"}}
+	actualTextReplacement := cli.InputReplacement{{
+		Literal: "fixed",
+	}, {
+		Copy: &span,
+	}}
+	actualEntryReplacement := cli.InputReplacement{{
+		Literal: "entry",
+	}}
 	report := cli.DiagnosticReport{
 		Diagnostics: []cli.Diagnostic{{
 			Code: cli.DiagnosticInvalidValue,
@@ -200,14 +214,24 @@ func TestDiagnosticRepairAndInputGraphExpectations(t *testing.T) {
 	entryEdit := repairSource.EntryEditAt(0)
 
 	expectedCopySpan := span
-	expectedTextReplacement := cli.InputReplacement{{Literal: "fixed"}, {Copy: &expectedCopySpan}}
-	expectedEntryReplacements := []cli.InputReplacement{{{Literal: "entry"}}}
+	expectedTextReplacement := cli.InputReplacement{{
+		Literal: "fixed",
+	}, {
+		Copy: &expectedCopySpan,
+	}}
+	expectedEntryReplacements := []cli.InputReplacement{{{
+		Literal: "entry",
+	}}}
 	textReplacementExpectation := textEdit.Replacement(expectedTextReplacement)
 	entryReplacementExpectation := entryEdit.EntriesExactly(expectedEntryReplacements...)
 	expectedTextReplacement[0].Literal = "mutated"
 	expectedTextReplacement[1].Copy.Start.Offset = 999
 	expectedEntryReplacements[0][0].Literal = "mutated"
-	(DiagnosticsResult{state: &diagnosticsResultState{observation: report}}).Require(t,
+	(DiagnosticsResult{
+		state: &diagnosticsResultState{
+			observation: report,
+		},
+	}).Require(t,
 		diagnostic.Present(),
 		diagnostic.Violation(cli.ViolationInvalid),
 		diagnostic.ProducerKind(cli.ValueProducerKindFlag),
@@ -288,7 +312,11 @@ func TestDiagnosticParentResolutionPreservesResolutionStatus(t *testing.T) {
 		t.Parallel()
 		state := Diagnostic(cli.DiagnosticInvalidValue).state
 		report := cli.DiagnosticReport{
-			Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}, {Code: cli.DiagnosticInvalidValue}},
+			Diagnostics: []cli.Diagnostic{{
+				Code: cli.DiagnosticInvalidValue,
+			}, {
+				Code: cli.DiagnosticInvalidValue,
+			}},
 		}
 		resolved := resolveDiagnosticStateForReport(state, report)
 		if resolved.status != locatorResolutionAmbiguous {
@@ -299,8 +327,10 @@ func TestDiagnosticParentResolutionPreservesResolutionStatus(t *testing.T) {
 		t.Parallel()
 		state := Diagnostic(cli.DiagnosticInvalidValue).state
 		report := cli.DiagnosticReport{
-			Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
-			Truncated:   true,
+			Diagnostics: []cli.Diagnostic{{
+				Code: cli.DiagnosticInvalidValue,
+			}},
+			Truncated: true,
 		}
 		resolved := resolveDiagnosticStateForReport(state, report)
 		if resolved.status != locatorResolutionFound {
@@ -310,7 +340,9 @@ func TestDiagnosticParentResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Run("incomplete observation", func(t *testing.T) {
 		t.Parallel()
 		state := Diagnostic(cli.DiagnosticInvalidValue).state
-		resolved := resolveDiagnosticStateForReport(state, cli.DiagnosticReport{Truncated: true})
+		resolved := resolveDiagnosticStateForReport(state, cli.DiagnosticReport{
+			Truncated: true,
+		})
 		if resolved.status != locatorResolutionNotProvable {
 			t.Fatalf("truncated missing diagnostic = %v", resolved.status)
 		}
@@ -318,7 +350,9 @@ func TestDiagnosticParentResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Run("diagnostic report is truncated and premise is not present: incomplete observation", func(t *testing.T) {
 		t.Parallel()
 		state := Diagnostic(cli.DiagnosticInvalidValue).state
-		resolved := resolveDiagnosticStateForReport(state, cli.DiagnosticReport{Truncated: true})
+		resolved := resolveDiagnosticStateForReport(state, cli.DiagnosticReport{
+			Truncated: true,
+		})
 		if resolved.status != locatorResolutionNotProvable ||
 			renderEvaluationField(resolved.detail) != "diagnostic report is truncated and premise is not present" {
 			t.Fatalf("truncated missing diagnostic = %v %q", resolved.status, renderEvaluationField(resolved.detail))
@@ -368,7 +402,9 @@ func TestRepairResolutionPreservesResolutionStatus(t *testing.T) {
 			t.Fatalf("absent diagnostic relation = %#v", got)
 		}
 		report := cli.DiagnosticReport{
-			Diagnostics: []cli.Diagnostic{{Code: cli.DiagnosticInvalidValue}},
+			Diagnostics: []cli.Diagnostic{{
+				Code: cli.DiagnosticInvalidValue,
+			}},
 		}
 		got = resolveRepair(state, report)
 		if got.status != locatorResolutionAbsent || renderEvaluationField(got.actual) != "diagnostic repair relationship is absent" {
@@ -389,11 +425,17 @@ func TestRepairSourceResolutionPreservesResolutionStatus(t *testing.T) {
 
 	var sourceID cli.InputSourceID
 	repair := cli.InputRepair{
-		Sources: []cli.InputRepairSource{{Source: sourceID}, {Source: sourceID}},
+		Sources: []cli.InputRepairSource{{
+			Source: sourceID,
+		}, {
+			Source: sourceID,
+		}},
 	}
 	report := cli.DiagnosticReport{
 		Repairs: []cli.InputRepair{repair},
-		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {ID: sourceID}},
+		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {
+			ID: sourceID,
+		}},
 	}
 	t.Run("repair source: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
@@ -442,7 +484,9 @@ func TestRepairSourceResolutionPreservesResolutionStatus(t *testing.T) {
 	})
 	t.Run("repair source id: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
-		got := resolveRepairSource(&repairSourceLocatorState{repair: RepairAt(0).state}, report)
+		got := resolveRepairSource(&repairSourceLocatorState{
+			repair: RepairAt(0).state,
+		}, report)
 		if got.status != locatorResolutionInvalid {
 			t.Fatalf("wrong repair source kind = %#v", got)
 		}
@@ -452,7 +496,11 @@ func TestRepairSourceResolutionPreservesResolutionStatus(t *testing.T) {
 //nolint:dupl // Text-edit and entry-edit coordinates intentionally prove the same closure law through distinct typed resolvers.
 func TestTextEditResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Parallel()
-	report := cli.DiagnosticReport{Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{{}}}}}
+	report := cli.DiagnosticReport{
+		Repairs: []cli.InputRepair{{
+			Sources: []cli.InputRepairSource{{}},
+		}},
+	}
 
 	t.Run("text edit: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
@@ -480,7 +528,11 @@ func TestTextEditResolutionPreservesResolutionStatus(t *testing.T) {
 //nolint:dupl // Text-edit and entry-edit coordinates intentionally prove the same closure law through distinct typed resolvers.
 func TestEntryEditResolutionPreservesResolutionStatus(t *testing.T) {
 	t.Parallel()
-	report := cli.DiagnosticReport{Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{{}}}}}
+	report := cli.DiagnosticReport{
+		Repairs: []cli.InputRepair{{
+			Sources: []cli.InputRepairSource{{}},
+		}},
+	}
 
 	t.Run("entry edit: invalid coordinates", func(t *testing.T) {
 		t.Parallel()
@@ -573,7 +625,9 @@ func TestOriginResolutionPreservesResolutionStatus(t *testing.T) {
 			t.Fatalf("missing origin parent = %#v", got)
 		}
 		report := cli.DiagnosticReport{
-			Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {ID: originID}},
+			Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {
+				ID: originID,
+			}},
 		}
 		got = resolveOrigin(state, report)
 		if got.status != locatorResolutionAbsent || renderEvaluationField(got.actual) != "parent origin is absent" {
@@ -624,7 +678,9 @@ func TestRepairPreservesMeaningPreservesRedaction(t *testing.T) {
 	t.Run("matching observation", func(t *testing.T) {
 		t.Parallel()
 		report := cli.DiagnosticReport{
-			Repairs: []cli.InputRepair{{PreservesMeaning: true}},
+			Repairs: []cli.InputRepair{{
+				PreservesMeaning: true,
+			}},
 		}
 		checkedOutcome, ok := repairPreservesMeaningExpectation(RepairAt(0)).(diagnosticEvaluator)
 		if !ok {
@@ -638,7 +694,9 @@ func TestRepairPreservesMeaningPreservesRedaction(t *testing.T) {
 	t.Run("preserves meaning: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
 		report := cli.DiagnosticReport{
-			Repairs: []cli.InputRepair{{Sensitive: true}},
+			Repairs: []cli.InputRepair{{
+				Sensitive: true,
+			}},
 		}
 		checkedOutcome, ok := repairPreservesMeaningExpectation(RepairAt(0)).(diagnosticEvaluator)
 		if !ok {
@@ -657,7 +715,9 @@ func TestRepairSensitivePreservesRedaction(t *testing.T) {
 	t.Run("matching observation", func(t *testing.T) {
 		t.Parallel()
 		report := cli.DiagnosticReport{
-			Repairs: []cli.InputRepair{{Sensitive: true}},
+			Repairs: []cli.InputRepair{{
+				Sensitive: true,
+			}},
 		}
 		checkedOutcome, ok := repairSensitiveExpectation(RepairAt(0)).(diagnosticEvaluator)
 		if !ok {
@@ -689,8 +749,12 @@ func TestRepairSourcesExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 
 	var sourceID cli.InputSourceID
 	report := cli.DiagnosticReport{
-		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {ID: sourceID}},
-		Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{{Source: sourceID}}}},
+		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {
+			ID: sourceID,
+		}},
+		Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{{
+			Source: sourceID,
+		}}}},
 	}
 	t.Run("semantic result", func(t *testing.T) {
 		t.Parallel()
@@ -742,7 +806,9 @@ func TestRepairSourceCountPreservesRedaction(t *testing.T) {
 	t.Parallel()
 
 	report := cli.DiagnosticReport{
-		Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{{}}}},
+		Repairs: []cli.InputRepair{{
+			Sources: []cli.InputRepairSource{{}},
+		}},
 	}
 	t.Run("semantic result", func(t *testing.T) {
 		t.Parallel()
@@ -779,7 +845,9 @@ func TestRepairTextEditSpanPreservesRedaction(t *testing.T) {
 		Entry: 1,
 	}
 	report := cli.DiagnosticReport{
-		Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{{TextEdits: []cli.InputTextEdit{{Span: span}}}}}},
+		Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{{TextEdits: []cli.InputTextEdit{{
+			Span: span,
+		}}}}}},
 	}
 	locator := RepairAt(0).SourceAt(0).TextEditAt(0)
 	t.Run("matching observation", func(t *testing.T) {
@@ -811,10 +879,14 @@ func TestRepairTextEditSpanPreservesRedaction(t *testing.T) {
 func TestRepairTextEditReplacementPreservesRedaction(t *testing.T) {
 	t.Parallel()
 
-	replacement := cli.InputReplacement{{Literal: "x"}}
+	replacement := cli.InputReplacement{{
+		Literal: "x",
+	}}
 	report := cli.DiagnosticReport{
 		Repairs: []cli.InputRepair{
-			{Sources: []cli.InputRepairSource{{TextEdits: []cli.InputTextEdit{{Replacement: replacement}}}}},
+			{Sources: []cli.InputRepairSource{{TextEdits: []cli.InputTextEdit{{
+				Replacement: replacement,
+			}}}}},
 		},
 	}
 	locator := RepairAt(0).SourceAt(0).TextEditAt(0)
@@ -833,7 +905,9 @@ func TestRepairTextEditReplacementPreservesRedaction(t *testing.T) {
 	})
 	t.Run("text edit replacement: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
-		replacement := cli.InputReplacement{{Literal: "y"}}
+		replacement := cli.InputReplacement{{
+			Literal: "y",
+		}}
 		checkedOutcome, ok := repairTextEditReplacementExpectation(locator, replacement).(diagnosticEvaluator)
 		if !ok {
 			t.Fatal("repairTextEditReplacementExpectation must satisfy diagnosticEvaluator")
@@ -886,10 +960,14 @@ func TestRepairEntryEditRangePreservesRedaction(t *testing.T) {
 func TestRepairEntryEditEntriesPreservesRedaction(t *testing.T) {
 	t.Parallel()
 
-	entries := []cli.InputReplacement{{{Literal: "x"}}}
+	entries := []cli.InputReplacement{{{
+		Literal: "x",
+	}}}
 	report := cli.DiagnosticReport{
 		Repairs: []cli.InputRepair{
-			{Sources: []cli.InputRepairSource{{EntryEdits: []cli.InputEntryEdit{{Entries: entries}}}}},
+			{Sources: []cli.InputRepairSource{{EntryEdits: []cli.InputEntryEdit{{
+				Entries: entries,
+			}}}}},
 		},
 	}
 	locator := RepairAt(0).SourceAt(0).EntryEditAt(0)
@@ -908,7 +986,9 @@ func TestRepairEntryEditEntriesPreservesRedaction(t *testing.T) {
 	})
 	t.Run("entry edit entries: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
-		replacement := []cli.InputReplacement{{{Literal: "y"}}}
+		replacement := []cli.InputReplacement{{{
+			Literal: "y",
+		}}}
 		checkedOutcome, ok := repairEntryEditEntriesExpectation(
 			locator, replacement,
 		).(diagnosticEvaluator)
@@ -1026,7 +1106,9 @@ func TestInputOriginSensitivePreservesRedaction(t *testing.T) {
 	t.Run("input origin sensitive: semantic mismatch", func(t *testing.T) {
 		t.Parallel()
 		report := cli.DiagnosticReport{
-			Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {ID: originID}},
+			Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {
+				ID: originID,
+			}},
 		}
 		checkedOutcome, ok := inputOriginSensitiveExpectation(InputOriginByID(originID)).(diagnosticEvaluator)
 		if !ok {
@@ -1173,7 +1255,9 @@ func TestDiagnosticInputSourcePreservesRedaction(t *testing.T) {
 			Code:        cli.DiagnosticInvalidValue,
 			InputSource: sourceID,
 		}},
-		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {ID: sourceID}},
+		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {
+			ID: sourceID,
+		}},
 	}
 	t.Run("matching observation", func(t *testing.T) {
 		t.Parallel()
@@ -1221,7 +1305,7 @@ func TestDiagnosticInputSourcePreservesRedaction(t *testing.T) {
 		request := cli.RunRequest{
 			Args: []string{"--definitely-unknown"},
 		}
-		err = app.Run(context.Background(), request)
+		err = app.Run(t.Context(), request)
 		if err == nil {
 			t.Fatal("unknown flag unexpectedly succeeded")
 		}
@@ -1318,13 +1402,17 @@ func TestDiagnosticProviderOutputPreservesRedaction(t *testing.T) {
 func testDiagnosticInputOriginID(t *testing.T) cli.InputOriginID {
 	t.Helper()
 
-	definition := cli.Definition[struct{}]{Name: "diagnostic-origin-identity"}
+	definition := cli.Definition[struct{}]{
+		Name: "diagnostic-origin-identity",
+	}
 	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
-	request := cli.InspectionRequest{Args: []string{"unexpected"}}
-	inspection, _ := app.Inspect(context.Background(), request)
+	request := cli.InspectionRequest{
+		Args: []string{"unexpected"},
+	}
+	inspection, _ := app.Inspect(t.Context(), request)
 	for id := range inspection.Origins {
 		if id != (cli.InputOriginID{}) {
 			return id
@@ -1344,7 +1432,9 @@ func TestDiagnosticOriginsExactlyPreservesExactMembershipAndOrder(t *testing.T) 
 			Code:    cli.DiagnosticInvalidValue,
 			Origins: []cli.InputOriginID{originID},
 		}},
-		Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {ID: originID}},
+		Origins: map[cli.InputOriginID]cli.InputOrigin{originID: {
+			ID: originID,
+		}},
 	}
 	t.Run("semantic result", func(t *testing.T) {
 		t.Parallel()
@@ -1525,7 +1615,9 @@ func TestLocatorDeclarationIdentityValuePreservesRedaction(t *testing.T) {
 func TestOutcomeInternalStateFailsClosed(t *testing.T) {
 	t.Parallel()
 	report := cli.DiagnosticReport{
-		Diagnostics: []cli.Diagnostic{{RepairIndexes: []int{1}}},
+		Diagnostics: []cli.Diagnostic{{
+			RepairIndexes: []int{1},
+		}},
 	}
 	if got := resolveRepair(
 		DiagnosticAt(0).RepairAt(0).state,
@@ -1544,21 +1636,66 @@ func TestOutcomeExpectationsConserveUnresolvedSubjects(t *testing.T) {
 		name string
 		exp  OutcomeExpectation
 	}{
-		{"repair preserves meaning", RepairAt(0).PreservesMeaning()},
-		{"repair sensitive", RepairAt(0).Sensitive()},
-		{"repair sources", RepairAt(0).ProducerKindsExactly()},
-		{"repair source count", RepairAt(0).SourceAt(0).TextEditCount(0)},
-		{"text edit span", RepairAt(0).SourceAt(0).TextEditAt(0).Span(cli.InputSpan{})},
-		{"text edit replacement", RepairAt(0).SourceAt(0).TextEditAt(0).Replacement(nil)},
-		{"entry edit range", RepairAt(0).SourceAt(0).EntryEditAt(0).Range(0, 0)},
-		{"entry edit entries", RepairAt(0).SourceAt(0).EntryEditAt(0).EntriesExactly()},
-		{"input source property", InputSourceByID(cli.InputSourceID{}).Key("x")},
-		{"input origin sensitive", InputOriginByID(cli.InputOriginID{}).Sensitive()},
-		{"input origin parents", InputOriginByID(cli.InputOriginID{}).ParentsExactly()},
-		{"input origin span", InputOriginByID(cli.InputOriginID{}).Span(cli.InputSpan{})},
-		{"diagnostic input source", DiagnosticAt(0).InputSource(InputSourceByID(cli.InputSourceID{}))},
-		{"diagnostic provider output", DiagnosticAt(0).ProviderOutput(cli.CommandProviderOutputLocator{})},
-		{"diagnostic origins", DiagnosticAt(0).OriginsExactly()},
+		{
+			name: "repair preserves meaning",
+			exp:  RepairAt(0).PreservesMeaning(),
+		},
+		{
+			name: "repair sensitive",
+			exp:  RepairAt(0).Sensitive(),
+		},
+		{
+			name: "repair sources",
+			exp:  RepairAt(0).ProducerKindsExactly(),
+		},
+		{
+			name: "repair source count",
+			exp:  RepairAt(0).SourceAt(0).TextEditCount(0),
+		},
+		{
+			name: "text edit span",
+			exp:  RepairAt(0).SourceAt(0).TextEditAt(0).Span(cli.InputSpan{}),
+		},
+		{
+			name: "text edit replacement",
+			exp:  RepairAt(0).SourceAt(0).TextEditAt(0).Replacement(nil),
+		},
+		{
+			name: "entry edit range",
+			exp:  RepairAt(0).SourceAt(0).EntryEditAt(0).Range(0, 0),
+		},
+		{
+			name: "entry edit entries",
+			exp:  RepairAt(0).SourceAt(0).EntryEditAt(0).EntriesExactly(),
+		},
+		{
+			name: "input source property",
+			exp:  InputSourceByID(cli.InputSourceID{}).Key("x"),
+		},
+		{
+			name: "input origin sensitive",
+			exp:  InputOriginByID(cli.InputOriginID{}).Sensitive(),
+		},
+		{
+			name: "input origin parents",
+			exp:  InputOriginByID(cli.InputOriginID{}).ParentsExactly(),
+		},
+		{
+			name: "input origin span",
+			exp:  InputOriginByID(cli.InputOriginID{}).Span(cli.InputSpan{}),
+		},
+		{
+			name: "diagnostic input source",
+			exp:  DiagnosticAt(0).InputSource(InputSourceByID(cli.InputSourceID{})),
+		},
+		{
+			name: "diagnostic provider output",
+			exp:  DiagnosticAt(0).ProviderOutput(cli.CommandProviderOutputLocator{}),
+		},
+		{
+			name: "diagnostic origins",
+			exp:  DiagnosticAt(0).OriginsExactly(),
+		},
 	}
 	for _, check := range checks {
 		checkedGot, ok := check.exp.(diagnosticEvaluator)
@@ -1573,8 +1710,12 @@ func TestOutcomeExpectationsConserveUnresolvedSubjects(t *testing.T) {
 
 	sourceID := cli.InputSourceID{}
 	report := cli.DiagnosticReport{
-		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {ID: sourceID}},
-		Repairs: []cli.InputRepair{{Sources: []cli.InputRepairSource{}}},
+		Sources: map[cli.InputSourceID]cli.InputSource{sourceID: {
+			ID: sourceID,
+		}},
+		Repairs: []cli.InputRepair{{
+			Sources: []cli.InputRepairSource{},
+		}},
 	}
 	state := RepairAt(0).Source(InputSourceByID(sourceID)).state
 	if got := resolveRepairSource(state, report); got.status != locatorResolutionAbsent {

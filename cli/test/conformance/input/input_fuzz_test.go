@@ -118,7 +118,7 @@ func FuzzTokenLanguageRuntimeProperties(f *testing.F) {
 
 func FuzzInputProvenanceAndSemanticTokenProperties(f *testing.F) {
 	type config = inputFuzzVerboseLabelsTextConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Run: func(context.Context, *config) error {
 			return nil
@@ -132,7 +132,8 @@ func FuzzInputProvenanceAndSemanticTokenProperties(f *testing.F) {
 				form.String(&form.Config.Text, "text").Optional()
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		f.Fatalf("Compile() error = %v", err)
 	}

@@ -255,7 +255,9 @@ func decodeShellCompletionAdapterRequest(reader io.Reader, codec shellCompletion
 	if request.matching == 0 {
 		request.matching = shellCompletionAdapterMatchingPrefix
 	}
-	if _, _, err := completionAnalysisInput(CompletionRequest{ObservedInput: &request.input}); err != nil {
+	if _, _, err := completionAnalysisInput(CompletionRequest{
+		ObservedInput: &request.input,
+	}); err != nil {
 		return shellCompletionAdapterRequest{}, errInvalidShellCompletionAdapter
 	}
 	return request, nil

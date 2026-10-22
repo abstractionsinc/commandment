@@ -17,30 +17,42 @@ func TestPolicyCommandCollectionsUseParentScopedIdentityAcrossArtifacts(t *testi
 	schema := cli.Schema{
 		Commands: map[cli.CommandID]cli.CommandSchema{
 			commandID: {
-				ID:         commandID,
-				Conditions: []cli.ConditionSchema{{Reachability: cli.ReachabilityReachable}},
-				Rules:      []cli.RuleSchema{{Code: ruleCode}},
+				ID: commandID,
+				Conditions: []cli.ConditionSchema{{
+					Reachability: cli.ReachabilityReachable,
+				}},
+				Rules: []cli.RuleSchema{{
+					Code: ruleCode,
+				}},
 				Advisories: []cli.AdvisorySchema{{
 					Code:    advisoryCode,
 					Command: commandID,
 				}},
-				NoticeSuppressions: []cli.NoticeSuppressionSchema{{Command: commandID}},
-				SignalPolicies:     []cli.SignalPolicyID{policyID},
+				NoticeSuppressions: []cli.NoticeSuppressionSchema{{
+					Command: commandID,
+				}},
+				SignalPolicies: []cli.SignalPolicyID{policyID},
 			},
 		},
 	}
 	reference := cli.Reference{
 		Commands: map[cli.CommandID]cli.CommandReference{
 			commandID: {
-				ID:         commandID,
-				Conditions: []cli.ConditionSchema{{Reachability: cli.ReachabilityReachable}},
-				Rules:      []cli.RuleSchema{{Code: ruleCode}},
+				ID: commandID,
+				Conditions: []cli.ConditionSchema{{
+					Reachability: cli.ReachabilityReachable,
+				}},
+				Rules: []cli.RuleSchema{{
+					Code: ruleCode,
+				}},
 				Advisories: []cli.AdvisoryReference{{
 					Code:    advisoryCode,
 					Command: commandID,
 				}},
-				NoticeSuppressions: []cli.NoticeSuppressionSchema{{Command: commandID}},
-				SignalPolicies:     []cli.SignalPolicyID{policyID},
+				NoticeSuppressions: []cli.NoticeSuppressionSchema{{
+					Command: commandID,
+				}},
+				SignalPolicies: []cli.SignalPolicyID{policyID},
 			},
 		},
 	}
@@ -49,14 +61,20 @@ func TestPolicyCommandCollectionsUseParentScopedIdentityAcrossArtifacts(t *testi
 			commandID: {
 				ID:                    commandID,
 				NamespaceCompleteness: cli.CommandNamespaceComplete,
-				Conditions:            []cli.ConditionInspection{{Reachability: cli.ReachabilityReachable}},
-				Rules:                 []cli.RuleInspection{{Code: ruleCode}},
+				Conditions: []cli.ConditionInspection{{
+					Reachability: cli.ReachabilityReachable,
+				}},
+				Rules: []cli.RuleInspection{{
+					Code: ruleCode,
+				}},
 				Advisories: []cli.AdvisoryInspection{{
 					Code:    advisoryCode,
 					Command: commandID,
 				}},
-				NoticeSuppressions: []cli.NoticeSuppressionInspection{{Command: commandID}},
-				SignalPolicies:     []cli.SignalPolicyID{policyID},
+				NoticeSuppressions: []cli.NoticeSuppressionInspection{{
+					Command: commandID,
+				}},
+				SignalPolicies: []cli.SignalPolicyID{policyID},
 			},
 		},
 	}
@@ -70,9 +88,23 @@ func TestPolicyCommandCollectionsUseParentScopedIdentityAcrossArtifacts(t *testi
 		command.SignalPoliciesExactly(SignalPolicyByID(policyID)),
 	}
 	for _, expectation := range expectations {
-		(SchemaResult{state: &schemaResultState{observation: schema}}).Require(t, expectation)
-		(ReferenceResult{state: &referenceResultState{observation: reference, err: nil}}).Require(t, expectation)
-		(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t, expectation)
+		(SchemaResult{
+			state: &schemaResultState{
+				observation: schema,
+			},
+		}).Require(t, expectation)
+		(ReferenceResult{
+			state: &referenceResultState{
+				observation: reference,
+				err:         nil,
+			},
+		}).Require(t, expectation)
+		(InspectionResult{
+			state: &inspectionResultState{
+				observation: inspection,
+				err:         nil,
+			},
+		}).Require(t, expectation)
 	}
 }
 
@@ -88,7 +120,11 @@ func TestPolicyCommandCollectionExactnessRejectsWrongOrderAndTruncatedAbsence(t 
 			commandID: {
 				ID:                    commandID,
 				NamespaceCompleteness: cli.CommandNamespaceComplete,
-				Rules:                 []cli.RuleInspection{{Code: second}, {Code: first}},
+				Rules: []cli.RuleInspection{{
+					Code: second,
+				}, {
+					Code: first,
+				}},
 			},
 		},
 	}
@@ -105,7 +141,9 @@ func TestPolicyCommandCollectionExactnessRejectsWrongOrderAndTruncatedAbsence(t 
 
 	inspection = cli.Inspection{
 		Truncated: true,
-		Commands:  map[cli.CommandID]cli.CommandInspection{commandID: {ID: commandID}},
+		Commands: map[cli.CommandID]cli.CommandInspection{commandID: {
+			ID: commandID,
+		}},
 	}
 	outcome = evaluator.evaluateInspection(inspection, nil)
 	if outcome.status != evaluationNotProvable {

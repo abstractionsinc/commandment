@@ -113,10 +113,14 @@ func staticSignalPolicyAcceptanceInput(source *declarationDraft, value signalPol
 			exitCode:    action.exitCode,
 		}
 	}
-	return signalPolicyAcceptanceInput{
+	input := &signalPlanAcceptanceInput{
+		actions: actions,
+	}
+	policyInput := signalPolicyAcceptanceInput{
 		match: acceptedMatch,
-		plan:  &signalPlanAcceptanceInput{actions: actions},
-	}, true
+		plan:  input,
+	}
+	return policyInput, true
 }
 
 func batchSignalPolicyAcceptanceInput(declarations *batchDeclarations, value batchSignalPolicy) signalPolicyAcceptanceInput {
@@ -171,10 +175,14 @@ func batchSignalPolicyAcceptanceInput(declarations *batchDeclarations, value bat
 			exitCode:    action.exitCode,
 		}
 	}
-	return signalPolicyAcceptanceInput{
-		match: acceptedMatch,
-		plan:  &signalPlanAcceptanceInput{actions: actions},
+	input := &signalPlanAcceptanceInput{
+		actions: actions,
 	}
+	policyInput := signalPolicyAcceptanceInput{
+		match: acceptedMatch,
+		plan:  input,
+	}
+	return policyInput
 }
 
 var errInvalidSignalPolicyDeclaration = errors.New("cli: invalid signal policy declaration")
@@ -285,10 +293,11 @@ func prepareSignalActivation(clauses []signalConditionClause, resolver destinati
 	if len(children) == 1 {
 		return children[0], true, true
 	}
-	return acceptConditionGroup(conditionGroupInput{
+	input := conditionGroupInput{
 		Kind:     conditionKindAll,
 		Children: children,
-	}), true, true
+	}
+	return acceptConditionGroup(input), true, true
 }
 
 func prepareSignalAction(draft *declarationCandidate, command acceptanceCommandRef, action signalActionAcceptanceInput, resolver destinationAcceptanceResolver, endpoints map[any]signalEndpointRef, position declarationPosition) (signalActionDefinition, SignalHostCapabilities, error) {

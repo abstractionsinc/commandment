@@ -18,8 +18,10 @@ var definition = cli.Definition[struct{}]{
 	},
 	Declare: func(cb *cli.CommandBuilder[struct{}]) {
 		scanCmd := cli.Command[struct{}]{
-			Name:        "scan",
-			Description: cli.Description{Short: "scan a nearby world"},
+			Name: "scan",
+			Description: cli.Description{
+				Short: "scan a nearby world",
+			},
 		}
 		cb.Subcommands.Command(scanCmd)
 	},

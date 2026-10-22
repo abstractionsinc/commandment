@@ -37,7 +37,9 @@ func abortBuilder(cause error) {
 	if cause == nil {
 		panic("cli: nil builder abort")
 	}
-	panic(builderAbort{cause: cause})
+	panic(builderAbort{
+		cause: cause,
+	})
 }
 
 func panicBuilderMisuse() { abortBuilder(errBuilderMisuse) }

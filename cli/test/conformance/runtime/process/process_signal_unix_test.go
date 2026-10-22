@@ -40,7 +40,7 @@ func TestRunFromProcessReraiseRestoresUnixDefaultAndTerminatesBySignal(t *testin
 	const child = "commandment-process-reraise-unix-child"
 	if processSignalUnixProcessTestChild(child) {
 		os.Args = []string{os.Args[0]}
-		app, err := cli.Compile(cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
 				root.Signals.Policy(
@@ -55,7 +55,8 @@ func TestRunFromProcessReraiseRestoresUnixDefaultAndTerminatesBySignal(t *testin
 				<-ctx.Done()
 				return ctx.Err()
 			},
-		})
+		}
+		app, err := cli.Compile(definition)
 		if err != nil {
 			t.Fatal(err)
 		}

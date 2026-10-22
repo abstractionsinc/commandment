@@ -17,7 +17,10 @@ func BenchmarkInspectResponseFiles(b *testing.B) {
 	app := responseApplication(b)
 	for _, tokens := range [...]int{1, 8, 32, 128, 512, 1024} {
 		files, want := flatResponseFiles(tokens)
-		request := cli.InspectionRequest{Args: []string{"@flat"}, ResponseFiles: responseAccess(files)}
+		request := cli.InspectionRequest{
+			Args:          []string{"@flat"},
+			ResponseFiles: responseAccess(files),
+		}
 		preflightResponseInspection(b, app, request, want, 1)
 		b.Run(fmt.Sprintf("Tokens/N=%d", tokens), func(b *testing.B) {
 			b.ReportAllocs()
@@ -26,7 +29,10 @@ func BenchmarkInspectResponseFiles(b *testing.B) {
 	}
 	for _, depth := range [...]int{1, 2, 4, 8, 16} {
 		files := nestedResponseFiles(depth)
-		request := cli.InspectionRequest{Args: []string{"@d000"}, ResponseFiles: responseAccess(files)}
+		request := cli.InspectionRequest{
+			Args:          []string{"@d000"},
+			ResponseFiles: responseAccess(files),
+		}
 		preflightResponseInspection(b, app, request, []string{"value"}, depth)
 		b.Run(fmt.Sprintf("Depth/N=%d", depth), func(b *testing.B) {
 			b.ReportAllocs()
@@ -35,7 +41,10 @@ func BenchmarkInspectResponseFiles(b *testing.B) {
 	}
 	for _, entries := range [...]int{16, 64, 256, 1024} {
 		files, want := provenanceResponseFiles(entries)
-		request := cli.InspectionRequest{Args: []string{"@root"}, ResponseFiles: responseAccess(files)}
+		request := cli.InspectionRequest{
+			Args:          []string{"@root"},
+			ResponseFiles: responseAccess(files),
+		}
 		preflightResponseInspection(b, app, request, want, 2)
 		b.Run(fmt.Sprintf("ProvenanceEntries/N=%d/Depth=2", entries), func(b *testing.B) {
 			b.ReportAllocs()
@@ -48,7 +57,9 @@ func responseApplication(tb testing.TB) cli.Application {
 	tb.Helper()
 	definition := cli.Definition[inputConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[inputConfig]) {
 			root.Dialect.ResponseFiles(true)
 			values := root.Values.Sequence(&root.Config.Strings, cli.Value.String())
@@ -104,16 +115,17 @@ func provenanceResponseFiles(entries int) (map[string]cli.ResponseFile, []string
 }
 
 func responseFile(name, content string) cli.ResponseFile {
-	return cli.ResponseFile{
+	file := cli.ResponseFile{
 		Key:      name,
 		Revision: cli.Revision("r1"),
 		Location: "memory:" + name,
 		Content:  []byte(content),
 	}
+	return file
 }
 
 func responseAccess(files map[string]cli.ResponseFile) cli.ResponseFileAccess {
-	return cli.ResponseFileAccess{
+	access := cli.ResponseFileAccess{
 		Load: func(_ context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
 			file, ok := files[request.Path]
 			if !ok {
@@ -122,6 +134,7 @@ func responseAccess(files map[string]cli.ResponseFile) cli.ResponseFileAccess {
 			return file, nil
 		},
 	}
+	return access
 }
 
 func preflightResponseInspection(tb testing.TB, app cli.Application, request cli.InspectionRequest, want []string, minimumDepth int) {

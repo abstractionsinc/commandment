@@ -73,10 +73,11 @@ func (analysis *analysisState) addSource(operation *invocation, kind InputKind, 
 	}
 	id := analysis.ids.AllocateInputSourceID()
 	analysis.provenance.sources = append(analysis.provenance.sources, acceptInputSourceRecord(id, kind, sensitive))
-	return sourceRef{
+	ref := sourceRef{
 		operation: operation,
 		id:        id,
 	}
+	return ref
 }
 
 func (operation *invocation) addSource(kind InputKind, sensitive bool) sourceRef {
@@ -96,10 +97,11 @@ func (analysis *analysisState) addShortcutSource(operation *invocation, entry Co
 		analysis.provenance.shortcutInputEntries = make(map[InputSourceID][]string)
 	}
 	analysis.provenance.shortcutInputEntries[id] = append([]string(nil), tokens...)
-	return sourceRef{
+	ref := sourceRef{
 		operation: operation,
 		id:        id,
 	}
+	return ref
 }
 
 func (operation *invocation) addShortcutSource(entry CommandEntryID, tokens []string, sensitive bool) sourceRef {
@@ -123,10 +125,11 @@ func (analysis *analysisState) addResponseSource(operation *invocation, key, rev
 		Sensitive:   sensitive,
 	}
 	analysis.provenance.sources = append(analysis.provenance.sources, acceptResponseInputSourceRecord(input))
-	return sourceRef{
+	ref := sourceRef{
 		operation: operation,
 		id:        id,
 	}
+	return ref
 }
 
 func (analysis *analysisState) addOrigin(operation *invocation, span spanRef, parents []originRef, sensitive bool) originRef {
@@ -149,10 +152,11 @@ func (analysis *analysisState) addOrigin(operation *invocation, span spanRef, pa
 	}
 	record := acceptInputOriginRecord(id, semanticSpan, semanticParents, sensitive)
 	analysis.provenance.origins = append(analysis.provenance.origins, record)
-	return originRef{
+	ref := originRef{
 		operation: operation,
 		id:        id,
 	}
+	return ref
 }
 
 func (operation *invocation) addOrigin(span spanRef, parents []originRef, sensitive bool) originRef {
@@ -291,10 +295,11 @@ func (operation *invocation) Origin(id InputOriginID) (originRef, bool) {
 	if _, ok := operation.originRecord(id); !ok {
 		return originRef{}, false
 	}
-	return originRef{
+	ref := originRef{
 		operation: operation,
 		id:        id,
-	}, true
+	}
+	return ref, true
 }
 
 // AddDerivedOrigin records one generated provenance fragment from already

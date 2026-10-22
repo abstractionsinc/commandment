@@ -21,7 +21,10 @@ func prepareReferenceSource(valid bool, application applicationMetadata, records
 	if err != nil {
 		return nil, err
 	}
-	return &referenceSource{staticArtifactSource: source}, nil
+	reference := &referenceSource{
+		staticArtifactSource: source,
+	}
+	return reference, nil
 }
 
 func prepareApplicationReferenceSource(model staticProgram, grammar grammarView) (*referenceSource, error) {
@@ -579,7 +582,7 @@ func (p *staticArtifactSource) genericReplacement(source declarationReplacementI
 		if err != nil {
 			return nil, false, err
 		}
-		return &DeclarationReplacement{
+		replacement := &DeclarationReplacement{
 			Target:       target,
 			Presentation: presentation,
 			TargetDeprecatedDuringMigration: targetDeprecatedDuringMigration(
@@ -587,7 +590,8 @@ func (p *staticArtifactSource) genericReplacement(source declarationReplacementI
 				sourceLifecycle,
 				targetLifecycle,
 			),
-		}, true, nil
+		}
+		return replacement, true, nil
 	}
 	return nil, false, nil
 }
@@ -602,18 +606,20 @@ func (p *staticArtifactSource) commandEntryReplacement(record commandEntryRecord
 		if err != nil {
 			return nil, false, err
 		}
-		return &DeclarationReplacement{
-			Target: DeclarationIdentity{
-				Kind:         DeclarationKindCommandEntry,
-				CommandEntry: targetID,
-			},
+		identity := DeclarationIdentity{
+			Kind:         DeclarationKindCommandEntry,
+			CommandEntry: targetID,
+		}
+		replacement := &DeclarationReplacement{
+			Target:       identity,
 			Presentation: presentation,
 			TargetDeprecatedDuringMigration: targetDeprecatedDuringMigration(
 				p.application.release,
 				record.lifecycle,
 				target.lifecycle,
 			),
-		}, true, nil
+		}
+		return replacement, true, nil
 	}
 	return p.genericReplacement(commandEntryReplacementIdentity(record.meta.id))
 }
@@ -631,18 +637,20 @@ func (p *staticArtifactSource) actionEntryReplacement(record actionEntryRecord) 
 	if err != nil {
 		return nil, false, err
 	}
-	return &DeclarationReplacement{
-		Target: DeclarationIdentity{
-			Kind:        DeclarationKindActionEntry,
-			ActionEntry: targetID,
-		},
+	identity := DeclarationIdentity{
+		Kind:        DeclarationKindActionEntry,
+		ActionEntry: targetID,
+	}
+	replacement := &DeclarationReplacement{
+		Target:       identity,
 		Presentation: presentation,
 		TargetDeprecatedDuringMigration: targetDeprecatedDuringMigration(
 			p.application.release,
 			record.lifecycle,
 			target.lifecycle,
 		),
-	}, true, nil
+	}
+	return replacement, true, nil
 }
 
 func (p *staticArtifactSource) domainEntryReplacement(record domainEntryRecord) (*DeclarationReplacement, bool, error) {
@@ -658,18 +666,20 @@ func (p *staticArtifactSource) domainEntryReplacement(record domainEntryRecord) 
 	if err != nil {
 		return nil, false, err
 	}
-	return &DeclarationReplacement{
-		Target: DeclarationIdentity{
-			Kind:             DeclarationKindValueDomainEntry,
-			ValueDomainEntry: targetID,
-		},
+	identity := DeclarationIdentity{
+		Kind:             DeclarationKindValueDomainEntry,
+		ValueDomainEntry: targetID,
+	}
+	replacement := &DeclarationReplacement{
+		Target:       identity,
 		Presentation: presentation,
 		TargetDeprecatedDuringMigration: targetDeprecatedDuringMigration(
 			p.application.release,
 			record.lifecycle,
 			target.lifecycle,
 		),
-	}, true, nil
+	}
+	return replacement, true, nil
 }
 
 func (p *referenceSource) referenceCommandPolicies(commandID CommandID) ([]ConditionSchema, []RuleSchema, []AdvisorySchema, []NoticeSuppressionSchema, error) {
@@ -1288,7 +1298,9 @@ func (p *referenceProjectionState) projectDeclarations(projectCommandEntry func(
 			}
 		}
 		if grammar.tokenName != "" {
-			item.TokenLanguage = &TokenLanguageSyntax{Fragments: grammar.TokenSyntax()}
+			item.TokenLanguage = &TokenLanguageSyntax{
+				Fragments: grammar.TokenSyntax(),
+			}
 		}
 		completion, present := record.Completion()
 		item.Completion, err = projectCompletion(completion, present)
@@ -1416,12 +1428,14 @@ func (p *referenceProjectionState) projectValuesAndSignals(localizationForComman
 		}
 		available := referenceAvailable(state)
 		p.result.ValueDomainEntries[id] = ValueDomainEntryReference{
-			ID:             id,
-			Kind:           valueDomainEntryKind(record.kind),
-			Origin:         DeclarationOriginApplication,
-			Name:           record.name,
-			Canonical:      record.canonical,
-			Description:    referenceDescription(localization, p.locale, Description{Short: record.description}),
+			ID:        id,
+			Kind:      valueDomainEntryKind(record.kind),
+			Origin:    DeclarationOriginApplication,
+			Name:      record.name,
+			Canonical: record.canonical,
+			Description: referenceDescription(localization, p.locale, Description{
+				Short: record.description,
+			}),
 			Hidden:         record.hidden,
 			Available:      available,
 			Visible:        available && (p.options.Visibility == ReferenceVisibilityAll || !record.hidden),
@@ -1540,10 +1554,11 @@ func referenceText(localization localizationSnapshot, locale, source string) str
 }
 
 func referenceDescription(localization localizationSnapshot, locale string, source Description) Description {
-	return Description{
+	description := Description{
 		Short: referenceText(localization, locale, source.Short),
 		Long:  referenceText(localization, locale, source.Long),
 	}
+	return description
 }
 
 func referenceExamples(localization localizationSnapshot, locale string, source []Example) []Example {

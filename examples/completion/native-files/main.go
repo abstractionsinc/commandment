@@ -47,12 +47,17 @@ func main() {
 	partial := args[len(args)-1]
 	client := cli.CompletionClient{
 		Capabilities: cli.CompletionClientCapabilities{
-			Native: cli.CompletionNativeCapabilities{Files: true},
+			Native: cli.CompletionNativeCapabilities{
+				Files: true,
+			},
 		},
 	}
 	request := cli.CompletionRequest{
-		Args:   args,
-		Cursor: cli.CompletionCursor{Argument: len(args) - 1, Byte: len(partial)},
+		Args: args,
+		Cursor: cli.CompletionCursor{
+			Argument: len(args) - 1,
+			Byte:     len(partial),
+		},
 		Client: client,
 	}
 	completion, err := app.Complete(context.Background(), request)

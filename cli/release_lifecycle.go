@@ -114,11 +114,15 @@ func validateLifecycleLexicalCollisions(scheme ReleaseScheme, input declarationR
 		for _, profile := range grammarBranches(model, command) {
 			dialect, ok := grammarBranchDialect(model, command, profile)
 			if !ok {
-				return []rejection{{Kind: rejectionStructuralInvalidity}}
+				return []rejection{{
+					Kind: rejectionStructuralInvalidity,
+				}}
 			}
 			mode := dialect.CommandNormalization()
 			if !mode.valid() {
-				return []rejection{{Kind: rejectionInvalidNormalization}}
+				return []rejection{{
+					Kind: rejectionInvalidNormalization,
+				}}
 			}
 			for _, entry := range model.CommandEntries(command) {
 				if !grammarBranchContains(profile, entry.profile) {
@@ -199,11 +203,15 @@ func validateLifecycleLexicalCollisions(scheme ReleaseScheme, input declarationR
 		for _, profile := range grammarBranches(model, command) {
 			dialect, ok := grammarBranchDialect(model, command, profile)
 			if !ok {
-				return []rejection{{Kind: rejectionStructuralInvalidity}}
+				return []rejection{{
+					Kind: rejectionStructuralInvalidity,
+				}}
 			}
 			mode := dialect.FlagNormalization()
 			if !mode.valid() {
-				return []rejection{{Kind: rejectionInvalidNormalization}}
+				return []rejection{{
+					Kind: rejectionInvalidNormalization,
+				}}
 			}
 			for _, flag := range model.Flags(command) {
 				if !grammarBranchContains(profile, flag.profile) {
@@ -307,12 +315,16 @@ func lifecycleBoundaryRanks(scheme ReleaseScheme, input declarationRecordInput) 
 		return map[string]int64{}, nil
 	}
 	if !scheme.valid() {
-		return nil, []rejection{{Kind: rejectionInvalidLifecycleInterval}}
+		return nil, []rejection{{
+			Kind: rejectionInvalidLifecycleInterval,
+		}}
 	}
 	values := make([]string, 0, len(set))
 	for value := range set {
 		if scheme.validate(value) != nil {
-			return nil, []rejection{{Kind: rejectionInvalidLifecycleInterval}}
+			return nil, []rejection{{
+				Kind: rejectionInvalidLifecycleInterval,
+			}}
 		}
 		values = append(values, value)
 	}
@@ -647,7 +659,9 @@ func parseSemVer(value string) (semVer, bool) {
 		if part == "" || !validIdentifier(part) {
 			return semVer{}, false
 		}
-		identifier := semVerIdentifier{text: part}
+		identifier := semVerIdentifier{
+			text: part,
+		}
 		if allDigits(part) {
 			if len(part) > 1 && part[0] == '0' {
 				return semVer{}, false

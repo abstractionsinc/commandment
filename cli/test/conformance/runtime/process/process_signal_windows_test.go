@@ -56,7 +56,7 @@ func TestRunFromProcessReraiseTerminatesWindowsProcessWithControlCStatus(t *test
 	const child = "commandment-process-reraise-windows-child"
 	if processSignalWindowsProcessTestChild(child) {
 		os.Args = []string{os.Args[0]}
-		app, err := cli.Compile(cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
 				root.Signals.Policy(
@@ -69,7 +69,8 @@ func TestRunFromProcessReraiseTerminatesWindowsProcessWithControlCStatus(t *test
 				<-ctx.Done()
 				return ctx.Err()
 			},
-		})
+		}
+		app, err := cli.Compile(definition)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -235,40 +235,60 @@ type repairEntryEditLocatorState struct {
 }
 
 func repairByIndex(index int) RepairLocator {
-	return RepairLocator{state: &repairLocatorState{
+	state := &repairLocatorState{
 		mode:  repairLocatorIndex,
 		index: index,
-	}}
+	}
+	locator := RepairLocator{
+		state: state,
+	}
+	return locator
 }
 
 func repairSourceBySource(repair RepairLocator, source InputSourceLocator) RepairSourceLocator {
-	return RepairSourceLocator{state: &repairSourceLocatorState{
+	state := &repairSourceLocatorState{
 		mode:   repairSourceLocatorSource,
 		repair: repair.state,
 		source: source.state,
-	}}
+	}
+	locator := RepairSourceLocator{
+		state: state,
+	}
+	return locator
 }
 
 func repairSourceByIndex(repair RepairLocator, index int) RepairSourceLocator {
-	return RepairSourceLocator{state: &repairSourceLocatorState{
+	state := &repairSourceLocatorState{
 		mode:   repairSourceLocatorIndex,
 		repair: repair.state,
 		index:  index,
-	}}
+	}
+	locator := RepairSourceLocator{
+		state: state,
+	}
+	return locator
 }
 
 func repairTextEditByIndex(source RepairSourceLocator, index int) RepairTextEditLocator {
-	return RepairTextEditLocator{state: &repairTextEditLocatorState{
+	state := &repairTextEditLocatorState{
 		source: source.state,
 		index:  index,
-	}}
+	}
+	locator := RepairTextEditLocator{
+		state: state,
+	}
+	return locator
 }
 
 func repairEntryEditByIndex(source RepairSourceLocator, index int) RepairEntryEditLocator {
-	return RepairEntryEditLocator{state: &repairEntryEditLocatorState{
+	state := &repairEntryEditLocatorState{
 		source: source.state,
 		index:  index,
-	}}
+	}
+	locator := RepairEntryEditLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveRepair(state *repairLocatorState, report cli.DiagnosticReport) repairResolution {
@@ -668,24 +688,27 @@ func resolveEntryEditObservation(state *repairEntryEditLocatorState, report cli.
 }
 
 func repairPresentExpectation(locator RepairLocator) OutcomeExpectation {
-	return repairExpectation{
+	expectation := repairExpectation{
 		locator: locator.state,
 		kind:    repairExpectationPresent,
 	}
+	return expectation
 }
 
 func repairPreservesMeaningExpectation(locator RepairLocator) OutcomeExpectation {
-	return repairExpectation{
+	expectation := repairExpectation{
 		locator: locator.state,
 		kind:    repairExpectationPreservesMeaning,
 	}
+	return expectation
 }
 
 func repairSensitiveExpectation(locator RepairLocator) OutcomeExpectation {
-	return repairExpectation{
+	expectation := repairExpectation{
 		locator: locator.state,
 		kind:    repairExpectationSensitive,
 	}
+	return expectation
 }
 
 func repairSourcesExactlyExpectation(locator RepairLocator, sources []InputSourceLocator) OutcomeExpectation {
@@ -693,51 +716,57 @@ func repairSourcesExactlyExpectation(locator RepairLocator, sources []InputSourc
 	for index, source := range sources {
 		states[index] = source.state
 	}
-	return repairExpectation{
+	expectation := repairExpectation{
 		locator: locator.state,
 		kind:    repairExpectationSourcesExactly,
 		sources: states,
 	}
+	return expectation
 }
 
 func repairSourceTextEditCountExpectation(locator RepairSourceLocator, count int) OutcomeExpectation {
-	return repairSourceExpectation{
+	expectation := repairSourceExpectation{
 		locator: locator.state,
 		text:    true,
 		count:   count,
 	}
+	return expectation
 }
 
 func repairSourceEntryEditCountExpectation(locator RepairSourceLocator, count int) OutcomeExpectation {
-	return repairSourceExpectation{
+	expectation := repairSourceExpectation{
 		locator: locator.state,
 		count:   count,
 	}
+	return expectation
 }
 
 func repairTextEditSpanExpectation(locator RepairTextEditLocator, span cli.InputSpan) OutcomeExpectation {
-	return textEditExpectation{
+	expectation := textEditExpectation{
 		locator: locator.state,
 		kind:    textEditExpectationSpan,
 		span:    span,
 	}
+	return expectation
 }
 
 func repairTextEditReplacementExpectation(locator RepairTextEditLocator, replacement cli.InputReplacement) OutcomeExpectation {
-	return textEditExpectation{
+	expectation := textEditExpectation{
 		locator:     locator.state,
 		kind:        textEditExpectationReplacement,
 		replacement: snapshotInputReplacement(replacement),
 	}
+	return expectation
 }
 
 func repairEntryEditRangeExpectation(locator RepairEntryEditLocator, start, end int) OutcomeExpectation {
-	return entryEditExpectation{
+	expectation := entryEditExpectation{
 		locator: locator.state,
 		kind:    entryEditExpectationRange,
 		start:   start,
 		end:     end,
 	}
+	return expectation
 }
 
 func repairEntryEditEntriesExpectation(locator RepairEntryEditLocator, entries []cli.InputReplacement) OutcomeExpectation {
@@ -745,11 +774,12 @@ func repairEntryEditEntriesExpectation(locator RepairEntryEditLocator, entries [
 	for i, entry := range entries {
 		snapshot[i] = snapshotInputReplacement(entry)
 	}
-	return entryEditExpectation{
+	expectation := entryEditExpectation{
 		locator: locator.state,
 		kind:    entryEditExpectationEntries,
 		entries: snapshot,
 	}
+	return expectation
 }
 
 func (repairsExactlyExpectation) diagnosticReportExpectation() {}
@@ -909,7 +939,9 @@ func (e textEditExpectation) evaluate(r textEditResolution) evaluationResult {
 	var expected evaluationField = evaluationText("text edit")
 	switch e.kind {
 	case textEditExpectationSpan:
-		expected = inputSpanField{value: e.span}
+		expected = inputSpanField{
+			value: e.span,
+		}
 	case textEditExpectationReplacement:
 		expected = evaluationText("exact replacement")
 	default:
@@ -922,7 +954,10 @@ func (e textEditExpectation) evaluate(r textEditResolution) evaluationResult {
 		if r.value.Span == e.span {
 			return provedResult()
 		}
-		return disprovedResult(r.label, expected, inputSpanField{value: r.value.Span})
+		field := inputSpanField{
+			value: r.value.Span,
+		}
+		return disprovedResult(r.label, expected, field)
 	case textEditExpectationReplacement:
 		if slices.EqualFunc(r.value.Replacement, e.replacement, equalInputReplacementPart) {
 			return provedResult()

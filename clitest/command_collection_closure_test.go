@@ -164,18 +164,37 @@ func TestInspectionCommandEntryLookupRequiresNamespaceClosureForExtensibleEntrie
 	}
 	root := RootCommand()
 
-	for name, locator := range map[string]CommandEntryLocator{
-		"canonical":      root.CanonicalEntry(),
-		"observed alias": root.Alias("alias"),
+	for _, test := range []struct {
+		name    string
+		locator CommandEntryLocator
+	}{
+		{
+			name:    "canonical",
+			locator: root.CanonicalEntry(),
+		},
+		{
+			name:    "observed alias",
+			locator: root.Alias("alias"),
+		},
 	} {
+		name := test.name
+		locator := test.locator
 		resolved := resolveInspectionCommandEntryLocator(locator.state, inspection)
 		if resolved.status != locatorResolutionFound {
 			t.Fatalf("%s = status %v actual %q, want found", name, resolved.status, renderEvaluationField(resolved.detail))
 		}
 	}
-	for name, locator := range map[string]CommandEntryLocator{
-		"missing alias": root.Alias("missing"),
+	for _, test := range []struct {
+		name    string
+		locator CommandEntryLocator
+	}{
+		{
+			name:    "missing alias",
+			locator: root.Alias("missing"),
+		},
 	} {
+		name := test.name
+		locator := test.locator
 		resolved := resolveInspectionCommandEntryLocator(locator.state, inspection)
 		if resolved.status != locatorResolutionNotProvable {
 			t.Fatalf("%s = status %v actual %q, want not provable", name, resolved.status, renderEvaluationField(resolved.detail))
@@ -205,8 +224,12 @@ func TestPartialProviderInspectionDoesNotCloseCommandAbsenceOrExactness(t *testi
 
 	type config struct{}
 	providerFailure := errors.New("provider failure")
-	survivorCommand := cli.Command[config]{Name: "survivor"}
-	discardedCommand := cli.Command[config]{Name: "discarded"}
+	survivorCommand := cli.Command[config]{
+		Name: "survivor",
+	}
+	discardedCommand := cli.Command[config]{
+		Name: "discarded",
+	}
 	//nolint:unparam // The public callback contract fixes this result signature.
 	provideSurvivor := func(_ context.Context, batch *cli.CommandBatch[config]) error {
 		batch.Command(survivorCommand)
@@ -232,7 +255,7 @@ func TestPartialProviderInspectionDoesNotCloseCommandAbsenceOrExactness(t *testi
 	request := cli.InspectionRequest{
 		Args: []string{"survivor"},
 	}
-	inspection, err := app.Inspect(context.Background(), request)
+	inspection, err := app.Inspect(t.Context(), request)
 	if !errors.Is(err, providerFailure) {
 		t.Fatalf("Inspect() error = %v, want provider failure", err)
 	}

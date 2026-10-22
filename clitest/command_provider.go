@@ -23,7 +23,10 @@ func InspectionObservedCommandProvidersExactly(providers ...CommandProviderLocat
 	for index, provider := range providers {
 		states[index] = provider.state
 	}
-	return observedCommandProvidersExpectation{providers: states}
+	expectation := observedCommandProvidersExpectation{
+		providers: states,
+	}
+	return expectation
 }
 
 // CommandProviderByID returns a locator for the exact public CommandProviderID in the
@@ -42,10 +45,11 @@ func (l CommandLocator) ProviderAt(index int) CommandProviderLocator {
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (l CommandLocator) ProvidersExactly(values ...CommandProviderLocator) DeclarationExpectation {
-	return commandProvidersExpectation{
+	expectation := commandProvidersExpectation{
 		command: l.state,
 		items:   commandProviderLocatorStates(values),
 	}
+	return expectation
 }
 
 func (CommandProviderLocator) diagnosticSubject() {}
@@ -53,20 +57,22 @@ func (CommandProviderLocator) diagnosticSubject() {}
 // Exists returns an expectation that checks the located command provider exists in the
 // relevant public declaration observation.
 func (l CommandProviderLocator) Exists() DeclarationExpectation {
-	return commandProviderExistenceExpectationValue{
+	value := commandProviderExistenceExpectationValue{
 		locator:  l.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located command provider is absent from
 // a complete relevant public declaration domain; incomplete observation cannot manufacture
 // absence.
 func (l CommandProviderLocator) DoesNotExist() DeclarationExpectation {
-	return commandProviderExistenceExpectationValue{
+	value := commandProviderExistenceExpectationValue{
 		locator:  l.state,
 		expected: false,
 	}
+	return value
 }
 
 // Outcome returns an expectation that checks the provider materialization outcome in Inspection.
@@ -88,10 +94,11 @@ func (l CommandProviderLocator) DependenciesExactly(values ...ValueLocator) Decl
 	for i, value := range values {
 		states[i] = value.state
 	}
-	return commandProviderDependenciesExpectationValue{
+	expectation := commandProviderDependenciesExpectationValue{
 		locator:  l.state,
 		expected: states,
 	}
+	return expectation
 }
 
 // HasLocalization returns an expectation that checks the provider published localization
@@ -169,10 +176,14 @@ type commandProviderOutcomeExpectationValue struct {
 }
 
 func commandProviderIDLocator(id cli.CommandProviderID) CommandProviderLocator {
-	return CommandProviderLocator{state: &commandProviderLocatorState{
+	state := &commandProviderLocatorState{
 		mode: commandProviderLocatorID,
 		id:   id,
-	}}
+	}
+	locator := CommandProviderLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandProviderLocatorLabel(state *commandProviderLocatorState) evaluationField {
@@ -508,28 +519,34 @@ func commandProviderIndexLocator(command CommandLocator, index int) CommandProvi
 		index:   index,
 	}
 
-	return CommandProviderLocator{state: state}
+	locator := CommandProviderLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandProviderOutcomeExpectation(locator CommandProviderLocator, outcome cli.CommandProviderOutcome) InspectionExpectation {
-	return commandProviderOutcomeExpectationValue{
+	value := commandProviderOutcomeExpectationValue{
 		locator:  locator.state,
 		expected: outcome,
 	}
+	return value
 }
 
 func commandProviderLocalizationExpectation(locator CommandProviderLocator, present bool) InspectionExpectation {
-	return providerLocalizationPresenceExpectation{
+	expectation := providerLocalizationPresenceExpectation{
 		locator: locator.state,
 		present: present,
 	}
+	return expectation
 }
 
 func commandProviderLocalizationPayloadExpectation(locator CommandProviderLocator, expected cli.Localization) InspectionExpectation {
-	return providerLocalizationPayloadExpectation{
+	expectation := providerLocalizationPayloadExpectation{
 		locator:  locator.state,
 		expected: cloneLocalization(expected),
 	}
+	return expectation
 }
 
 func commandProviderEntriesExactlyExpectation(locator CommandProviderLocator, entries []CommandEntryLocator) InspectionExpectation {
@@ -537,10 +554,11 @@ func commandProviderEntriesExactlyExpectation(locator CommandProviderLocator, en
 	for index, entry := range entries {
 		states[index] = entry.state
 	}
-	return providerEntriesExactlyExpectation{
+	expectation := providerEntriesExactlyExpectation{
 		locator: locator.state,
 		entries: states,
 	}
+	return expectation
 }
 
 func (observedCommandProvidersExpectation) inspectionExpectation() {}

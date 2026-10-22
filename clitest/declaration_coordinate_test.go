@@ -37,15 +37,33 @@ func TestCommandCollectionsAcrossStaticAndInspectionArtifacts(t *testing.T) {
 				Path: []string{"child"},
 			},
 		},
-		CommandEntries:   map[cli.CommandEntryID]cli.CommandEntrySchema{entry: {ID: entry}},
-		ActionEntries:    map[cli.ActionEntryID]cli.ActionEntrySchema{action: {ID: action}},
-		CommandDefaults:  map[cli.CommandDefaultID]cli.CommandDefaultSchema{def: {ID: def}},
-		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderSchema{provider: {ID: provider}},
-		Flags:            map[cli.FlagID]cli.FlagSchema{flag: {ID: flag}},
-		Facts:            map[cli.ValueID]cli.FactSchema{fact: {ID: fact}},
-		Values:           map[cli.ValueID]cli.ValueSchema{value: {ID: value}},
-		ArgumentForms:    map[cli.ArgumentFormID]cli.ArgumentFormSchema{form: {ID: form}},
-		SignalPolicies:   map[cli.SignalPolicyID]cli.SignalPolicySchema{policy: {ID: policy}},
+		CommandEntries: map[cli.CommandEntryID]cli.CommandEntrySchema{entry: {
+			ID: entry,
+		}},
+		ActionEntries: map[cli.ActionEntryID]cli.ActionEntrySchema{action: {
+			ID: action,
+		}},
+		CommandDefaults: map[cli.CommandDefaultID]cli.CommandDefaultSchema{def: {
+			ID: def,
+		}},
+		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderSchema{provider: {
+			ID: provider,
+		}},
+		Flags: map[cli.FlagID]cli.FlagSchema{flag: {
+			ID: flag,
+		}},
+		Facts: map[cli.ValueID]cli.FactSchema{fact: {
+			ID: fact,
+		}},
+		Values: map[cli.ValueID]cli.ValueSchema{value: {
+			ID: value,
+		}},
+		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormSchema{form: {
+			ID: form,
+		}},
+		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicySchema{policy: {
+			ID: policy,
+		}},
 	}
 	commandRef := cli.CommandReference{
 		ID:               root,
@@ -70,15 +88,33 @@ func TestCommandCollectionsAcrossStaticAndInspectionArtifacts(t *testing.T) {
 				Path: []string{"child"},
 			},
 		},
-		CommandEntries:   map[cli.CommandEntryID]cli.CommandEntryReference{entry: {ID: entry}},
-		ActionEntries:    map[cli.ActionEntryID]cli.ActionEntryReference{action: {ID: action}},
-		CommandDefaults:  map[cli.CommandDefaultID]cli.CommandDefaultReference{def: {ID: def}},
-		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderReference{provider: {ID: provider}},
-		Flags:            map[cli.FlagID]cli.FlagReference{flag: {ID: flag}},
-		Facts:            map[cli.ValueID]cli.FactReference{fact: {ID: fact}},
-		Values:           map[cli.ValueID]cli.ValueReference{value: {ID: value}},
-		ArgumentForms:    map[cli.ArgumentFormID]cli.ArgumentFormReference{form: {ID: form}},
-		SignalPolicies:   map[cli.SignalPolicyID]cli.SignalPolicyReference{policy: {ID: policy}},
+		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryReference{entry: {
+			ID: entry,
+		}},
+		ActionEntries: map[cli.ActionEntryID]cli.ActionEntryReference{action: {
+			ID: action,
+		}},
+		CommandDefaults: map[cli.CommandDefaultID]cli.CommandDefaultReference{def: {
+			ID: def,
+		}},
+		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderReference{provider: {
+			ID: provider,
+		}},
+		Flags: map[cli.FlagID]cli.FlagReference{flag: {
+			ID: flag,
+		}},
+		Facts: map[cli.ValueID]cli.FactReference{fact: {
+			ID: fact,
+		}},
+		Values: map[cli.ValueID]cli.ValueReference{value: {
+			ID: value,
+		}},
+		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormReference{form: {
+			ID: form,
+		}},
+		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyReference{policy: {
+			ID: policy,
+		}},
 	}
 	commandInspection := cli.CommandInspection{
 		ID:                    root,
@@ -105,15 +141,33 @@ func TestCommandCollectionsAcrossStaticAndInspectionArtifacts(t *testing.T) {
 				NamespaceCompleteness: cli.CommandNamespaceComplete,
 			},
 		},
-		CommandEntries:   map[cli.CommandEntryID]cli.CommandEntryInspection{entry: {ID: entry}},
-		ActionEntries:    map[cli.ActionEntryID]cli.ActionEntryInspection{action: {ID: action}},
-		CommandDefaults:  map[cli.CommandDefaultID]cli.CommandDefaultInspection{def: {ID: def}},
-		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{provider: {ID: provider}},
-		Flags:            map[cli.FlagID]cli.FlagInspection{flag: {ID: flag}},
-		Facts:            map[cli.ValueID]cli.FactInspection{fact: {ID: fact}},
-		Values:           map[cli.ValueID]cli.ValueInspection{value: {ID: value}},
-		ArgumentForms:    map[cli.ArgumentFormID]cli.ArgumentFormInspection{form: {ID: form}},
-		SignalPolicies:   map[cli.SignalPolicyID]cli.SignalPolicyInspection{policy: {ID: policy}},
+		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryInspection{entry: {
+			ID: entry,
+		}},
+		ActionEntries: map[cli.ActionEntryID]cli.ActionEntryInspection{action: {
+			ID: action,
+		}},
+		CommandDefaults: map[cli.CommandDefaultID]cli.CommandDefaultInspection{def: {
+			ID: def,
+		}},
+		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{provider: {
+			ID: provider,
+		}},
+		Flags: map[cli.FlagID]cli.FlagInspection{flag: {
+			ID: flag,
+		}},
+		Facts: map[cli.ValueID]cli.FactInspection{fact: {
+			ID: fact,
+		}},
+		Values: map[cli.ValueID]cli.ValueInspection{value: {
+			ID: value,
+		}},
+		ArgumentForms: map[cli.ArgumentFormID]cli.ArgumentFormInspection{form: {
+			ID: form,
+		}},
+		SignalPolicies: map[cli.SignalPolicyID]cli.SignalPolicyInspection{policy: {
+			ID: policy,
+		}},
 	}
 	expectations := []DeclarationExpectation{
 		CommandsExactly(RootCommand(), Command("child")),
@@ -129,13 +183,27 @@ func TestCommandCollectionsAcrossStaticAndInspectionArtifacts(t *testing.T) {
 		RootCommand().SignalPoliciesExactly(SignalPolicyByID(policy)),
 	}
 	for _, expectation := range expectations {
-		(SchemaResult{state: &schemaResultState{observation: *schema}}).Require(t, expectation)
+		(SchemaResult{
+			state: &schemaResultState{
+				observation: *schema,
+			},
+		}).Require(t, expectation)
 	}
 	for _, expectation := range expectations {
-		(ReferenceResult{state: &referenceResultState{observation: reference, err: nil}}).Require(t, expectation)
+		(ReferenceResult{
+			state: &referenceResultState{
+				observation: reference,
+				err:         nil,
+			},
+		}).Require(t, expectation)
 	}
 	for _, expectation := range expectations {
-		(InspectionResult{state: &inspectionResultState{observation: inspection, err: nil}}).Require(t, expectation)
+		(InspectionResult{
+			state: &inspectionResultState{
+				observation: inspection,
+				err:         nil,
+			},
+		}).Require(t, expectation)
 	}
 }
 

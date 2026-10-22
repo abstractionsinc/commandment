@@ -94,7 +94,7 @@ func TestProviderLocalizationInspectionSnapshotDetachesAcrossOperations(t *testi
 func TestApplicationTranslationsCannotRewriteFrameworkDiagnosticIdentity(t *testing.T) {
 	t.Parallel()
 	type config = localizationConcurrencyConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Description: cli.Description{
 			Short: "tool short",
@@ -109,7 +109,8 @@ func TestApplicationTranslationsCannotRewriteFrameworkDiagnosticIdentity(t *test
 				},
 			}},
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +308,9 @@ func TestInspectionHonorsApplicationLocaleSelectorPrecedence(t *testing.T) {
 		Declare: declare,
 	}
 	app := clitest.Compile(t, definition)
-	selectorRequest := cli.InspectionRequest{Args: []string{"--locale", "fr"}}
+	selectorRequest := cli.InspectionRequest{
+		Args: []string{"--locale", "fr"},
+	}
 	hostRequest := cli.InspectionRequest{
 		Args:   []string{"--locale", "fr"},
 		Locale: "en",
@@ -317,12 +320,16 @@ func TestInspectionHonorsApplicationLocaleSelectorPrecedence(t *testing.T) {
 	clitest.Inspect(t.Context(), app, selectorRequest).Require(t,
 		clitest.InspectionReady(),
 		clitest.EffectiveLocale("fr"),
-		clitest.RootCommand().PresentedDescription(cli.Description{Short: "court"}),
+		clitest.RootCommand().PresentedDescription(cli.Description{
+			Short: "court",
+		}),
 	)
 	clitest.Inspect(t.Context(), app, hostRequest).Require(t,
 		clitest.InspectionReady(),
 		clitest.EffectiveLocale("en"),
-		clitest.RootCommand().PresentedDescription(cli.Description{Short: "short"}),
+		clitest.RootCommand().PresentedDescription(cli.Description{
+			Short: "short",
+		}),
 	)
 	clitest.Inspect(t.Context(), app, defaultRequest).Require(t,
 		clitest.InspectionReady(),

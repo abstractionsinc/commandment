@@ -41,10 +41,11 @@ func prepareCondition(authored Condition, resolver destinationAcceptanceResolver
 	}
 	switch kind {
 	case conditionKindResolved:
-		return acceptResolvedCondition(resolvedConditionInput{
+		input := resolvedConditionInput{
 			Destination: destination,
 			Predicate:   state.predicate,
-		}), true
+		}
+		return acceptResolvedCondition(input), true
 	case conditionKindEqual,
 		conditionKindNotEqual,
 		conditionKindGreaterThan,
@@ -81,10 +82,11 @@ func prepareCondition(authored Condition, resolver destinationAcceptanceResolver
 		}
 		return acceptConditionGroup(input), true
 	case conditionKindNot:
-		return acceptNegatedCondition(negatedConditionInput{
+		input := negatedConditionInput{
 			Children:  children,
 			Predicate: state.predicate,
-		}), true
+		}
+		return acceptNegatedCondition(input), true
 	default:
 		return condition{}, false
 	}
@@ -179,10 +181,11 @@ func prepareRuleCondition(condition RuleCondition, resolver destinationAcceptanc
 			}
 			producerKinds[i] = mapped
 		}
-		return acceptContributedByPolicyCondition(contributedByPolicyConditionInput{
+		input := contributedByPolicyConditionInput{
 			Destination:   id,
 			ProducerKinds: producerKinds,
-		}), true
+		}
+		return acceptContributedByPolicyCondition(input), true
 	case ruleConditionAll, ruleConditionAny, ruleConditionNot:
 		children := make([]policyCondition, len(state.children))
 		for i, child := range state.children {
@@ -205,14 +208,16 @@ func prepareRuleCondition(condition RuleCondition, resolver destinationAcceptanc
 			return policyCondition{}, false
 		}
 		if kind == policyConditionNot {
-			return acceptNegatedPolicyCondition(negatedPolicyConditionInput{
+			input := negatedPolicyConditionInput{
 				Children: children,
-			}), true
+			}
+			return acceptNegatedPolicyCondition(input), true
 		}
-		return acceptPolicyConditionGroup(policyConditionGroupInput{
+		input := policyConditionGroupInput{
 			Kind:     kind,
 			Children: children,
-		}), true
+		}
+		return acceptPolicyConditionGroup(input), true
 	default:
 		return policyCondition{}, false
 	}
@@ -230,9 +235,10 @@ func policyConditionFromStructural(condition condition) policyCondition {
 	}
 	switch condition.Kind() {
 	case conditionKindResolved:
-		return acceptResolvedPolicyCondition(resolvedPolicyConditionInput{
+		input := resolvedPolicyConditionInput{
 			Destination: condition.Destination(),
-		})
+		}
+		return acceptResolvedPolicyCondition(input)
 	case conditionKindEqual,
 		conditionKindNotEqual,
 		conditionKindGreaterThan,
@@ -285,14 +291,16 @@ func policyConditionFromStructural(condition condition) policyCondition {
 		if condition.Kind() == conditionKindAny {
 			kind = policyConditionAny
 		}
-		return acceptPolicyConditionGroup(policyConditionGroupInput{
+		input := policyConditionGroupInput{
 			Kind:     kind,
 			Children: policyChildren,
-		})
+		}
+		return acceptPolicyConditionGroup(input)
 	case conditionKindNot:
-		return acceptNegatedPolicyCondition(negatedPolicyConditionInput{
+		input := negatedPolicyConditionInput{
 			Children: policyChildren,
-		})
+		}
+		return acceptNegatedPolicyCondition(input)
 	default:
 		panic("semantic: invalid structural condition")
 	}

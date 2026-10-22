@@ -115,10 +115,11 @@ func (scope analysisOperationGrammarScope) commandLexicalNamespace(parent Comman
 		entries, actions := lifecycleOwnedCommandGrammar(scope.source.analysis, scope.base, scope.selected, parent)
 		dialect, ok := scope.Dialect(parent)
 		if !ok {
-			return &commandLexicalNamespace{
+			namespace := &commandLexicalNamespace{
 				entries: entries,
 				actions: actions,
 			}
+			return namespace
 		}
 		mode := dialect.CommandNormalization()
 		canonicalLifecycles := canonicalCommandEntryLifecycles(scope.source.analysis, scope.base.CommandEntries(parent))
@@ -174,10 +175,11 @@ func (scope analysisOperationGrammarScope) commandLexicalNamespace(parent Comman
 func (scope analysisOperationGrammarScope) flagLexicalNamespace(command CommandID) *flagLexicalNamespace {
 	build := func() *flagLexicalNamespace {
 		flags, actions := lifecycleOwnedFlagGrammar(scope.source.analysis, scope.base, scope.selected, command)
-		return &flagLexicalNamespace{
+		namespace := &flagLexicalNamespace{
 			flags:   flags,
 			actions: actions,
 		}
+		return namespace
 	}
 	if key, ok := scope.lexicalNamespaceKey(command); ok {
 		return scope.source.analysis.cachedFlagLexicalNamespace(key, build)
@@ -448,20 +450,22 @@ func boundedCount(minimum, maximum int) semanticCountRange {
 	if minimum < 0 || maximum < minimum {
 		panic("semantic: invalid bounded count")
 	}
-	return semanticCountRange{
+	count := semanticCountRange{
 		minimum: minimum,
 		maximum: maximum,
 	}
+	return count
 }
 
 func unboundedCount(minimum int) semanticCountRange {
 	if minimum < 0 {
 		panic("semantic: invalid unbounded count")
 	}
-	return semanticCountRange{
+	count := semanticCountRange{
 		minimum:   minimum,
 		unbounded: true,
 	}
+	return count
 }
 
 func (count semanticCountRange) Minimum() int { return count.minimum }

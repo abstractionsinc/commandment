@@ -12,8 +12,10 @@ const localizationAuditApplicationName = "localization-audit"
 func TestLocalizationAuditUsesStaticSourcesParentFallbackRuntimeSourcesAndExactness(t *testing.T) {
 	t.Parallel()
 	definition := cli.Definition[struct{}]{
-		Name:            localizationAuditApplicationName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: localizationAuditApplicationName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Description: cli.Description{
 			Short: "shared",
 			Long:  "root long",
@@ -339,7 +341,9 @@ func TestPresentationExpectationsAttributeFieldMismatchAndRefuseExactTruncatedOb
 				Description: cli.Description{
 					Short: "actual source",
 				},
-				Examples: []cli.Example{{Description: "actual source example"}},
+				Examples: []cli.Example{{
+					Description: "actual source example",
+				}},
 			},
 		},
 	}
@@ -351,7 +355,9 @@ func TestPresentationExpectationsAttributeFieldMismatchAndRefuseExactTruncatedOb
 				Description: cli.Description{
 					Short: "actual",
 				},
-				Examples: []cli.Example{{Description: "actual example"}},
+				Examples: []cli.Example{{
+					Description: "actual example",
+				}},
 			},
 		},
 	}
@@ -364,7 +370,9 @@ func TestPresentationExpectationsAttributeFieldMismatchAndRefuseExactTruncatedOb
 				Description: cli.Description{
 					Short: "actual",
 				},
-				Examples: []cli.Example{{Description: "seen"}},
+				Examples: []cli.Example{{
+					Description: "seen",
+				}},
 			},
 		},
 	}
@@ -399,7 +407,9 @@ func TestPresentationExpectationsAttributeFieldMismatchAndRefuseExactTruncatedOb
 		t.Fatalf("source description mismatch outcome = %#v", outcome)
 	}
 
-	sourceExamplesInput := []cli.Example{{Description: "expected source example"}}
+	sourceExamplesInput := []cli.Example{{
+		Description: "expected source example",
+	}}
 	sourceExamples := RootCommand().SourceExamplesExactly(sourceExamplesInput...)
 	sourceExamplesInput[0].Description = "mutated expectation input"
 	sourceExamplesEvaluator, ok := sourceExamples.(interface {
@@ -479,7 +489,9 @@ func TestPresentationExpectationsAttributeFieldMismatchAndRefuseExactTruncatedOb
 		Description: cli.Description{
 			Short: "actual help",
 		},
-		Examples: []cli.Example{{Description: "actual help example"}},
+		Examples: []cli.Example{{
+			Description: "actual help example",
+		}},
 	}
 	helpDescription := HelpDescription(cli.Description{
 		Short: "expected help",
@@ -495,7 +507,9 @@ func TestPresentationExpectationsAttributeFieldMismatchAndRefuseExactTruncatedOb
 		renderEvaluationField(outcome.observed) != "actual help" {
 		t.Fatalf("help description mismatch outcome = %#v", outcome)
 	}
-	helpExamplesInput := []cli.Example{{Description: "expected help example"}}
+	helpExamplesInput := []cli.Example{{
+		Description: "expected help example",
+	}}
 	helpExamples := HelpExamplesExactly(helpExamplesInput...)
 	helpExamplesInput[0].Description = "mutated expectation input"
 	helpExamplesEvaluator, ok := helpExamples.(interface {
@@ -514,8 +528,10 @@ func TestPresentationExpectationsAttributeFieldMismatchAndRefuseExactTruncatedOb
 func TestLocalizationAuditAndSourceDescriptionExpectationContracts(t *testing.T) {
 	t.Parallel()
 	definition := cli.Definition[struct{}]{
-		Name:            localizationAuditApplicationName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: localizationAuditApplicationName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Description: cli.Description{
 			Short: "short",
 			Long:  "long",
@@ -693,8 +709,10 @@ func TestCommandPresentedExamplesPreservesSemanticStatus(t *testing.T) {
 		inspection := cli.Inspection{
 			Commands: map[cli.CommandID]cli.CommandInspection{
 				1: {
-					ID:       1,
-					Examples: []cli.Example{{Description: "actual"}},
+					ID: 1,
+					Examples: []cli.Example{{
+						Description: "actual",
+					}},
 				},
 			},
 		}
@@ -776,50 +794,78 @@ func TestLocalizationPreservesExactMembershipAndOrder(t *testing.T) {
 			actual   cli.Localization
 			fragment string
 		}{
-			{"bundle count", cli.Localization{
-				DefaultLocale: "en",
-				Bundles:       []cli.TranslationBundle{{Locale: "fr"}},
-			}, cli.Localization{
-				DefaultLocale: "en",
-			}, "0 bundles"},
-			{"bundle locale", cli.Localization{
-				DefaultLocale: "en",
-				Bundles:       []cli.TranslationBundle{{Locale: "fr"}},
-			}, cli.Localization{
-				DefaultLocale: "en",
-				Bundles:       []cli.TranslationBundle{{Locale: "de"}},
-			}, `locale "de"`},
-			{"translation count", cli.Localization{
-				DefaultLocale: "en",
-				Bundles: []cli.TranslationBundle{{
-					Locale: "fr",
-					Translations: cli.Translations{
-						"a": "A",
-					},
-				}},
-			}, cli.Localization{
-				DefaultLocale: "en",
-				Bundles:       []cli.TranslationBundle{{Locale: "fr"}},
-			}, "0 translations"},
-			{"missing source", cli.Localization{
-				DefaultLocale: "en",
-				Bundles: []cli.TranslationBundle{{
-					Locale: "fr",
-					Translations: cli.Translations{
-						"a": "A",
-						"b": "B",
-					},
-				}},
-			}, cli.Localization{
-				DefaultLocale: "en",
-				Bundles: []cli.TranslationBundle{{
-					Locale: "fr",
-					Translations: cli.Translations{
-						"a": "A",
-						"c": "C",
-					},
-				}},
-			}, `missing source "b"`},
+			{
+				name: "bundle count",
+				expected: cli.Localization{
+					DefaultLocale: "en",
+					Bundles: []cli.TranslationBundle{{
+						Locale: "fr",
+					}},
+				},
+				actual: cli.Localization{
+					DefaultLocale: "en",
+				},
+				fragment: "0 bundles",
+			},
+			{
+				name: "bundle locale",
+				expected: cli.Localization{
+					DefaultLocale: "en",
+					Bundles: []cli.TranslationBundle{{
+						Locale: "fr",
+					}},
+				},
+				actual: cli.Localization{
+					DefaultLocale: "en",
+					Bundles: []cli.TranslationBundle{{
+						Locale: "de",
+					}},
+				},
+				fragment: `locale "de"`,
+			},
+			{
+				name: "translation count",
+				expected: cli.Localization{
+					DefaultLocale: "en",
+					Bundles: []cli.TranslationBundle{{
+						Locale: "fr",
+						Translations: cli.Translations{
+							"a": "A",
+						},
+					}},
+				},
+				actual: cli.Localization{
+					DefaultLocale: "en",
+					Bundles: []cli.TranslationBundle{{
+						Locale: "fr",
+					}},
+				},
+				fragment: "0 translations",
+			},
+			{
+				name: "missing source",
+				expected: cli.Localization{
+					DefaultLocale: "en",
+					Bundles: []cli.TranslationBundle{{
+						Locale: "fr",
+						Translations: cli.Translations{
+							"a": "A",
+							"b": "B",
+						},
+					}},
+				},
+				actual: cli.Localization{
+					DefaultLocale: "en",
+					Bundles: []cli.TranslationBundle{{
+						Locale: "fr",
+						Translations: cli.Translations{
+							"a": "A",
+							"c": "C",
+						},
+					}},
+				},
+				fragment: `missing source "b"`,
+			},
 		}
 		for _, tc := range cases {
 			ok, actual := compareLocalization(tc.expected, tc.actual)
@@ -880,7 +926,9 @@ func TestAuditLocalizationPreservesSemanticResult(t *testing.T) {
 	})
 	t.Run("count mismatch: membership or order mismatch", func(t *testing.T) {
 		t.Parallel()
-		policy := LocalizationPolicy{RejectSharedSources: true}
+		policy := LocalizationPolicy{
+			RejectSharedSources: true,
+		}
 		issues := auditLocalization(app, policy)
 		if !containsIssue(issues, `source "shared" is shared by 2 static presentation slots`) {
 			t.Fatalf("issues = %#v", issues)
@@ -925,7 +973,9 @@ func TestCollectLocalizationSourcesPreservesSemanticResult(t *testing.T) {
 						Short: "command short",
 						Long:  "command long",
 					},
-					Examples: []cli.Example{{Description: "command example"}},
+					Examples: []cli.Example{{
+						Description: "command example",
+					}},
 					Help: cli.HelpSchema{
 						CommandGroups: []cli.HelpCommandGroupSchema{{
 							Kind:  cli.HelpGroupDeclared,
@@ -974,7 +1024,9 @@ func TestCollectLocalizationSourcesPreservesSemanticResult(t *testing.T) {
 						Short: "alias short",
 						Long:  "alias long",
 					},
-					Examples: []cli.Example{{Description: "alias example"}},
+					Examples: []cli.Example{{
+						Description: "alias example",
+					}},
 					Release: cli.ReleaseLifecycle{
 						Reason: "alias release",
 					},

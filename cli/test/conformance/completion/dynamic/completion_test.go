@@ -46,14 +46,23 @@ func TestCompleteStaticFiniteDomainDoesNotDemandInvocationDefaults(t *testing.T)
 		args       []string
 		cursor     int
 	}{
-		{name: "positional", positional: true, args: []string{""}, cursor: 0},
-		{name: "flag", args: []string{"--mode", ""}, cursor: 1},
+		{
+			name:       "positional",
+			positional: true,
+			args:       []string{""},
+			cursor:     0,
+		},
+		{
+			name:   "flag",
+			args:   []string{"--mode", ""},
+			cursor: 1,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			calls := 0
 			cause := errors.New("unrelated default failure")
-			result, err := compile(t, test.positional).Complete(t.Context(), cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: test.args,
 				Cursor: cli.CompletionCursor{
 					Argument: test.cursor,
@@ -64,7 +73,8 @@ func TestCompleteStaticFiniteDomainDoesNotDemandInvocationDefaults(t *testing.T)
 						return cause
 					}),
 				},
-			})
+			}
+			result, err := compile(t, test.positional).Complete(t.Context(), completionRequest)
 			if err != nil {
 				t.Fatalf("Complete() error = %v", err)
 			}
@@ -115,7 +125,7 @@ func TestCompletePositionalDynamicDomainStillDemandsRequiredInvocationDefault(t 
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	result, err := app.Complete(t.Context(), cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -127,7 +137,8 @@ func TestCompletePositionalDynamicDomainStillDemandsRequiredInvocationDefault(t 
 				return nil
 			}),
 		},
-	})
+	}
+	result, err := app.Complete(t.Context(), completionRequest)
 	if err != nil {
 		t.Fatalf("Complete() error = %v", err)
 	}
@@ -160,9 +171,12 @@ func TestCompletePositionalCallbackStillDemandsRequiredInvocationDefault(t *test
 				).CompleteBy(
 					func(_ context.Context, cfg *config, _ cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 						observed = cfg.Seed
-						return cli.CompletionContribution{
-							Candidates: []cli.CompletionCandidate{{Value: cfg.Seed}},
-						}, nil
+						contribution := cli.CompletionContribution{
+							Candidates: []cli.CompletionCandidate{{
+								Value: cfg.Seed,
+							}},
+						}
+						return contribution, nil
 					},
 				).From(seed)
 			})
@@ -172,7 +186,7 @@ func TestCompletePositionalCallbackStillDemandsRequiredInvocationDefault(t *test
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	result, err := app.Complete(t.Context(), cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -184,7 +198,8 @@ func TestCompletePositionalCallbackStillDemandsRequiredInvocationDefault(t *test
 				return nil
 			}),
 		},
-	})
+	}
+	result, err := app.Complete(t.Context(), completionRequest)
 	if err != nil {
 		t.Fatalf("Complete() error = %v", err)
 	}
@@ -230,7 +245,7 @@ func TestCompletePositionalStaticDomainStillDemandsStructuralVisibilityInputs(t 
 		t.Fatalf("Compile() error = %v", err)
 	}
 
-	result, err := app.Complete(t.Context(), cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -242,7 +257,8 @@ func TestCompletePositionalStaticDomainStillDemandsStructuralVisibilityInputs(t 
 				return nil
 			}),
 		},
-	})
+	}
+	result, err := app.Complete(t.Context(), completionRequest)
 	if err != nil {
 		t.Fatalf("Complete() error = %v", err)
 	}
@@ -273,7 +289,7 @@ type completionDomainModeOtherConfig struct {
 func TestCompletionSettlesTargetDynamicDomain(t *testing.T) {
 	t.Parallel()
 	type config = completionDomainModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -288,29 +304,32 @@ func TestCompletionSettlesTargetDynamicDomain(t *testing.T) {
 			mode := root.Values.Value(&root.Config.Mode, domain)
 			root.Flags.ValueFor(mode).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	t.Run("target domain with all invocable visibility", func(t *testing.T) {
 		t.Parallel()
-		proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--mode", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
 			},
 			Visibility: cli.CompletionVisibilityAllInvocable,
-		})
+		}
+		proof := clitest.Complete(t.Context(), app, completionRequest)
 		proof.Require(t, clitest.CompletionItemAt(0).Value("prod"))
 	})
 
 	t.Run("reference projection failure", func(t *testing.T) {
 		t.Parallel()
-		if _, err := app.Complete(t.Context(), cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--mode", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
 			},
 			Locale: "not_a_locale",
-		}); err == nil {
+		}
+		if _, err := app.Complete(t.Context(), completionRequest); err == nil {
 			t.Fatal("Complete() accepted invalid locale after domain materialization")
 		}
 	})
@@ -374,7 +393,7 @@ func TestCompleteFiniteDomainsUseOperationLocalAuthoritativeSnapshot(t *testing.
 			t.Fatalf("Compile() error = %v", err)
 		}
 		result, err := func() (cli.Completion, error) {
-			proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: []string{"--mode", ""},
 				Cursor: cli.CompletionCursor{
 					Argument: 1,
@@ -384,7 +403,8 @@ func TestCompleteFiniteDomainsUseOperationLocalAuthoritativeSnapshot(t *testing.
 						CandidateKinds: true,
 					},
 				},
-			})
+			}
+			proof := clitest.Complete(t.Context(), app, completionRequest)
 			proof.Require(t, clitest.CompletionItemAt(0).Present())
 			return proof.Completion()
 		}()
@@ -416,7 +436,7 @@ func TestCompleteFiniteDomainsUseOperationLocalAuthoritativeSnapshot(t *testing.
 		if err != nil {
 			t.Fatalf("Compile() error = %v", err)
 		}
-		result, err := app.Complete(t.Context(), cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--mode", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -426,7 +446,8 @@ func TestCompleteFiniteDomainsUseOperationLocalAuthoritativeSnapshot(t *testing.
 					CandidateKinds: true,
 				},
 			},
-		})
+		}
+		result, err := app.Complete(t.Context(), completionRequest)
 		if err != nil {
 			t.Fatalf("Complete() error = %v", err)
 		}
@@ -459,9 +480,12 @@ func TestCompleteDynamicDomainFailurePreservesValidPeerAsPartial(t *testing.T) {
 					"peer",
 				).CompleteBy(
 					func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-						return cli.CompletionContribution{
-							Candidates: []cli.CompletionCandidate{{Value: "retained"}},
-						}, nil
+						contribution := cli.CompletionContribution{
+							Candidates: []cli.CompletionCandidate{{
+								Value: "retained",
+							}},
+						}
+						return contribution, nil
 					},
 				)
 			})
@@ -511,7 +535,7 @@ func TestCompletePreservesDynamicDomainFailureAndIndependentCallerCancellation(t
 	ctx, cancel := context.WithCancelCause(t.Context())
 	result := make(chan error, 1)
 	go func() {
-		_, err := app.Complete(ctx, cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{"--mode", ""},
 			Cursor: cli.CompletionCursor{
 				Argument: 1,
@@ -521,7 +545,8 @@ func TestCompletePreservesDynamicDomainFailureAndIndependentCallerCancellation(t
 					CandidateKinds: true,
 				},
 			},
-		})
+		}
+		_, err := app.Complete(ctx, completionRequest)
 		result <- err
 	}()
 	<-started
@@ -574,7 +599,7 @@ func TestCompleteEarlierResponseSelectsProviderChildPositionalDynamicDomainOnce(
 	if err != nil {
 		t.Fatal(err)
 	}
-	proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@select", "pr"},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -585,11 +610,12 @@ func TestCompleteEarlierResponseSelectsProviderChildPositionalDynamicDomainOnce(
 				if request.Path != "select" {
 					return cli.ResponseFile{}, errors.New("unexpected response path")
 				}
-				return cli.ResponseFile{
+				file := cli.ResponseFile{
 					Key:      "select",
 					Revision: cli.Revision("r1"),
 					Content:  []byte("remote"),
-				}, nil
+				}
+				return file, nil
 			},
 		},
 		Client: cli.CompletionClient{
@@ -601,7 +627,8 @@ func TestCompleteEarlierResponseSelectsProviderChildPositionalDynamicDomainOnce(
 				CandidateKinds: true,
 			},
 		},
-	})
+	}
+	proof := clitest.Complete(t.Context(), app, completionRequest)
 	proof.Require(t,
 		clitest.CompletionTargetsExactly(clitest.CompletionTargetAt(0)),
 		clitest.CompletionTargetAt(0).Kind(cli.CompletionTargetArgument),
@@ -640,7 +667,7 @@ func TestCompletionDemandsCurrentProviderNamespaceAndReturnsDynamicCommandCandid
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{""},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
@@ -651,7 +678,8 @@ func TestCompletionDemandsCurrentProviderNamespaceAndReturnsDynamicCommandCandid
 				CandidateKinds: true,
 			},
 		},
-	}).Require(t,
+	}
+	clitest.Complete(t.Context(), app, completionRequest).Require(t,
 		clitest.CompletionItem("remote").Present(),
 		clitest.CompletionItem("remote").Kind(cli.CompletionCandidateCommand),
 		clitest.CompletionItem("remote").DisplayText("remote"),
@@ -696,7 +724,7 @@ func TestCompletionProviderFailurePreservesAcceptedPeerAsDetachedPartialOperatio
 	}
 	invoke := func() (cli.Completion, error) {
 		return func() (cli.Completion, error) {
-			proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+			completionRequest := cli.CompletionRequest{
 				Args: []string{""},
 				Cursor: cli.CompletionCursor{
 					Argument: 0,
@@ -707,7 +735,8 @@ func TestCompletionProviderFailurePreservesAcceptedPeerAsDetachedPartialOperatio
 						CandidateKinds: true,
 					},
 				},
-			})
+			}
+			proof := clitest.Complete(t.Context(), app, completionRequest)
 			proof.Require(
 				t,
 				clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticCommandProviderFailure).Present()),
@@ -789,7 +818,7 @@ func TestCompleteEarlierResponseLoadFailurePreservesUnaffectedPartialObservation
 	})
 	cause := errors.New("response load failed")
 	completions := 0
-	proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@broken", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 1,
@@ -803,7 +832,8 @@ func TestCompleteEarlierResponseLoadFailurePreservesUnaffectedPartialObservation
 				return cli.CompletionContribution{}, nil
 			},
 		},
-	})
+	}
+	proof := clitest.Complete(t.Context(), app, completionRequest)
 	proof.Require(t,
 		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticResponseFileLoadFailure).Present()),
 		clitest.CompletionPartial(),
@@ -835,15 +865,18 @@ func TestCompleteEarlierResponseReferencesShareOperationCumulativeBudget(t *test
 				).CompleteBy(
 					func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 						producerCalls++
-						return cli.CompletionContribution{
-							Candidates: []cli.CompletionCandidate{{Value: "must-not-run"}},
-						}, nil
+						contribution := cli.CompletionContribution{
+							Candidates: []cli.CompletionCandidate{{
+								Value: "must-not-run",
+							}},
+						}
+						return contribution, nil
 					},
 				)
 			})
 		},
 	})
-	proof := clitest.Complete(t.Context(), app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"@first", "@second", ""},
 		Cursor: cli.CompletionCursor{
 			Argument: 2,
@@ -857,23 +890,26 @@ func TestCompleteEarlierResponseReferencesShareOperationCumulativeBudget(t *test
 			Load: func(_ context.Context, request cli.ResponseFileRequest) (cli.ResponseFile, error) {
 				switch request.Path {
 				case "first":
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:      "first",
 						Revision: cli.Revision("r1"),
 						Content:  []byte(" "),
-					}, nil
+					}
+					return file, nil
 				case "second":
-					return cli.ResponseFile{
+					file := cli.ResponseFile{
 						Key:      "second",
 						Revision: cli.Revision("r1"),
 						Content:  []byte(" "),
-					}, nil
+					}
+					return file, nil
 				default:
 					return cli.ResponseFile{}, errors.New("unexpected response path")
 				}
 			},
 		},
-	})
+	}
+	proof := clitest.Complete(t.Context(), app, completionRequest)
 	firstSource := clitest.InputSourceByKey(cli.InputKindResponseFile, "first")
 	proof.Require(t,
 		clitest.FailsWith(
@@ -903,7 +939,7 @@ func TestStaticCompletionGroupClassificationIsStableAcrossLocalizedHelpTitles(t 
 	type config = completionStaticClassificationVerboseConfig
 
 	var helpPage cli.HelpPage
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Localization: cli.Localization{
 			DefaultLocale: "en",
@@ -927,14 +963,16 @@ func TestStaticCompletionGroupClassificationIsStableAcrossLocalizedHelpTitles(t 
 				flags.Bool(&root.Config.Verbose).Long("verbose")
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	var output strings.Builder
-	err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Args:   []string{"--help"},
 		Locale: "fr",
 		Stdout: &output,
-	})
+	}
+	err := app.Run(t.Context(), runRequest)
 	if err != nil {
 		t.Fatalf("Run(--help) error = %v", err)
 	}
@@ -963,7 +1001,7 @@ func TestStaticCompletionGroupClassificationIsStableAcrossLocalizedHelpTitles(t 
 	}
 
 	complete := func(locale cli.Locale) cli.Completion {
-		result, err := app.Complete(t.Context(), cli.CompletionRequest{
+		completionRequest := cli.CompletionRequest{
 			Args: []string{""},
 			Cursor: cli.CompletionCursor{
 				Argument: 0,
@@ -974,7 +1012,8 @@ func TestStaticCompletionGroupClassificationIsStableAcrossLocalizedHelpTitles(t 
 					Groups: true,
 				},
 			},
-		})
+		}
+		result, err := app.Complete(t.Context(), completionRequest)
 		if err != nil {
 			t.Fatalf("Complete(%q) error = %v", locale, err)
 		}

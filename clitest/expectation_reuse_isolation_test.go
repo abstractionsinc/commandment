@@ -16,7 +16,9 @@ func TestResultReuseNeverRerunsCompletionOperation(t *testing.T) {
 	completePath := func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 		calls.Add(1)
 		contribution := cli.CompletionContribution{
-			Candidates: []cli.CompletionCandidate{{Value: "one"}},
+			Candidates: []cli.CompletionCandidate{{
+				Value: "one",
+			}},
 		}
 		return contribution, nil
 	}
@@ -38,7 +40,7 @@ func TestResultReuseNeverRerunsCompletionOperation(t *testing.T) {
 			Argument: 1,
 		},
 	}
-	result := Complete(context.Background(), app, request)
+	result := Complete(t.Context(), app, request)
 	if got := calls.Load(); got != 1 {
 		t.Fatalf("completion callback calls after operation = %d, want 1", got)
 	}

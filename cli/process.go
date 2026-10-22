@@ -39,17 +39,19 @@ func runApplicationFromProcess(ctx context.Context, app Application) error {
 			func() (Env, string, ResponseFileAccess, error) {
 				environment, err := EnvFromEnviron(os.Environ())
 				if err != nil {
-					return nil, "", ResponseFileAccess{}, &processAdapterError{
+					failure := &processAdapterError{
 						operation: "capture process environment",
 						cause:     err,
 					}
+					return nil, "", ResponseFileAccess{}, failure
 				}
 				workingDirectory, err := os.Getwd()
 				if err != nil {
-					return nil, "", ResponseFileAccess{}, &processAdapterError{
+					failure := &processAdapterError{
 						operation: "capture process working directory",
 						cause:     err,
 					}
+					return nil, "", ResponseFileAccess{}, failure
 				}
 				return environment, workingDirectory, processResponseFileAccess(), nil
 			},
@@ -57,17 +59,19 @@ func runApplicationFromProcess(ctx context.Context, app Application) error {
 	}
 	environment, err := EnvFromEnviron(os.Environ())
 	if err != nil {
-		return &processAdapterError{
+		failure := &processAdapterError{
 			operation: "capture process environment",
 			cause:     err,
 		}
+		return failure
 	}
 	workingDirectory, err := os.Getwd()
 	if err != nil {
-		return &processAdapterError{
+		failure := &processAdapterError{
 			operation: "capture process working directory",
 			cause:     err,
 		}
+		return failure
 	}
 	availableSignals := app.signalCatalog().available(true)
 	request := RunRequest{
@@ -87,13 +91,14 @@ func runApplicationFromProcess(ctx context.Context, app Application) error {
 }
 
 func processResponseFileAccess() ResponseFileAccess {
-	return ResponseFileAccess{
+	access := ResponseFileAccess{
 		Load: func(ctx context.Context, request ResponseFileRequest) (ResponseFile, error) {
 			if err := ctx.Err(); err != nil {
-				return ResponseFile{}, &processAdapterError{
+				failure := &processAdapterError{
 					operation: "check response-file context",
 					cause:     err,
 				}
+				return ResponseFile{}, failure
 			}
 			path := request.Path
 			if !filepath.IsAbs(path) {
@@ -118,10 +123,11 @@ func processResponseFileAccess() ResponseFileAccess {
 				return ResponseFile{}, result
 			}
 			if err := ctx.Err(); err != nil {
-				return ResponseFile{}, &processAdapterError{
+				failure := &processAdapterError{
 					operation: "check response-file context",
 					cause:     err,
 				}
+				return ResponseFile{}, failure
 			}
 			responseFile := ResponseFile{
 				Key:         path,
@@ -132,4 +138,5 @@ func processResponseFileAccess() ResponseFileAccess {
 			return responseFile, nil
 		},
 	}
+	return access
 }

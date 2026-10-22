@@ -30,34 +30,38 @@ func nushellGenerationBandForTarget(target string) (nushellGenerationBand, error
 	}
 	parts := strings.Split(target, ".")
 	if len(parts) < shellVersionComponentMinimum {
-		return 0, &shellCompletionError{
+		failure := &shellCompletionError{
 			kind:   errInvalidShellCompletionGeneration,
 			detail: "invalid Nushell completion generation target version " + strconv.Quote(target),
 		}
+		return 0, failure
 	}
 	major, err := strconv.Atoi(parts[0])
 	if err != nil || major < 0 {
-		return 0, &shellCompletionError{
+		failure := &shellCompletionError{
 			kind:   errInvalidShellCompletionGeneration,
 			detail: "invalid Nushell completion generation target version " + strconv.Quote(target),
 		}
+		return 0, failure
 	}
 	minor, err := strconv.Atoi(parts[1])
 	if err != nil || minor < 0 {
-		return 0, &shellCompletionError{
+		failure := &shellCompletionError{
 			kind:   errInvalidShellCompletionGeneration,
 			detail: "invalid Nushell completion generation target version " + strconv.Quote(target),
 		}
+		return 0, failure
 	}
 	if major > 0 {
 		return nushellGenerationCurrent, nil
 	}
 	switch {
 	case minor < nushellLegacyMinor072:
-		return 0, &shellCompletionError{
+		failure := &shellCompletionError{
 			kind:   errUnsupportedShellCompletionTarget,
 			detail: "Nushell completion generation target version " + strconv.Quote(target),
 		}
+		return 0, failure
 	case minor == nushellLegacyMinor072:
 		return nushellGenerationLegacyFloor072, nil
 	case minor < nushellLegacyMinor102:

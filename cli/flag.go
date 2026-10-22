@@ -652,10 +652,11 @@ func declareFlagSpelling[C, T any](flag FlagDeclaration[C, T], kind flagSpelling
 		valid: valid,
 	}
 	spelling := stageFlagSpelling(flag.state, flag.flag, spellingValue)
-	return FlagSpellingDeclaration[C, T]{
+	declaration := FlagSpellingDeclaration[C, T]{
 		state:    flag.state,
 		spelling: spelling,
 	}
+	return declaration
 }
 
 func longFlagSpelling[C, T any](flag FlagDeclaration[C, T], name string) FlagSpellingDeclaration[C, T] {
@@ -1229,8 +1230,9 @@ func acceptFlagSpellingRecord(id FlagSpellingID, flag FlagID, position declarati
 	if !flag.present() {
 		panic("semantic: invalid flag identity")
 	}
-	return flagSpellingRecord{
+	record := flagSpellingRecord{
 		meta: acceptRecordMeta(id, position),
 		flag: flag,
 	}
+	return record
 }

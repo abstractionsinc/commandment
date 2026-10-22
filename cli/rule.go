@@ -88,12 +88,12 @@ func (rule ruleCapability[C]) Not(condition RuleCondition) RuleCondition {
 
 // When returns a Rule scope activated only when condition is satisfied.
 func (scope ruleScope[C]) When(condition RuleCondition) ruleScope[C] {
-	return activatedRuleScope(scope, condition, false)
+	return activatedRuleScope(scope, condition)
 }
 
 // Unless returns a Rule scope activated only when condition is not satisfied.
 func (scope ruleScope[C]) Unless(condition RuleCondition) ruleScope[C] {
-	return activatedRuleScope(scope, condition, true)
+	return activatedUnlessRuleScope(scope, condition)
 }
 
 // Check declares a custom Rule whose predicate yields one generic invalid violation on false, nil;
@@ -757,9 +757,10 @@ func contributedByRuleCondition[D, T any](state *declarationSession, destination
 	}
 	result.producerKinds = append([]ValueProducerKind{first}, rest...)
 	result.valid = result.valid && validValueProducerKinds(result.producerKinds)
-	return validationRuleCondition{
+	condition := validationRuleCondition{
 		state: result,
 	}
+	return condition
 }
 
 func combineRuleConditions(state *declarationSession, kind ruleConditionKind, first RuleCondition, rest ...RuleCondition) RuleCondition {
@@ -774,9 +775,10 @@ func combineRuleConditions(state *declarationSession, kind ruleConditionKind, fi
 	conditions := append([]RuleCondition{first}, rest...)
 	if kind == ruleConditionNot && len(conditions) != 1 {
 		result.valid = false
-		return validationRuleCondition{
+		validation := validationRuleCondition{
 			state: result,
 		}
+		return validation
 	}
 	result.valid = result.owner != nil && len(conditions) > 0
 	result.children = make([]*ruleConditionState, len(conditions))
@@ -787,9 +789,10 @@ func combineRuleConditions(state *declarationSession, kind ruleConditionKind, fi
 			result.valid = false
 		}
 	}
-	return validationRuleCondition{
+	validation := validationRuleCondition{
 		state: result,
 	}
+	return validation
 }
 
 func validValueProducerKinds(producerKinds []ValueProducerKind) bool {
@@ -809,12 +812,17 @@ func validValueProducerKinds(producerKinds []ValueProducerKind) bool {
 	return true
 }
 
-func activatedRuleScope[C any](scope ruleScope[C], condition RuleCondition, unless bool) ruleScope[C] {
+func activatedUnlessRuleScope[C any](scope ruleScope[C], condition RuleCondition) ruleScope[C] {
 	if scope.session == nil {
 		return scope
 	}
-	if unless {
-		condition = combineRuleConditions(scope.session, ruleConditionNot, condition)
+	condition = combineRuleConditions(scope.session, ruleConditionNot, condition)
+	return activatedRuleScope(scope, condition)
+}
+
+func activatedRuleScope[C any](scope ruleScope[C], condition RuleCondition) ruleScope[C] {
+	if scope.session == nil {
+		return scope
 	}
 	conditionState := ruleConditionStateOf(condition)
 	if conditionState == nil || !conditionState.valid {
@@ -977,10 +985,11 @@ func stageCustomRule[C any](scope ruleScope[C], code RuleCode, callbackKind auth
 		valid:        valid,
 	}
 	ref := stageRule(scope.session, scope.profile, rule)
-	return RuleDeclaration[C]{
+	declaration := RuleDeclaration[C]{
 		state: scope.session,
 		rule:  ref,
 	}
+	return declaration
 }
 
 func eraseRuleCheck[C any](check RulePredicate[C]) authoringRuleCallback {
@@ -993,9 +1002,10 @@ func eraseRuleCheck[C any](check RulePredicate[C]) authoringRuleCallback {
 			panic("cli: invalid rule callback configuration")
 		}
 		value, err := check(ctx, config, dependencies)
-		return ruleCallbackResult{
+		result := ruleCallbackResult{
 			Check: value,
-		}, err
+		}
+		return result, err
 	}
 }
 
@@ -1116,10 +1126,11 @@ func stageRuleGroup(state *declarationSession, profile grammarProfileCaseRef, ac
 		stageRuleDirective(state, ref, ruleDirectiveGroupDependency, first)
 		stageRuleDirective(state, ref, ruleDirectiveGroupDependency, second)
 	}
-	return ruleGroup{
+	group := ruleGroup{
 		session: state,
 		rule:    ref,
 	}
+	return group
 }
 
 func dependencyTarget(dependency Dependency) (*destinationHandle, bool) {
@@ -1479,10 +1490,11 @@ type ruleRecord struct {
 
 func acceptRuleRecord(id RuleID, command CommandID, position declarationPosition) ruleRecord {
 	mustCommand(command)
-	return ruleRecord{
+	record := ruleRecord{
 		meta:    acceptRecordMeta(id, position),
 		command: command,
 	}
+	return record
 }
 
 // RuleID is the exact identity of an accepted Rule declaration. Zero is invalid.

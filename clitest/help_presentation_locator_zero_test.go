@@ -18,11 +18,15 @@ func helpLocatorZeroFixture() cli.HelpPage {
 	}
 	page := cli.HelpPage{
 		CommandGroups: []cli.HelpCommandGroup{{
-			Title:    "",
-			Commands: []cli.HelpCommand{{Name: ""}},
+			Title: "",
+			Commands: []cli.HelpCommand{{
+				Name: "",
+			}},
 		}},
 		ArgumentForms: []cli.HelpArgumentForm{
-			{Terms: []cli.HelpArgumentTerm{{ValueDomainUses: []cli.HelpValueDomainUse{use}}}},
+			{Terms: []cli.HelpArgumentTerm{{
+				ValueDomainUses: []cli.HelpValueDomainUse{use},
+			}}},
 		},
 		FlagGroups: []cli.HelpFlagGroup{
 			{
@@ -60,38 +64,62 @@ func TestHelpPageLocatorZeroValuesAreInvalid(t *testing.T) {
 		name    string
 		resolve func(cli.HelpPage) locatorResolutionStatus
 	}{
-		{"command group", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommandGroup(HelpPageCommandGroupLocator{}, page)
-			return s
-		}},
-		{"command", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommand(HelpPageCommandLocator{}, page)
-			return s
-		}},
-		{"argument form", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpArgumentForm(HelpPageArgumentFormLocator{}, page)
-			return s
-		}},
-		{"argument term", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpArgumentTerm(HelpPageArgumentTermLocator{}, page)
-			return s
-		}},
-		{"flag group", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagGroup(HelpPageFlagGroupLocator{}, page)
-			return s
-		}},
-		{"flag", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlag(HelpPageFlagLocator{}, page)
-			return s
-		}},
-		{"flag spelling", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagSpelling(HelpPageFlagSpellingLocator{}, page)
-			return s
-		}},
-		{"value-domain entry", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(HelpPageValueDomainEntryLocator{}, page)
-			return s
-		}},
+		{
+			name: "command group",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommandGroup(HelpPageCommandGroupLocator{}, page)
+				return s
+			},
+		},
+		{
+			name: "command",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommand(HelpPageCommandLocator{}, page)
+				return s
+			},
+		},
+		{
+			name: "argument form",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpArgumentForm(HelpPageArgumentFormLocator{}, page)
+				return s
+			},
+		},
+		{
+			name: "argument term",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpArgumentTerm(HelpPageArgumentTermLocator{}, page)
+				return s
+			},
+		},
+		{
+			name: "flag group",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagGroup(HelpPageFlagGroupLocator{}, page)
+				return s
+			},
+		},
+		{
+			name: "flag",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlag(HelpPageFlagLocator{}, page)
+				return s
+			},
+		},
+		{
+			name: "flag spelling",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagSpelling(HelpPageFlagSpellingLocator{}, page)
+				return s
+			},
+		},
+		{
+			name: "value-domain entry",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(HelpPageValueDomainEntryLocator{}, page)
+				return s
+			},
+		},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -115,42 +143,66 @@ func TestHelpPageLocatorExplicitZeroCoordinatesRemainValid(t *testing.T) {
 		name    string
 		resolve func(cli.HelpPage) locatorResolutionStatus
 	}{
-		{"command group", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommandGroup(group, page)
-			return s
-		}},
-		{"argument form", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpArgumentForm(form, page)
-			return s
-		}},
-		{"flag group", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagGroup(flagGroup, page)
-			return s
-		}},
-		{"command at", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommand(group.CommandAt(0), page)
-			return s
-		}},
-		{"term at", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpArgumentTerm(term, page)
-			return s
-		}},
 		{
-			"flag at",
-			func(page cli.HelpPage) locatorResolutionStatus { _, s, _ := resolveHelpFlag(flag, page); return s },
+			name: "command group",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommandGroup(group, page)
+				return s
+			},
 		},
-		{"spelling at", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagSpelling(flag.SpellingAt(0), page)
-			return s
-		}},
-		{"term domain entry at", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(term.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0), page)
-			return s
-		}},
-		{"flag domain entry at", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(flag.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0), page)
-			return s
-		}},
+		{
+			name: "argument form",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpArgumentForm(form, page)
+				return s
+			},
+		},
+		{
+			name: "flag group",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagGroup(flagGroup, page)
+				return s
+			},
+		},
+		{
+			name: "command at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommand(group.CommandAt(0), page)
+				return s
+			},
+		},
+		{
+			name: "term at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpArgumentTerm(term, page)
+				return s
+			},
+		},
+		{
+			name:    "flag at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus { _, s, _ := resolveHelpFlag(flag, page); return s },
+		},
+		{
+			name: "spelling at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagSpelling(flag.SpellingAt(0), page)
+				return s
+			},
+		},
+		{
+			name: "term domain entry at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(term.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0), page)
+				return s
+			},
+		},
+		{
+			name: "flag domain entry at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(flag.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0), page)
+				return s
+			},
+		},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -184,26 +236,41 @@ func TestHelpPageLocatorExplicitEmptyTextRemainsTextSelection(t *testing.T) {
 		name    string
 		resolve func(cli.HelpPage) locatorResolutionStatus
 	}{
-		{"command group", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommandGroup(HelpCommandGroup(""), page)
-			return s
-		}},
-		{"command", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommand(HelpCommand(""), page)
-			return s
-		}},
-		{"flag group", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagGroup(HelpFlagGroup(""), page)
-			return s
-		}},
-		{"flag spelling", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagSpelling(HelpFlagSpelling(""), page)
-			return s
-		}},
-		{"value-domain entry", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(HelpValueDomainEntry(""), page)
-			return s
-		}},
+		{
+			name: "command group",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommandGroup(HelpCommandGroup(""), page)
+				return s
+			},
+		},
+		{
+			name: "command",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommand(HelpCommand(""), page)
+				return s
+			},
+		},
+		{
+			name: "flag group",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagGroup(HelpFlagGroup(""), page)
+				return s
+			},
+		},
+		{
+			name: "flag spelling",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagSpelling(HelpFlagSpelling(""), page)
+				return s
+			},
+		},
+		{
+			name: "value-domain entry",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(HelpValueDomainEntry(""), page)
+				return s
+			},
+		},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -222,60 +289,96 @@ func TestHelpPageLocatorInvalidParentsCannotBeResurrected(t *testing.T) {
 		name    string
 		resolve func(cli.HelpPage) locatorResolutionStatus
 	}{
-		{"command", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommand(HelpPageCommandGroupLocator{}.Command("x"), page)
-			return s
-		}},
-		{"command at", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpCommand(HelpPageCommandGroupLocator{}.CommandAt(0), page)
-			return s
-		}},
-		{"term", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpArgumentTerm(HelpPageArgumentFormLocator{}.TermAt(0), page)
-			return s
-		}},
-		{"flag", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlag(HelpPageFlagGroupLocator{}.Flag("--x"), page)
-			return s
-		}},
-		{"action flag", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlag(HelpPageFlagGroupLocator{}.ActionFlag("--x"), page)
-			return s
-		}},
-		{"flag at", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlag(HelpPageFlagGroupLocator{}.FlagAt(0), page)
-			return s
-		}},
-		{"spelling", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagSpelling(HelpPageFlagLocator{}.SpellingAt(0), page)
-			return s
-		}},
-		{"term domain", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(
-				HelpPageArgumentTermLocator{}.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0),
-				page,
-			)
-			return s
-		}},
-		{"flag domain", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(
-				HelpPageFlagLocator{}.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0),
-				page,
-			)
-			return s
-		}},
-		{"spelling replacement", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpFlagSpelling(HelpPageFlagSpellingLocator{}.Replacement(), page)
-			return s
-		}},
-		{"domain canonical", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(HelpPageValueDomainEntryLocator{}.Canonical(), page)
-			return s
-		}},
-		{"domain replacement", func(page cli.HelpPage) locatorResolutionStatus {
-			_, s, _ := resolveHelpValueDomainEntry(HelpPageValueDomainEntryLocator{}.Replacement(), page)
-			return s
-		}},
+		{
+			name: "command",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommand(HelpPageCommandGroupLocator{}.Command("x"), page)
+				return s
+			},
+		},
+		{
+			name: "command at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpCommand(HelpPageCommandGroupLocator{}.CommandAt(0), page)
+				return s
+			},
+		},
+		{
+			name: "term",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpArgumentTerm(HelpPageArgumentFormLocator{}.TermAt(0), page)
+				return s
+			},
+		},
+		{
+			name: "flag",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlag(HelpPageFlagGroupLocator{}.Flag("--x"), page)
+				return s
+			},
+		},
+		{
+			name: "action flag",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlag(HelpPageFlagGroupLocator{}.ActionFlag("--x"), page)
+				return s
+			},
+		},
+		{
+			name: "flag at",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlag(HelpPageFlagGroupLocator{}.FlagAt(0), page)
+				return s
+			},
+		},
+		{
+			name: "spelling",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagSpelling(HelpPageFlagLocator{}.SpellingAt(0), page)
+				return s
+			},
+		},
+		{
+			name: "term domain",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(
+					HelpPageArgumentTermLocator{}.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0),
+					page,
+				)
+				return s
+			},
+		},
+		{
+			name: "flag domain",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(
+					HelpPageFlagLocator{}.ValueDomainEntryAt(cli.ValueDomainUseDestination, 0),
+					page,
+				)
+				return s
+			},
+		},
+		{
+			name: "spelling replacement",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpFlagSpelling(HelpPageFlagSpellingLocator{}.Replacement(), page)
+				return s
+			},
+		},
+		{
+			name: "domain canonical",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(HelpPageValueDomainEntryLocator{}.Canonical(), page)
+				return s
+			},
+		},
+		{
+			name: "domain replacement",
+			resolve: func(page cli.HelpPage) locatorResolutionStatus {
+				_, s, _ := resolveHelpValueDomainEntry(HelpPageValueDomainEntryLocator{}.Replacement(), page)
+				return s
+			},
+		},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

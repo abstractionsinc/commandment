@@ -1215,11 +1215,11 @@ func validProviderBatchContributions(draft *providerBatchDraft, input declaratio
 				return false
 			}
 		case aliasContributionDraft:
-			if contribution.alias.Name == "" || !validProviderLifecycle(draft.release, contribution.alias.Release) || !validProviderCommandTarget(draft, contribution.target, true) || !validProviderSourceOptions(contribution.source) {
+			if contribution.alias.Name == "" || !validProviderLifecycle(draft.release, contribution.alias.Release) || !validProviderAliasTarget(draft, contribution.target) || !validProviderSourceOptions(contribution.source) {
 				return false
 			}
 		case *shortcutContributionDraft:
-			if contribution == nil || contribution.shortcut.Name == "" || !validProviderLifecycle(draft.release, contribution.shortcut.Release) || !validProviderCommandTarget(draft, contribution.target, false) || !validProviderSourceOptions(contribution.source) {
+			if contribution == nil || contribution.shortcut.Name == "" || !validProviderLifecycle(draft.release, contribution.shortcut.Release) || !validProviderShortcutTarget(draft, contribution.target) || !validProviderSourceOptions(contribution.source) {
 				return false
 			}
 			if len(contribution.shortcut.Args) == 0 && len(contribution.shortcut.AppendArgs) == 0 && len(contribution.defaults) == 0 {
@@ -1307,20 +1307,32 @@ func validProviderDestinationIdentity(identity destinationIdentity, draft *decla
 	}
 }
 
-func validProviderCommandTarget(draft *providerBatchDraft, target providerCommandTarget, immediate bool) bool {
+func validProviderAliasTarget(draft *providerBatchDraft, target providerCommandTarget) bool {
 	switch target := target.(type) {
 	case stagedCommandTarget:
-		if draft == nil || !target.command.valid() {
-			return false
-		}
-		_, ok := draft.declarations.commands.resolve(&draft.declarations, target.command)
-		return ok
+		return validProviderStagedCommandTarget(draft, target)
 	case pathTarget:
-		if len(target.path) == 0 || immediate && len(target.path) != 1 {
-			return false
-		}
-		return !slices.Contains(target.path, "")
+		return len(target.path) == 1 && target.path[0] != ""
 	default:
 		return false
 	}
+}
+
+func validProviderShortcutTarget(draft *providerBatchDraft, target providerCommandTarget) bool {
+	switch target := target.(type) {
+	case stagedCommandTarget:
+		return validProviderStagedCommandTarget(draft, target)
+	case pathTarget:
+		return len(target.path) != 0 && !slices.Contains(target.path, "")
+	default:
+		return false
+	}
+}
+
+func validProviderStagedCommandTarget(draft *providerBatchDraft, target stagedCommandTarget) bool {
+	if draft == nil || !target.command.valid() {
+		return false
+	}
+	_, ok := draft.declarations.commands.resolve(&draft.declarations, target.command)
+	return ok
 }

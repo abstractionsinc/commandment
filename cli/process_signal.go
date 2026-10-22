@@ -62,10 +62,11 @@ func processSignalSubscribe(ctx context.Context, revision SignalWatchRevision, w
 		return SignalSubscription[os.Signal]{}, context.Canceled
 	}
 	if err := ctx.Err(); err != nil {
-		return SignalSubscription[os.Signal]{}, &processSignalError{
+		failure := &processSignalError{
 			operation: "process signal subscription context",
 			cause:     err,
 		}
+		return SignalSubscription[os.Signal]{}, failure
 	}
 	subscription := &processSignalSubscription{
 		revision: revision,
@@ -110,10 +111,11 @@ func (subscription *processSignalSubscription) SetWatch(ctx context.Context, rev
 		return context.Canceled
 	}
 	if err := ctx.Err(); err != nil {
-		return &processSignalError{
+		failure := &processSignalError{
 			operation: "set process signal watch context",
 			cause:     err,
 		}
+		return failure
 	}
 	subscription.revision = revision
 	subscription.setWatchLocked(watched)

@@ -23,28 +23,32 @@ type shellCompletionCountingSignalSource struct {
 }
 
 func (source *shellCompletionCountingSignalSource) Source() cli.SignalSource[string] {
-	return cli.SignalSource[string]{
+	signalSource := cli.SignalSource[string]{
 		Signals: []cli.SignalDescriptor[string]{{
 			Signal:   "counted",
 			Fidelity: cli.SignalSourceDeliveryFidelityExact,
 		}},
 		Open: func(_ context.Context) (cli.SignalStream[string], error) {
 			source.open++
-			return cli.SignalStream[string]{
+			stream := cli.SignalStream[string]{
 				Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 					<-ctx.Done()
 					return cli.SignalNotification[string]{}, ctx.Err()
 				},
-			}, nil
+			}
+			return stream, nil
 		},
 	}
+	return signalSource
 }
 
 const shellCompletionCompatibilityBashName = "bash"
 
 func TestShellCompletionGeneratedAdaptersUseCurrentShellAdapter(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: "alienctl"})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: "alienctl",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +72,9 @@ func TestShellCompletionGeneratedAdaptersUseCurrentShellAdapter(t *testing.T) {
 
 func completionScriptForTest(t *testing.T, integration cli.ShellCompletionProvider) string {
 	t.Helper()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: "alienctl"})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: "alienctl",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,14 +93,40 @@ func TestShellCompletionBuiltinsSkipUnrepresentableMultiEntryReplacement(t *test
 		provider cli.ShellCompletionProvider
 		marker   string
 	}{
-		{name: shellCompletionCompatibilityBashName, provider: cli.Shell.Bash, marker: "((count == 1)) || continue"},
-		{name: "zsh", provider: cli.Shell.Zsh, marker: "((count == 1)) || continue"},
-		{name: "fish", provider: cli.Shell.Fish, marker: `-eq 1; or continue`},
-		{name: "powershell", provider: cli.Shell.PowerShell, marker: `.Count -ne 1) { continue }`},
-		{name: "elvish", provider: cli.Shell.Elvish, marker: `(!= (count $item[replacement]) 1) { continue }`},
-		{name: "nushell", provider: cli.Shell.Nushell, marker: `($replacement | length) != 1 { continue }`},
+		{
+			name:     shellCompletionCompatibilityBashName,
+			provider: cli.Shell.Bash,
+			marker:   "((count == 1)) || continue",
+		},
+		{
+			name:     "zsh",
+			provider: cli.Shell.Zsh,
+			marker:   "((count == 1)) || continue",
+		},
+		{
+			name:     "fish",
+			provider: cli.Shell.Fish,
+			marker:   `-eq 1; or continue`,
+		},
+		{
+			name:     "powershell",
+			provider: cli.Shell.PowerShell,
+			marker:   `.Count -ne 1) { continue }`,
+		},
+		{
+			name:     "elvish",
+			provider: cli.Shell.Elvish,
+			marker:   `(!= (count $item[replacement]) 1) { continue }`,
+		},
+		{
+			name:     "nushell",
+			provider: cli.Shell.Nushell,
+			marker:   `($replacement | length) != 1 { continue }`,
+		},
 	}
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: "alienctl"})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: "alienctl",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,23 +204,25 @@ func TestElvishHistoricalGenerationPreservesSyntaxBands(t *testing.T) {
 		forbid  []string
 	}{
 		{
-			"0.11.0",
-			[]string{
+			version: "0.11.0",
+			want: []string{
 				"$edit:arg-completer", "[@all-arguments]{", "$all-arguments[1:]",
 				"} except _ {", "printf 'records\\n'",
 			},
-			[]string{"edit:completion:arg-completer", "var ", "{|"},
+			forbid: []string{"edit:completion:arg-completer", "var ", "{|"},
 		},
 		{
-			"0.12.0",
-			[]string{
+			version: "0.12.0",
+			want: []string{
 				"$edit:completion:arg-completer", "[@all-arguments]{", "$all-arguments[1:]",
 				"} except _ {", "printf 'records\\n'",
 			},
-			[]string{"var ", "{|"},
+			forbid: []string{"var ", "{|"},
 		},
 	} {
-		app, err := cli.Compile(cli.Definition[struct{}]{Name: "alienctl"})
+		app, err := cli.Compile(cli.Definition[struct{}]{
+			Name: "alienctl",
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -237,7 +271,9 @@ func TestZshCompletionPreserves401CompatibleRegistration(t *testing.T) {
 
 func TestNushellCompletionGenerationBandsRemainDistinct(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: "alienctl"})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: "alienctl",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +295,9 @@ func TestNushellCompletionGenerationBandsRemainDistinct(t *testing.T) {
 
 func TestNushellLegacyCompletionMatchingProfilesRemainBandSpecific(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: "alienctl"})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: "alienctl",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,8 +307,16 @@ func TestNushellLegacyCompletionMatchingProfilesRemainBandSpecific(t *testing.T)
 		target string
 		want   string
 	}{
-		{name: "legacy-client-filtered", target: "0.72.0", want: `matching\tclient`},
-		{name: "legacy-null-prefix", target: "0.102.0", want: `matching\tprefix`},
+		{
+			name:   "legacy-client-filtered",
+			target: "0.72.0",
+			want:   `matching\tclient`,
+		},
+		{
+			name:   "legacy-null-prefix",
+			target: "0.102.0",
+			want:   `matching\tprefix`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -301,8 +347,14 @@ func TestShellCompletionGenerationUsesCurrentPrivateActivation(t *testing.T) {
 		applicationName string
 		wantEnvironment string
 	}{
-		{applicationName: "alienctl", wantEnvironment: "_ALIENCTL_73D461C4BC2C89FB76D20703910821E4_COMPLETE"},
-		{applicationName: "!!!", wantEnvironment: "_APP_E84C538E7FE250730EF62DE220C40DFA_COMPLETE"},
+		{
+			applicationName: "alienctl",
+			wantEnvironment: "_ALIENCTL_73D461C4BC2C89FB76D20703910821E4_COMPLETE",
+		},
+		{
+			applicationName: "!!!",
+			wantEnvironment: "_APP_E84C538E7FE250730EF62DE220C40DFA_COMPLETE",
+		},
 	}
 
 	for _, test := range tests {
@@ -314,7 +366,9 @@ func TestShellCompletionGenerationUsesCurrentPrivateActivation(t *testing.T) {
 				generation = value
 				return "probe", nil
 			})
-			app, err := cli.Compile(cli.Definition[struct{}]{Name: test.applicationName})
+			app, err := cli.Compile(cli.Definition[struct{}]{
+				Name: test.applicationName,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -333,7 +387,9 @@ func TestShellCompletionGenerationUsesCurrentPrivateActivation(t *testing.T) {
 
 func TestApplicationShellCompletionScriptGeneratesAllBuiltIns(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: shellCompletionTestApplicationName})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: shellCompletionTestApplicationName,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +420,9 @@ func TestApplicationShellCompletionScriptGeneratesAllBuiltIns(t *testing.T) {
 
 func TestApplicationShellCompletionScriptTargetVersions(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: shellCompletionTestApplicationName})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: shellCompletionTestApplicationName,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,10 +430,22 @@ func TestApplicationShellCompletionScriptTargetVersions(t *testing.T) {
 		provider cli.ShellCompletionProvider
 		version  string
 	}{
-		{cli.Shell.Elvish, "0.11.0"},
-		{cli.Shell.Elvish, "0.12.0"},
-		{cli.Shell.Nushell, "0.72.0"},
-		{cli.Shell.Nushell, "0.108.0"},
+		{
+			provider: cli.Shell.Elvish,
+			version:  "0.11.0",
+		},
+		{
+			provider: cli.Shell.Elvish,
+			version:  "0.12.0",
+		},
+		{
+			provider: cli.Shell.Nushell,
+			version:  "0.72.0",
+		},
+		{
+			provider: cli.Shell.Nushell,
+			version:  "0.108.0",
+		},
 	} {
 		if _, err := app.ShellCompletionScriptForVersion(test.provider, test.version); err != nil {
 			t.Fatalf("targeted generation error = %v", err)
@@ -385,7 +455,9 @@ func TestApplicationShellCompletionScriptTargetVersions(t *testing.T) {
 
 func TestApplicationShellCompletionScriptRejectsUnsupportedTarget(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: shellCompletionTestApplicationName})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: shellCompletionTestApplicationName,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,8 +513,10 @@ func TestShellCompletionPublicCatalogContract(t *testing.T) {
 
 	disabled, err := cli.Compile(
 		cli.Definition[struct{}]{
-			Name:            shellCompletionTestApplicationName,
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: shellCompletionTestApplicationName,
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 		},
 	)
 	if err != nil {
@@ -453,7 +527,9 @@ func TestShellCompletionPublicCatalogContract(t *testing.T) {
 	}
 	if err := disabled.Run(
 		t.Context(),
-		cli.RunRequest{Args: []string{shellCompletionTestCommandName, shellCompletionTestXonshName}},
+		cli.RunRequest{
+			Args: []string{shellCompletionTestCommandName, shellCompletionTestXonshName},
+		},
 	); err == nil {
 		t.Fatal("disabled exporter unexpectedly remained invocable")
 	}
@@ -469,32 +545,50 @@ func TestShellCompletionCatalogValidation(t *testing.T) {
 		name   string
 		config cli.ShellCompletion
 	}{
-		{"disabled-with-catalog", cli.ShellCompletion{
-			Disabled: true,
-			Shells:   []cli.ShellCompletionProvider{valid},
-		}},
-		{"empty-catalog", cli.ShellCompletion{Shells: []cli.ShellCompletionProvider{}}},
-		{"nil-provider", cli.ShellCompletion{Shells: []cli.ShellCompletionProvider{nil}}},
-		{"duplicate-name", cli.ShellCompletion{Shells: []cli.ShellCompletionProvider{valid, valid}}},
 		{
-			"invalid-name",
-			cli.ShellCompletion{
+			name: "disabled-with-catalog",
+			config: cli.ShellCompletion{
+				Disabled: true,
+				Shells:   []cli.ShellCompletionProvider{valid},
+			},
+		},
+		{
+			name: "empty-catalog",
+			config: cli.ShellCompletion{
+				Shells: []cli.ShellCompletionProvider{},
+			},
+		},
+		{
+			name: "nil-provider",
+			config: cli.ShellCompletion{
+				Shells: []cli.ShellCompletionProvider{nil},
+			},
+		},
+		{
+			name: "duplicate-name",
+			config: cli.ShellCompletion{
+				Shells: []cli.ShellCompletionProvider{valid, valid},
+			},
+		},
+		{
+			name: "invalid-name",
+			config: cli.ShellCompletion{
 				Shells: []cli.ShellCompletionProvider{
 					cli.Shell.Custom("-xonsh", func(cli.ShellCompletionGeneration) (string, error) { return "x", nil }),
 				},
 			},
 		},
 		{
-			"whitespace-name",
-			cli.ShellCompletion{
+			name: "whitespace-name",
+			config: cli.ShellCompletion{
 				Shells: []cli.ShellCompletionProvider{
 					cli.Shell.Custom("xon sh", func(cli.ShellCompletionGeneration) (string, error) { return "x", nil }),
 				},
 			},
 		},
 		{
-			"nil-generator",
-			cli.ShellCompletion{
+			name: "nil-generator",
+			config: cli.ShellCompletion{
 				Shells: []cli.ShellCompletionProvider{cli.Shell.Custom(shellCompletionTestXonshName, nil)},
 			},
 		},
@@ -522,21 +616,66 @@ func TestShellCompletionCatalogNameContract(t *testing.T) {
 		name string
 		want bool
 	}{
-		{name: shellCompletionTestXonshName, want: true},
-		{name: "βash", want: true},
-		{name: "BASH", want: true},
-		{name: "é", want: true},
-		{name: "e\u0301", want: true},
-		{name: "", want: false},
-		{name: "-bash", want: false},
-		{name: "has space", want: false},
-		{name: "has\t tab", want: false},
-		{name: "has\nnewline", want: false},
-		{name: "has\rreturn", want: false},
-		{name: "has\x00nul", want: false},
-		{name: "has\u00a0space", want: false},
-		{name: "has\u0085control", want: false},
-		{name: string([]byte{0xff}), want: false},
+		{
+			name: shellCompletionTestXonshName,
+			want: true,
+		},
+		{
+			name: "βash",
+			want: true,
+		},
+		{
+			name: "BASH",
+			want: true,
+		},
+		{
+			name: "é",
+			want: true,
+		},
+		{
+			name: "e\u0301",
+			want: true,
+		},
+		{
+			name: "",
+			want: false,
+		},
+		{
+			name: "-bash",
+			want: false,
+		},
+		{
+			name: "has space",
+			want: false,
+		},
+		{
+			name: "has\t tab",
+			want: false,
+		},
+		{
+			name: "has\nnewline",
+			want: false,
+		},
+		{
+			name: "has\rreturn",
+			want: false,
+		},
+		{
+			name: "has\x00nul",
+			want: false,
+		},
+		{
+			name: "has\u00a0space",
+			want: false,
+		},
+		{
+			name: "has\u0085control",
+			want: false,
+		},
+		{
+			name: string([]byte{0xff}),
+			want: false,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -559,12 +698,14 @@ func TestShellCompletionCatalogNameContract(t *testing.T) {
 	// Unicode-normalize provider names.
 	exact, err := cli.Compile(cli.Definition[struct{}]{
 		Name: shellCompletionTestApplicationName,
-		ShellCompletion: cli.ShellCompletion{Shells: []cli.ShellCompletionProvider{
-			cli.Shell.Custom(shellCompletionTestBashName, generator),
-			cli.Shell.Custom("BASH", generator),
-			cli.Shell.Custom("é", generator),
-			cli.Shell.Custom("e\u0301", generator),
-		}},
+		ShellCompletion: cli.ShellCompletion{
+			Shells: []cli.ShellCompletionProvider{
+				cli.Shell.Custom(shellCompletionTestBashName, generator),
+				cli.Shell.Custom("BASH", generator),
+				cli.Shell.Custom("é", generator),
+				cli.Shell.Custom("e\u0301", generator),
+			},
+		},
 	})
 	if err != nil {
 		t.Fatalf("Compile exact opaque names: %v", err)
@@ -582,17 +723,21 @@ func TestShellCompletionBuiltInAndCustomSameNameIdentityAndReplacement(t *testin
 
 	if _, err := cli.Compile(cli.Definition[struct{}]{
 		Name: shellCompletionTestApplicationName,
-		ShellCompletion: cli.ShellCompletion{Shells: []cli.ShellCompletionProvider{
-			cli.Shell.Bash,
-			customBash,
-		}},
+		ShellCompletion: cli.ShellCompletion{
+			Shells: []cli.ShellCompletionProvider{
+				cli.Shell.Bash,
+				customBash,
+			},
+		},
 	}); err == nil {
 		t.Fatal("built-in bash plus custom bash unexpectedly compiled as distinct catalog identities")
 	}
 
 	replacement, err := cli.Compile(cli.Definition[struct{}]{
-		Name:            shellCompletionTestApplicationName,
-		ShellCompletion: cli.ShellCompletion{Shells: []cli.ShellCompletionProvider{customBash}},
+		Name: shellCompletionTestApplicationName,
+		ShellCompletion: cli.ShellCompletion{
+			Shells: []cli.ShellCompletionProvider{customBash},
+		},
 	})
 	if err != nil {
 		t.Fatalf("Compile custom bash replacement: %v", err)
@@ -617,7 +762,9 @@ func TestShellCompletionBuiltInAndCustomSameNameIdentityAndReplacement(t *testin
 
 func TestShellCompletionTargetVersionContract(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: shellCompletionTestApplicationName})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: shellCompletionTestApplicationName,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -658,9 +805,11 @@ func TestShellCompletionExporterBypassesBusinessExecution(t *testing.T) {
 		func(cli.ShellCompletionGeneration) (string, error) { return shellCompletionTestArtifact, nil },
 	)
 
-	app, err := cli.Compile(cli.Definition[config]{
-		Name:            shellCompletionTestApplicationName,
-		ShellCompletion: cli.ShellCompletion{Shells: []cli.ShellCompletionProvider{custom}},
+	definition := cli.Definition[config]{
+		Name: shellCompletionTestApplicationName,
+		ShellCompletion: cli.ShellCompletion{
+			Shells: []cli.ShellCompletionProvider{custom},
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			value := root.Values.String(&root.Config.Required)
 			root.Rule.Require(value)
@@ -686,11 +835,12 @@ func TestShellCompletionExporterBypassesBusinessExecution(t *testing.T) {
 			return next(ctx)
 		}},
 		Run: func(context.Context, *config) error { handlerCalls++; return nil },
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
-	if err := app.Run(t.Context(), cli.RunRequest{
+	runRequest := cli.RunRequest{
 		Args:   []string{shellCompletionTestCommandName, shellCompletionTestXonshName},
 		Stdout: &output,
 		Facts: []cli.FactProvider{cli.FactsFor[config](func(context.Context, *cli.FactSupply[config]) error {
@@ -698,7 +848,8 @@ func TestShellCompletionExporterBypassesBusinessExecution(t *testing.T) {
 			return nil
 		})},
 		Notify: func(context.Context, cli.Notice) error { noticeCalls++; return nil },
-	}); err != nil {
+	}
+	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatalf("Run exporter: %v", err)
 	}
 	if output.String() != shellCompletionTestArtifact {
@@ -756,7 +907,9 @@ func shellCompletionCatalogNames(t *testing.T, app cli.Application) []string {
 
 func TestShellCompletionCatalogDefaultAndSubsetPreserveIdentityAndOrder(t *testing.T) {
 	t.Parallel()
-	defaultApp, err := cli.Compile(cli.Definition[struct{}]{Name: shellCompletionTestApplicationName})
+	defaultApp, err := cli.Compile(cli.Definition[struct{}]{
+		Name: shellCompletionTestApplicationName,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -787,7 +940,9 @@ func TestShellCompletionCatalogDefaultAndSubsetPreserveIdentityAndOrder(t *testi
 
 func TestShellCompletionIntrinsicIsVisibleToStaticAndCompletionProjections(t *testing.T) {
 	t.Parallel()
-	app, err := cli.Compile(cli.Definition[struct{}]{Name: shellCompletionTestApplicationName})
+	app, err := cli.Compile(cli.Definition[struct{}]{
+		Name: shellCompletionTestApplicationName,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -802,18 +957,21 @@ func TestShellCompletionIntrinsicIsVisibleToStaticAndCompletionProjections(t *te
 	if !found {
 		t.Fatal("static schema does not contain completion intrinsic")
 	}
-	completion, err := shellCompletionComplete(t, app, cli.CompletionRequest{
+	completionRequest := cli.CompletionRequest{
 		Args: []string{"comp"},
 		Cursor: cli.CompletionCursor{
 			Argument: 0,
 			Byte:     4,
 		},
 		Visibility: cli.CompletionVisibilityPublic,
-		Client: cli.CompletionClient{Match: cli.CompletionMatchOptions{
-			Mode: cli.CompletionMatchModePrefix,
-			Case: cli.CompletionCaseSmart,
-		}},
-	})
+		Client: cli.CompletionClient{
+			Match: cli.CompletionMatchOptions{
+				Mode: cli.CompletionMatchModePrefix,
+				Case: cli.CompletionCaseSmart,
+			},
+		},
+	}
+	completion, err := shellCompletionComplete(t, app, completionRequest)
 	if err != nil {
 		t.Fatalf("Complete: %v", err)
 	}

@@ -66,10 +66,11 @@ func declareSubcommandHelpGroup[C any](subcommands *Subcommands[C], title string
 		grouped.helpGroup = group
 		declare(&grouped)
 	}
-	return helpGroupDeclaration{
+	declaration := helpGroupDeclaration{
 		session: subcommands.session,
 		group:   group,
 	}
+	return declaration
 }
 
 func declareFlagHelpGroup[C any](flags *Flags[C], title string, declare func(*Flags[C])) helpGroupDeclaration {
@@ -82,10 +83,11 @@ func declareFlagHelpGroup[C any](flags *Flags[C], title string, declare func(*Fl
 		grouped.helpGroup = group
 		declare(&grouped)
 	}
-	return helpGroupDeclaration{
+	declaration := helpGroupDeclaration{
 		session: flags.session,
 		group:   group,
 	}
+	return declaration
 }
 
 type helpGroupAcceptanceKey struct {
@@ -277,20 +279,22 @@ func acceptHelpCommandEntry(entry CommandEntryID) helpCommandGroupEntry {
 	if !entry.present() {
 		panic("semantic: invalid help command-entry identity")
 	}
-	return helpCommandGroupEntry{
+	groupEntry := helpCommandGroupEntry{
 		kind:  HelpCommandGroupEntryCommandEntry,
 		entry: entry,
 	}
+	return groupEntry
 }
 
 func acceptHelpProviderEntry(provider CommandProviderID) helpCommandGroupEntry {
 	if !provider.present() {
 		panic("semantic: invalid help provider identity")
 	}
-	return helpCommandGroupEntry{
+	entry := helpCommandGroupEntry{
 		kind:     HelpCommandGroupEntryCommandProvider,
 		provider: provider,
 	}
+	return entry
 }
 
 func (entry helpCommandGroupEntry) Kind() HelpCommandGroupEntryKind { return entry.kind }

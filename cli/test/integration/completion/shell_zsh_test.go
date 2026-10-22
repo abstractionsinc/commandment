@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -16,15 +16,21 @@ import (
 
 func testZsh(t *testing.T, matrix []completionMatrixRow) {
 	t.Run("4.0.1", func(t *testing.T) {
+		t.Parallel()
 		runtimePath := completionRuntime(t, matrix, "zsh", "4.0.1")
-		result := shelltest.Complete(t, compileShellCommandApplication(t), zshTarget(runtimePath), shelltest.Input{BeforeCursor: "alienctl ana"})
+		result := shelltest.Complete(t, compileShellCommandApplication(t), zshTarget(runtimePath), shelltest.Input{
+			BeforeCursor: "alienctl ana",
+		})
 		requireRuntimeVersion(t, result, "4.0.1")
 		requireScreenContains(t, result, "analyze")
 	})
 
 	t.Run("5.9.2", func(t *testing.T) {
+		t.Parallel()
 		runtimePath := completionRuntime(t, matrix, "zsh", "5.9.2")
-		result := shelltest.Complete(t, compileShellValueApplication(t, completeZshSpecimens), zshTarget(runtimePath), shelltest.Input{BeforeCursor: "alienctl c"})
+		result := shelltest.Complete(t, compileShellValueApplication(t, completeZshSpecimens), zshTarget(runtimePath), shelltest.Input{
+			BeforeCursor: "alienctl c",
+		})
 		requireRuntimeVersion(t, result, "5.9.2")
 		requireScreenContains(t, result, "primary bovine", "duplicate bovine", "Lifeforms % literal", "Evidence % literal")
 		requireScreenOccurrences(t, result, "cow", 2)
@@ -32,33 +38,53 @@ func testZsh(t *testing.T, matrix []completionMatrixRow) {
 }
 
 func completeZshSpecimens(context.Context, *specimenConfig, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-	return cli.CompletionContribution{
+	contribution := cli.CompletionContribution{
 		Candidates: []cli.CompletionCandidate{
-			{Value: "cow", Description: "primary bovine", GroupID: "life%forms"},
-			{Value: "cow", Description: "duplicate bovine", GroupID: "life%forms"},
-			{Value: "crop", Description: "field evidence", GroupID: "evidence%set"},
+			{
+				Value:       "cow",
+				Description: "primary bovine",
+				GroupID:     "life%forms",
+			},
+			{
+				Value:       "cow",
+				Description: "duplicate bovine",
+				GroupID:     "life%forms",
+			},
+			{
+				Value:       "crop",
+				Description: "field evidence",
+				GroupID:     "evidence%set",
+			},
 		},
 		Groups: []cli.CompletionGroup{
-			{ID: "life%forms", Label: "Lifeforms % literal"},
-			{ID: "evidence%set", Label: "Evidence % literal"},
+			{
+				ID:    "life%forms",
+				Label: "Lifeforms % literal",
+			},
+			{
+				ID:    "evidence%set",
+				Label: "Evidence % literal",
+			},
 		},
-	}, nil
+	}
+	return contribution, nil
 }
 
 func zshTarget(executable string) shelltest.Target[shellObservation] {
-	return shelltest.Target[shellObservation]{
-		Provider: cli.Shell.Zsh,
-		Runtime: shelltest.Runtime{
-			Executable:  executable,
-			VersionArgs: []string{"--version"},
-			ParseVersion: func(output string) (string, error) {
-				fields := strings.Fields(output)
-				if len(fields) < 2 || fields[0] != "zsh" {
-					return "", errors.New("Zsh version token missing")
-				}
-				return fields[1], nil
-			},
+	runtime := shelltest.Runtime{
+		Executable:  executable,
+		VersionArgs: []string{"--version"},
+		ParseVersion: func(output string) (string, error) {
+			fields := strings.Fields(output)
+			if len(fields) < 2 || fields[0] != "zsh" {
+				return "", errors.New("Zsh version token missing")
+			}
+			return fields[1], nil
 		},
+	}
+	target := shelltest.Target[shellObservation]{
+		Provider: cli.Shell.Zsh,
+		Runtime:  runtime,
 		Prepare: func(setup shelltest.Setup) error {
 			integration := setup.IntegrationFile("completion.zsh")
 			root := zshInstallRoot(setup.Executable())
@@ -66,7 +92,7 @@ func zshTarget(executable string) shelltest.Target[shellObservation] {
 			if err != nil {
 				return fmt.Errorf("locate Zsh completion functions: %w", err)
 			}
-			sort.Strings(functions)
+			slices.Sort(functions)
 			modules, err := zshModuleRoots(root)
 			if err != nil {
 				return err
@@ -104,6 +130,7 @@ func zshTarget(executable string) shelltest.Target[shellObservation] {
 		},
 		Interpret: interpretShellObservation,
 	}
+	return target
 }
 
 func zshInstallRoot(executable string) string {
@@ -133,7 +160,7 @@ func zshModuleRoots(root string) ([]string, error) {
 			modules = append(modules, candidate)
 		}
 	}
-	sort.Strings(modules)
+	slices.Sort(modules)
 	return modules, nil
 }
 

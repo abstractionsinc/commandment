@@ -495,10 +495,11 @@ func formatErrorString(state fmt.State, verb rune, text string) {
 // optional underlying cause. The payload is detached so later caller mutation
 // cannot alter extraction.
 func retainDiagnosticFailure(payload payload, cause error) error {
-	return &diagnosticFailureError{
+	failure := &diagnosticFailureError{
 		payload: clonePayload(payload),
 		cause:   cause,
 	}
+	return failure
 }
 
 // extract returns the deterministic source-closed report from every frontend
@@ -590,29 +591,35 @@ func validateDiagnosticMetadata(diagnostic diagnostic) error {
 		}
 	}
 	if diagnostic.ProducerKind != "" && !validDiagnosticProducerKind(diagnostic.ProducerKind) {
-		return diagnosticEnumError{
+		failure := diagnosticEnumError{
 			field: "producer kind",
 			value: string(diagnostic.ProducerKind),
 		}
+		return failure
 	}
 	if diagnostic.Tier != "" && !validDiagnosticResolutionTier(diagnostic.Tier) {
-		return diagnosticEnumError{
+		failure := diagnosticEnumError{
 			field: "resolution tier",
 			value: string(diagnostic.Tier),
 		}
+		return failure
 	}
 	if diagnostic.Disposition != "" && !validDiagnosticDisposition(diagnostic.Disposition) {
-		return diagnosticEnumError{
+		failure := diagnosticEnumError{
 			field: "candidate disposition",
 			value: string(diagnostic.Disposition),
 		}
+		return failure
 	}
 	if err := validateDiagnosticDeclarationIdentity(diagnostic.Declaration); err != nil {
 		return err
 	}
 	if diagnostic.Replacement != nil {
 		if err := validateDiagnosticDeclarationIdentity(diagnostic.Replacement.Target); err != nil {
-			return diagnosticReplacementTargetError{cause: err}
+			failure := diagnosticReplacementTargetError{
+				cause: err,
+			}
+			return failure
 		}
 	}
 	if diagnostic.ProviderOutput != nil {
@@ -662,10 +669,11 @@ func validateDiagnosticRuleFailure(rule analysisDiagnosticRuleFailure) error {
 		return errDiagnosticInvalidRuleIdentityKind
 	}
 	if rule.ViolationKind != "" && !validDiagnosticViolationKind(rule.ViolationKind) {
-		return diagnosticEnumError{
+		failure := diagnosticEnumError{
 			field: "violation kind",
 			value: string(rule.ViolationKind),
 		}
+		return failure
 	}
 	if slices.Contains(rule.Subjects, 0) {
 		return errDiagnosticInvalidZeroRuleSubject
@@ -900,10 +908,11 @@ func validateDiagnosticDeclarationIdentity(identity analysisDiagnosticDeclaratio
 			return errDiagnosticValueDomainEntryIdentityMissingID
 		}
 	default:
-		return diagnosticEnumError{
+		failure := diagnosticEnumError{
 			field: "declaration kind",
 			value: string(identity.Kind),
 		}
+		return failure
 	}
 	return nil
 }

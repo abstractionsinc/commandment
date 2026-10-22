@@ -15,7 +15,10 @@ func TestMiddlewareWrapsTheHandler(t *testing.T) {
 		t.Fatalf("Compile() error = %v", err)
 	}
 	var output bytes.Buffer
-	request := cli.RunRequest{Args: []string{"scan", "mars"}, Stdout: &output}
+	request := cli.RunRequest{
+		Args:   []string{"scan", "mars"},
+		Stdout: &output,
+	}
 	if err := app.Run(t.Context(), request); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}

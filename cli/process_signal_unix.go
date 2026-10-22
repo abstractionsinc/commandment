@@ -42,19 +42,21 @@ func processSignalReraise(processSignal os.Signal) error {
 	}
 	process, err := os.FindProcess(os.Getpid())
 	if err != nil {
-		return &processSignalError{
+		failure := &processSignalError{
 			operation: "find current process for signal reraise",
 			cause:     err,
 		}
+		return failure
 	}
 	// Reset before signaling so the terminal reraise cannot be recaptured by
 	// Commandment's own os/signal subscription.
 	signal.Reset(native)
 	if err := process.Signal(native); err != nil {
-		return &processSignalError{
+		failure := &processSignalError{
 			operation: "reraise process signal",
 			cause:     err,
 		}
+		return failure
 	}
 
 	// A successful process signal reports delivery, not process termination.

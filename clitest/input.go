@@ -36,35 +36,40 @@ type TokenLocator struct {
 // InputSourceID is artifact-local, so this human locator uses the public source kind and rejects ambiguity instead of
 // manufacturing cross-operation identity.
 func InputSource(kind cli.InputKind) InputSourceLocator {
-	return InputSourceLocator{
-		state: &inputSourceLocatorState{
-			mode: inputSourceLocatorKind,
-			kind: kind,
-		},
+	state := &inputSourceLocatorState{
+		mode: inputSourceLocatorKind,
+		kind: kind,
 	}
+	locator := InputSourceLocator{
+		state: state,
+	}
+	return locator
 }
 
 // InputSourceByKey returns an input-source locator selecting exactly one observed source with kind and key.
 // Key is source metadata used to disambiguate within the current detached observation; it is not a declaration
 // identity.
 func InputSourceByKey(kind cli.InputKind, key string) InputSourceLocator {
-	return InputSourceLocator{
-		state: &inputSourceLocatorState{
-			mode: inputSourceLocatorKindKey,
-			kind: kind,
-			key:  key,
-		},
+	state := &inputSourceLocatorState{
+		mode: inputSourceLocatorKindKey,
+		kind: kind,
+		key:  key,
 	}
+	locator := InputSourceLocator{
+		state: state,
+	}
+	return locator
 }
 
 // InspectionObservedInputSourcesExactly returns an Inspection expectation that the sources of kind present in the
 // returned Inspection source map have exactly the supplied distinct semantic members.
 // The expectation concerns observed map membership; InputSource map iteration order is not semantic.
 func InspectionObservedInputSourcesExactly(kind cli.InputKind, sources ...InputSourceLocator) InspectionExpectation {
-	return inspectionObservedInputSourcesExpectation{
+	expectation := inspectionObservedInputSourcesExpectation{
 		kind:    kind,
 		sources: slices.Clone(sources),
 	}
+	return expectation
 }
 
 // InputSourceByID returns an exact expected coordinate for the structured input source with id in the same diagnostic report;
@@ -343,35 +348,51 @@ type tokenLocatorState struct {
 }
 
 func inputSourceByID(id cli.InputSourceID) InputSourceLocator {
-	return InputSourceLocator{state: &inputSourceLocatorState{
+	state := &inputSourceLocatorState{
 		mode: inputSourceLocatorID,
 		id:   id,
-	}}
+	}
+	locator := InputSourceLocator{
+		state: state,
+	}
+	return locator
 }
 
 func inputOriginByID(id cli.InputOriginID) InputOriginLocator {
-	return InputOriginLocator{state: &inputOriginLocatorState{
+	state := &inputOriginLocatorState{
 		mode: inputOriginLocatorID,
 		id:   id,
-	}}
+	}
+	locator := InputOriginLocator{
+		state: state,
+	}
+	return locator
 }
 
 func originSourceLocator(origin InputOriginLocator) InputSourceLocator {
 	if origin.state == nil {
 		return InputSourceLocator{}
 	}
-	return InputSourceLocator{state: &inputSourceLocatorState{
+	state := &inputSourceLocatorState{
 		mode:   inputSourceLocatorOrigin,
 		origin: origin.state,
-	}}
+	}
+	locator := InputSourceLocator{
+		state: state,
+	}
+	return locator
 }
 
 func originParentByIndex(origin InputOriginLocator, index int) InputOriginLocator {
-	return InputOriginLocator{state: &inputOriginLocatorState{
+	state := &inputOriginLocatorState{
 		mode:   inputOriginLocatorParentIndex,
 		parent: origin.state,
 		index:  index,
-	}}
+	}
+	locator := InputOriginLocator{
+		state: state,
+	}
+	return locator
 }
 
 func resolveOriginID(report cli.DiagnosticReport, id cli.InputOriginID, label evaluationField) originResolution {
@@ -677,63 +698,71 @@ func equalReplacements(a, b []cli.InputReplacement) bool {
 }
 
 func inputSourcePresentExpectation(locator InputSourceLocator) OutcomeExpectation {
-	return inputSourceExpectation{
+	expectation := inputSourceExpectation{
 		locator: locator.state,
 		kind:    inputSourceExpectationPresent,
 	}
+	return expectation
 }
 
 func inputSourceKindExpectation(locator InputSourceLocator, kind cli.InputKind) OutcomeExpectation {
-	return inputSourceExpectation{
+	expectation := inputSourceExpectation{
 		locator:   locator.state,
 		kind:      inputSourceExpectationKindValue,
 		inputKind: kind,
 	}
+	return expectation
 }
 
 func inputSourceSensitiveExpectation(locator InputSourceLocator) OutcomeExpectation {
-	return inputSourceExpectation{
+	expectation := inputSourceExpectation{
 		locator: locator.state,
 		kind:    inputSourceExpectationSensitive,
 	}
+	return expectation
 }
 
 func inputSourceKeyExpectation(locator InputSourceLocator, key string) OutcomeExpectation {
-	return inputSourceExpectation{
+	expectation := inputSourceExpectation{
 		locator: locator.state,
 		kind:    inputSourceExpectationKey,
 		text:    key,
 	}
+	return expectation
 }
 
 func inputSourceLocationExpectation(locator InputSourceLocator, location string) OutcomeExpectation {
-	return inputSourceExpectation{
+	expectation := inputSourceExpectation{
 		locator: locator.state,
 		kind:    inputSourceExpectationLocation,
 		text:    location,
 	}
+	return expectation
 }
 
 func inputSourceShortcutExpectation(locator InputSourceLocator, shortcut CommandEntryLocator) OutcomeExpectation {
-	return inputSourceExpectation{
+	expectation := inputSourceExpectation{
 		locator:  locator.state,
 		kind:     inputSourceExpectationShortcut,
 		shortcut: shortcut.state,
 	}
+	return expectation
 }
 
 func inputOriginPresentExpectation(locator InputOriginLocator) OutcomeExpectation {
-	return inputOriginExpectation{
+	expectation := inputOriginExpectation{
 		locator: locator.state,
 		kind:    inputOriginExpectationPresent,
 	}
+	return expectation
 }
 
 func inputOriginSensitiveExpectation(locator InputOriginLocator) OutcomeExpectation {
-	return inputOriginExpectation{
+	expectation := inputOriginExpectation{
 		locator: locator.state,
 		kind:    inputOriginExpectationSensitive,
 	}
+	return expectation
 }
 
 func inputOriginParentsExactlyExpectation(locator InputOriginLocator, parents []InputOriginLocator) OutcomeExpectation {
@@ -741,19 +770,21 @@ func inputOriginParentsExactlyExpectation(locator InputOriginLocator, parents []
 	for i, parent := range parents {
 		states[i] = parent.state
 	}
-	return inputOriginExpectation{
+	expectation := inputOriginExpectation{
 		locator: locator.state,
 		kind:    inputOriginExpectationParents,
 		parents: states,
 	}
+	return expectation
 }
 
 func inputOriginSpanExpectation(locator InputOriginLocator, span cli.InputSpan) OutcomeExpectation {
-	return inputOriginExpectation{
+	expectation := inputOriginExpectation{
 		locator: locator.state,
 		kind:    inputOriginExpectationSpan,
 		span:    span,
 	}
+	return expectation
 }
 
 func locatorInputOriginIDs(locators []InputOriginLocator) ([]cli.InputOriginID, bool) {
@@ -839,10 +870,11 @@ func locatorDeclarationIdentityValue(locator DeclarationIdentityLocator) (cli.De
 }
 
 func tokenOwnerExpectation(locator TokenLocator, owner TokenOwner) InspectionExpectation {
-	return tokenOwnerExpectationValue{
+	value := tokenOwnerExpectationValue{
 		token: locator.state,
 		owner: owner,
 	}
+	return value
 }
 
 func observedInputSourcesExactly(report cli.DiagnosticReport, kind cli.InputKind, expected []InputSourceLocator) evaluationResult {
@@ -978,7 +1010,9 @@ func (e inputOriginExpectation) evaluate(r originResolution, report cli.Diagnost
 	case inputOriginExpectationParents:
 		expected = evaluationText("exact origin parents in authoritative order")
 	case inputOriginExpectationSpan:
-		expected = qualifySubject(evaluationText("origin span"), inputSpanField{value: e.span})
+		expected = qualifySubject(evaluationText("origin span"), inputSpanField{
+			value: e.span,
+		})
 	default:
 	}
 	if r.status != locatorResolutionFound {
@@ -1008,7 +1042,10 @@ func (e inputOriginExpectation) evaluate(r originResolution, report cli.Diagnost
 		if r.value.Span == e.span {
 			return provedResult()
 		}
-		return disprovedResult(r.label, expected, redactedOutcomeField(r.value.Sensitive, inputSpanField{value: r.value.Span}))
+		field := inputSpanField{
+			value: r.value.Span,
+		}
+		return disprovedResult(r.label, expected, redactedOutcomeField(r.value.Sensitive, field))
 	default:
 		panic("clitest: invalid input-origin expectation")
 	}
@@ -1149,7 +1186,9 @@ func (expectation tokenOwnerExpectationValue) evaluateInspection(inspection cli.
 			return disprovedResult(label, evaluationText(expect), declarationActual)
 		}
 		matched = token.Declaration == declaration
-		actual = declarationIdentityField{value: token.Declaration}
+		actual = declarationIdentityField{
+			value: token.Declaration,
+		}
 
 	case FactLocator:
 		id, ownerStatus, ownerDetail := resolveInspectionFactID(owner.state, inspection)

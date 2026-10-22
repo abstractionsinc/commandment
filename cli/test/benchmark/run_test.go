@@ -76,11 +76,7 @@ func runMiddlewarePathApplication(b testing.TB, middleware, depth int) runMiddle
 	return runMiddlewareApplication(b, middleware, depth, runMiddlewareSlice)
 }
 
-func runMiddlewareApplication(
-	b testing.TB,
-	middleware, depth int,
-	middlewareSlice func(int) []cli.Middleware[emptyConfig],
-) runMiddlewareFixture {
+func runMiddlewareApplication(b testing.TB, middleware, depth int, middlewareSlice func(int) []cli.Middleware[emptyConfig]) runMiddlewareFixture {
 	b.Helper()
 	base := middleware / depth
 	extra := middleware % depth
@@ -92,10 +88,14 @@ func runMiddlewareApplication(
 		return count
 	}
 	definition := cli.Definition[emptyConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
-		Middleware:      middlewareSlice(countForLevel(0)),
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Middleware: middlewareSlice(countForLevel(0)),
 	}
 	if depth == 1 {
 		definition.Run = func(context.Context, *emptyConfig) error { return nil }
@@ -112,22 +112,19 @@ func runMiddlewareApplication(
 	for level := range depth - 1 {
 		args[level] = fmt.Sprintf("level-%03d", level+1)
 	}
-	return runMiddlewareFixture{
-		app: app,
-		request: cli.RunRequest{
-			Args: args,
-		},
+	request := cli.RunRequest{
+		Args: args,
+	}
+	fixture := runMiddlewareFixture{
+		app:        app,
+		request:    request,
 		middleware: middleware,
 		depth:      depth,
 	}
+	return fixture
 }
 
-func declareRunMiddlewarePath(
-	parent *cli.CommandBuilder[emptyConfig],
-	depth, level int,
-	countForLevel func(int) int,
-	middlewareSlice func(int) []cli.Middleware[emptyConfig],
-) {
+func declareRunMiddlewarePath(parent *cli.CommandBuilder[emptyConfig], depth, level int, countForLevel func(int) int, middlewareSlice func(int) []cli.Middleware[emptyConfig]) {
 	command := cli.Command[emptyConfig]{
 		Name:       fmt.Sprintf("level-%03d", level),
 		Middleware: middlewareSlice(countForLevel(level)),
@@ -154,7 +151,9 @@ func runMiddlewarePreflight(b testing.TB, fixture runMiddlewareFixture) {
 		parts = append(parts, fmt.Sprintf("level-%03d", level))
 		path = append(path, clitest.Command(parts...))
 	}
-	inspectionRequest := cli.InspectionRequest{Args: fixture.request.Args}
+	inspectionRequest := cli.InspectionRequest{
+		Args: fixture.request.Args,
+	}
 	clitest.Inspect(b.Context(), fixture.app, inspectionRequest).Require(b,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(path...),

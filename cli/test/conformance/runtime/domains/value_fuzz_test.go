@@ -54,9 +54,11 @@ func FuzzValueLanguageAndFiniteDomainProperties(f *testing.F) {
 		Format:   strings.ToLower,
 		Snapshot: cli.Value.Assign[string](),
 	}
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := cli.Value.Domain(cli.Value.Assign[string](), func(builder *cli.ValueDomainBuilder[string]) {
 				canonical := builder.Value("prod", "production")
@@ -72,7 +74,8 @@ func FuzzValueLanguageAndFiniteDomainProperties(f *testing.F) {
 			root.Flags.ValueFor(mode).Long("mode")
 			root.Values.Environment(labels, "TOOL_LABELS").KeyedEntries(",")
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		f.Fatalf("Compile() error = %v", err)
 	}

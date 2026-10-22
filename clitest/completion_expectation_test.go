@@ -332,7 +332,9 @@ func TestSelectionExpectationsUseAuthoritativeSelection(t *testing.T) {
 				Path: []string{"serve"},
 			},
 		},
-		Origins: map[cli.InputOriginID]cli.InputOrigin{origin: {ID: origin}},
+		Origins: map[cli.InputOriginID]cli.InputOrigin{origin: {
+			ID: origin,
+		}},
 		Selection: cli.InvocationSelection{
 			Command: cli.CommandSelection{
 				Root:     1,
@@ -513,67 +515,115 @@ func TestCompletionPropertyExpectationsMatchObservedCompletion(t *testing.T) {
 		mismatch CompletionExpectation
 	}{
 		{
-			"target command path",
-			CompletionTargetAt(0).CommandPathExactly("serve"),
-			CompletionTargetAt(0).CommandPathExactly("other"),
-		},
-		{"target term index", CompletionTargetAt(2).TermIndex(2), CompletionTargetAt(2).TermIndex(1)},
-		{
-			"target flag value form",
-			CompletionTargetAt(1).FlagValueForm(cli.FlagValueFormSeparate),
-			CompletionTargetAt(1).FlagValueForm(cli.FlagValueFormJoined),
-		},
-		{"target occurrence", CompletionTargetAt(1).Occurrence(2), CompletionTargetAt(1).Occurrence(1)},
-		{
-			"item display text",
-			CompletionItem("serve").DisplayText("Serve"),
-			CompletionItem("serve").DisplayText("Other"),
+			name:     "target command path",
+			match:    CompletionTargetAt(0).CommandPathExactly("serve"),
+			mismatch: CompletionTargetAt(0).CommandPathExactly("other"),
 		},
 		{
-			"item description",
-			CompletionItem("serve").Description("start the server"),
-			CompletionItem("serve").Description("other"),
-		},
-		{"item detail", CompletionItem("serve").Detail("serve detail"), CompletionItem("serve").Detail("other")},
-		{
-			"item search terms",
-			CompletionItem("serve").SearchTermsExactly("serve", "start"),
-			CompletionItem("serve").SearchTermsExactly("start", "serve"),
-		},
-		{"item sort text", CompletionItem("serve").SortText("01-serve"), CompletionItem("serve").SortText("02-serve")},
-		{
-			"item commit characters",
-			CompletionItem("serve").CommitCharactersExactly(' ', '/'),
-			CompletionItem("serve").CommitCharactersExactly('/'),
+			name:     "target term index",
+			match:    CompletionTargetAt(2).TermIndex(2),
+			mismatch: CompletionTargetAt(2).TermIndex(1),
 		},
 		{
-			"match field",
-			CompletionItem("serve").MatchField(cli.CompletionMatchFieldSearchTerm),
-			CompletionItem("serve").MatchField(cli.CompletionMatchFieldValue),
-		},
-		{"match field index", CompletionItem("serve").MatchFieldIndex(1), CompletionItem("serve").MatchFieldIndex(0)},
-		{"match score", CompletionItem("serve").MatchScore(88), CompletionItem("serve").MatchScore(87)},
-		{"match ranges", CompletionItem("serve").MatchRangesExactly(completionRange), CompletionItem("serve").MatchRangesExactly(mismatchRange)},
-		{"match edits", CompletionItem("serve").MatchEdits(1), CompletionItem("serve").MatchEdits(2)},
-		{
-			"item group",
-			CompletionItem("serve").Group(CompletionGroup("commands")),
-			CompletionItem("serve").Group(CompletionGroup("values")),
-		},
-		{"group label", CompletionGroup("commands").Label("Commands"), CompletionGroup("commands").Label("Other")},
-		{
-			"group membership",
-			CompletionGroup("values").ItemsExactly(CompletionItem("8080"), CompletionItem("stdin")),
-			CompletionGroup("values").ItemsExactly(CompletionItem("stdin"), CompletionItem("8080")),
+			name:     "target flag value form",
+			match:    CompletionTargetAt(1).FlagValueForm(cli.FlagValueFormSeparate),
+			mismatch: CompletionTargetAt(1).FlagValueForm(cli.FlagValueFormJoined),
 		},
 		{
-			"group membership count",
-			CompletionGroup("commands").ItemsExactly(CompletionItem("serve")),
-			CompletionGroup("commands").ItemsExactly(),
+			name:     "target occurrence",
+			match:    CompletionTargetAt(1).Occurrence(2),
+			mismatch: CompletionTargetAt(1).Occurrence(1),
 		},
-		{"messages", CompletionMessagesExactly(result.Messages...), CompletionMessagesExactly(message, result.Messages[1])},
-		{"message count", CompletionMessagesExactly(result.Messages...), CompletionMessagesExactly(result.Messages[0])},
-		{"operation replacement", CompletionReplace(result.Replace), CompletionReplace(completionSpan)},
+		{
+			name:     "item display text",
+			match:    CompletionItem("serve").DisplayText("Serve"),
+			mismatch: CompletionItem("serve").DisplayText("Other"),
+		},
+		{
+			name:     "item description",
+			match:    CompletionItem("serve").Description("start the server"),
+			mismatch: CompletionItem("serve").Description("other"),
+		},
+		{
+			name:     "item detail",
+			match:    CompletionItem("serve").Detail("serve detail"),
+			mismatch: CompletionItem("serve").Detail("other"),
+		},
+		{
+			name:     "item search terms",
+			match:    CompletionItem("serve").SearchTermsExactly("serve", "start"),
+			mismatch: CompletionItem("serve").SearchTermsExactly("start", "serve"),
+		},
+		{
+			name:     "item sort text",
+			match:    CompletionItem("serve").SortText("01-serve"),
+			mismatch: CompletionItem("serve").SortText("02-serve"),
+		},
+		{
+			name:     "item commit characters",
+			match:    CompletionItem("serve").CommitCharactersExactly(' ', '/'),
+			mismatch: CompletionItem("serve").CommitCharactersExactly('/'),
+		},
+		{
+			name:     "match field",
+			match:    CompletionItem("serve").MatchField(cli.CompletionMatchFieldSearchTerm),
+			mismatch: CompletionItem("serve").MatchField(cli.CompletionMatchFieldValue),
+		},
+		{
+			name:     "match field index",
+			match:    CompletionItem("serve").MatchFieldIndex(1),
+			mismatch: CompletionItem("serve").MatchFieldIndex(0),
+		},
+		{
+			name:     "match score",
+			match:    CompletionItem("serve").MatchScore(88),
+			mismatch: CompletionItem("serve").MatchScore(87),
+		},
+		{
+			name:     "match ranges",
+			match:    CompletionItem("serve").MatchRangesExactly(completionRange),
+			mismatch: CompletionItem("serve").MatchRangesExactly(mismatchRange),
+		},
+		{
+			name:     "match edits",
+			match:    CompletionItem("serve").MatchEdits(1),
+			mismatch: CompletionItem("serve").MatchEdits(2),
+		},
+		{
+			name:     "item group",
+			match:    CompletionItem("serve").Group(CompletionGroup("commands")),
+			mismatch: CompletionItem("serve").Group(CompletionGroup("values")),
+		},
+		{
+			name:     "group label",
+			match:    CompletionGroup("commands").Label("Commands"),
+			mismatch: CompletionGroup("commands").Label("Other"),
+		},
+		{
+			name:     "group membership",
+			match:    CompletionGroup("values").ItemsExactly(CompletionItem("8080"), CompletionItem("stdin")),
+			mismatch: CompletionGroup("values").ItemsExactly(CompletionItem("stdin"), CompletionItem("8080")),
+		},
+		{
+			name:     "group membership count",
+			match:    CompletionGroup("commands").ItemsExactly(CompletionItem("serve")),
+			mismatch: CompletionGroup("commands").ItemsExactly(),
+		},
+		{
+			name:     "messages",
+			match:    CompletionMessagesExactly(result.Messages...),
+			mismatch: CompletionMessagesExactly(message, result.Messages[1]),
+		},
+		{
+			name:     "message count",
+			match:    CompletionMessagesExactly(result.Messages...),
+			mismatch: CompletionMessagesExactly(result.Messages[0]),
+		},
+		{
+			name:     "operation replacement",
+			match:    CompletionReplace(result.Replace),
+			mismatch: CompletionReplace(completionSpan),
+		},
 	}
 
 	for _, test := range tests {
@@ -874,7 +924,9 @@ func TestCompletionLocatorPropertyAndSelectionStepContracts(t *testing.T) {
 
 	origin := cli.InputOriginID{}
 	selection := cli.Completion{
-		Origins: map[cli.InputOriginID]cli.InputOrigin{origin: {ID: origin}},
+		Origins: map[cli.InputOriginID]cli.InputOrigin{origin: {
+			ID: origin,
+		}},
 		Selection: cli.CommandSelection{
 			Root:     1,
 			Selected: 2,
@@ -1129,7 +1181,9 @@ func TestCompletionNativeRequestKindPreservesRedaction(t *testing.T) {
 	t.Parallel()
 
 	result := completionCapabilityFixture()
-	result.NativeRequests = []cli.CompletionNativeRequest{{Kind: cli.CompletionNativeFiles}}
+	result.NativeRequests = []cli.CompletionNativeRequest{{
+		Kind: cli.CompletionNativeFiles,
+	}}
 	outcome := evaluateCompletionExpectation(
 		t,
 		CompletionNativeRequestAt(0).Kind(cli.CompletionNativeDirectories),
@@ -1144,7 +1198,9 @@ func TestCompletionNativeRequestModePreservesRedaction(t *testing.T) {
 	t.Parallel()
 
 	result := completionCapabilityFixture()
-	result.NativeRequests = []cli.CompletionNativeRequest{{Mode: cli.CompletionNativeAlways}}
+	result.NativeRequests = []cli.CompletionNativeRequest{{
+		Mode: cli.CompletionNativeAlways,
+	}}
 	outcome := evaluateCompletionExpectation(
 		t,
 		CompletionNativeRequestAt(0).Mode(cli.CompletionNativeOnNoMatch),
@@ -1159,7 +1215,9 @@ func TestCompletionNativeRequestBoolPreservesRedaction(t *testing.T) {
 	t.Parallel()
 
 	result := completionCapabilityFixture()
-	result.NativeRequests = []cli.CompletionNativeRequest{{Conditional: false}}
+	result.NativeRequests = []cli.CompletionNativeRequest{{
+		Conditional: false,
+	}}
 	outcome := evaluateCompletionExpectation(t, CompletionNativeRequestAt(0).Conditional(), result)
 	if outcome.status != evaluationDisproved || renderEvaluationField(outcome.observed) == "" {
 		t.Fatalf("native bool mismatch = %#v", outcome)
@@ -1480,7 +1538,9 @@ func TestCompletionExpectationsConserveNegativeAndExactBoundaryStates(t *testing
 	}
 
 	groupResult := cli.Completion{
-		Groups: []cli.CompletionGroup{{ID: "group"}},
+		Groups: []cli.CompletionGroup{{
+			ID: "group",
+		}},
 	}
 	groupSensitiveExpectation, ok := completionGroupSensitiveExpectation(
 		CompletionGroupAt(0),
@@ -1497,7 +1557,9 @@ func TestCompletionExpectationsConserveNegativeAndExactBoundaryStates(t *testing
 			Value:         "item",
 			TargetIndexes: []int{0},
 		}},
-		Targets: []cli.CompletionTarget{{Kind: cli.CompletionTargetCommand}},
+		Targets: []cli.CompletionTarget{{
+			Kind: cli.CompletionTargetCommand,
+		}},
 	}
 	if got := (completionItemTargetsExpectationValue{
 		item: CompletionItemAt(0).state,

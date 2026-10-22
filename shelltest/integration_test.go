@@ -25,7 +25,9 @@ func TestCompleteUsesRealBashEditorAndExactSuppliedApplication(t *testing.T) {
 	}
 	app := compileRemoteApplication(t)
 	target := bashTarget[string](bash, cli.Shell.Bash)
-	got := Complete(t, app, target, Input{BeforeCursor: "alienctl re"})
+	got := Complete(t, app, target, Input{
+		BeforeCursor: "alienctl re",
+	})
 	if !strings.Contains(got, "remote") {
 		t.Fatalf("settled Bash screen does not contain completed remote command: %q", got)
 	}
@@ -48,7 +50,9 @@ func TestCompleteOperationsAreIsolated(t *testing.T) {
 	for index := range 2 {
 		t.Run(fmt.Sprintf("operation-%d", index), func(t *testing.T) {
 			t.Parallel()
-			got := Complete(t, app, target, Input{BeforeCursor: "alienctl re"})
+			got := Complete(t, app, target, Input{
+				BeforeCursor: "alienctl re",
+			})
 			if got == "" {
 				t.Fatal("isolated operation lost verified runtime version")
 			}
@@ -76,7 +80,7 @@ func TestApplicationBridgeRequiresCausalCompletionEventAndClosesListener(t *test
 	if err == nil {
 		t.Fatal("bridge accepted completion without an application transport event")
 	}
-	cleanupContext, cleanupCancel := context.WithTimeout(context.Background(), time.Second)
+	cleanupContext, cleanupCancel := context.WithTimeout(t.Context(), time.Second)
 	if err := bridge.cleanup(cleanupContext); err != nil {
 		cleanupCancel()
 		t.Fatal(err)
@@ -95,7 +99,9 @@ func compileRemoteApplication(t testing.TB) cli.Application {
 	app, err := cli.Compile(cli.Definition[struct{}]{
 		Name: "alienctl",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
-			root.Subcommands.Command(cli.Command[struct{}]{Name: "remote"})
+			root.Subcommands.Command(cli.Command[struct{}]{
+				Name: "remote",
+			})
 		},
 	})
 	if err != nil {
@@ -105,23 +111,24 @@ func compileRemoteApplication(t testing.TB) cli.Application {
 }
 
 func bashTarget[R any](executable string, provider cli.ShellCompletionProvider) Target[R] {
-	return Target[R]{
-		Provider: provider,
-		Runtime: Runtime{
-			Executable:  executable,
-			VersionArgs: []string{"--version"},
-			ParseVersion: func(output string) (string, error) {
-				_, versionOutput, ok := strings.Cut(output, "version ")
-				if !ok {
-					return "", errors.New("Bash version marker missing")
-				}
-				fields := strings.Fields(versionOutput)
-				if len(fields) == 0 {
-					return "", errors.New("Bash version token missing")
-				}
-				return fields[0], nil
-			},
+	runtime := Runtime{
+		Executable:  executable,
+		VersionArgs: []string{"--version"},
+		ParseVersion: func(output string) (string, error) {
+			_, versionOutput, ok := strings.Cut(output, "version ")
+			if !ok {
+				return "", errors.New("Bash version marker missing")
+			}
+			fields := strings.Fields(versionOutput)
+			if len(fields) == 0 {
+				return "", errors.New("Bash version token missing")
+			}
+			return fields[0], nil
 		},
+	}
+	target := Target[R]{
+		Provider: provider,
+		Runtime:  runtime,
 		Prepare: func(setup Setup) error {
 			integration := setup.IntegrationFile("completion.bash")
 			rc := setup.File("bashrc", "source "+bashQuote(integration)+"\n")
@@ -147,6 +154,7 @@ func bashTarget[R any](executable string, provider cli.ShellCompletionProvider) 
 			return result, nil
 		},
 	}
+	return target
 }
 
 func bashQuote(value string) string {

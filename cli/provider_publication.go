@@ -562,15 +562,25 @@ func stageProviderDeclarations(declarations *batchDeclarations, metadata applica
 		if !ok || !validSemanticDialectInput(dialect) || !selector.ID().present() {
 			panic("cli: validated provider grammar profile cannot be published")
 		}
-		draft.GrammarProfileCase(
-			profile,
-			selector,
-			recordValue.value,
-			profileSwitch.equal,
-			recordValue.defaultCase,
-			dialect,
-			state.position,
-		)
+		if recordValue.defaultCase {
+			draft.GrammarProfileDefaultCase(
+				profile,
+				selector,
+				recordValue.value,
+				profileSwitch.equal,
+				dialect,
+				state.position,
+			)
+		} else {
+			draft.GrammarProfileCase(
+				profile,
+				selector,
+				recordValue.value,
+				profileSwitch.equal,
+				dialect,
+				state.position,
+			)
+		}
 	}
 
 	for index := range len(declarations.order) {

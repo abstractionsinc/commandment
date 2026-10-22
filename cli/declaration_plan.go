@@ -42,6 +42,22 @@ type declarationPlan struct {
 	finalPosition   declarationPosition
 }
 
+func compareDeclarationPlanRecords(left, right declarationPlanRecord) int {
+	if order := cmp.Compare(left.position, right.position); order != 0 {
+		return order
+	}
+	if left.kind != right.kind {
+		if left.kind == declarationRecordDestination {
+			return -1
+		}
+		if right.kind == declarationRecordDestination {
+			return 1
+		}
+		return cmp.Compare(left.kind, right.kind)
+	}
+	return cmp.Compare(left.familyIndex, right.familyIndex)
+}
+
 func (input declarationPlan) positionFor(index int) declarationPosition {
 	if index < 0 {
 		return 0
@@ -65,11 +81,12 @@ func declarationRefAt[T any](draft *declarationDraft, family *declarationFamily[
 		return draftRef[T]{}
 	}
 	entry := family.entries[index]
-	return draftRef[T]{
+	ref := draftRef[T]{
 		draft:      draft.identity,
 		index:      index,
 		generation: entry.generation,
 	}
+	return ref
 }
 
 func (draft *declarationDraft) declarationPlan() (declarationPlan, error) {
@@ -283,21 +300,7 @@ func (draft *declarationDraft) declarationPlan() (declarationPlan, error) {
 		})
 	}
 
-	slices.SortFunc(records, func(left, right declarationPlanRecord) int {
-		if order := cmp.Compare(left.position, right.position); order != 0 {
-			return order
-		}
-		if left.kind != right.kind {
-			if left.kind == declarationRecordDestination {
-				return -1
-			}
-			if right.kind == declarationRecordDestination {
-				return 1
-			}
-			return cmp.Compare(left.kind, right.kind)
-		}
-		return cmp.Compare(left.familyIndex, right.familyIndex)
-	})
+	slices.SortFunc(records, compareDeclarationPlanRecords)
 	for index, record := range records {
 		if record.position == 0 {
 			return input, errInvalidAuthoringTransaction

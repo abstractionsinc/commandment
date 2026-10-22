@@ -26,7 +26,10 @@ func rejectProviderBatch(cause error) error {
 	if cause == nil {
 		return errInvalidProviderBatch
 	}
-	return providerBatchRejectionError{cause: cause}
+	failure := providerBatchRejectionError{
+		cause: cause,
+	}
+	return failure
 }
 
 type providerCommandTarget interface {
@@ -118,7 +121,10 @@ func batchRefAt[T any](index int) batchRef[T] {
 	if index < 0 || index >= math.MaxUint32 {
 		panic("cli: invalid provider batch reference")
 	}
-	return batchRef[T]{index: uint32(index + 1)}
+	ref := batchRef[T]{
+		index: uint32(index + 1),
+	}
+	return ref
 }
 
 func (ref batchRef[T]) valid() bool { return ref.index != 0 }
@@ -709,14 +715,20 @@ func (path CommandPath) providerCommandTargetFor(_ *declarationSession) (provide
 	if len(path) == 0 || slices.Contains(path, "") {
 		return nil, false
 	}
-	return pathTarget{path: slices.Clone(path)}, true
+	target := pathTarget{
+		path: slices.Clone(path),
+	}
+	return target, true
 }
 
 func (declaration CommandDeclaration[C]) providerCommandTargetFor(session *declarationSession) (providerCommandTarget, bool) {
 	if session == nil || declaration.session != session || !declaration.command.valid() {
 		return nil, false
 	}
-	return stagedCommandTarget{command: declaration.command}, true
+	target := stagedCommandTarget{
+		command: declaration.command,
+	}
+	return target, true
 }
 
 func providerBatchCommand[C, T any](batch *CommandBatch[C], command Command[T], source []SourceOption) CommandDeclaration[C] {
@@ -811,7 +823,9 @@ func providerBatchShortcut[C any](batch *CommandBatch[C], target CommandTarget, 
 	if batch == nil || batch.session == nil {
 		panicBuilderMisuse()
 	}
-	binding := CommandShortcutBinding{session: batch.session}
+	binding := CommandShortcutBinding{
+		session: batch.session,
+	}
 	batch.session.useProvider(func(declarations *declarationDraft, transaction *providerBatchDraft, _ commandRef) {
 		position := declarations.nextPosition()
 		resolved, ok := resolveProviderCommandTarget(batch.session, target)

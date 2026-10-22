@@ -50,41 +50,46 @@ const (
 )
 
 func scalarBoolValue(value bool) scalar {
-	return scalar{
+	result := scalar{
 		kind: scalarBool,
 		b:    value,
 	}
+	return result
 }
 
 func scalarIntValue(value int64) scalar {
-	return scalar{
+	result := scalar{
 		kind: scalarInt,
 		i:    value,
 	}
+	return result
 }
 
 func scalarUintValue(value uint64) scalar {
-	return scalar{
+	result := scalar{
 		kind: scalarUint,
 		u:    value,
 	}
+	return result
 }
 
 func scalarStringValue(value string) scalar {
-	return scalar{
+	result := scalar{
 		kind: scalarString,
 		s:    value,
 	}
+	return result
 }
 
 func scalarFloatValue(value float64) (scalar, bool) {
 	if math.IsNaN(value) {
 		return scalar{}, false
 	}
-	return scalar{
+	result := scalar{
 		kind: scalarFloat,
 		u:    math.Float64bits(value),
-	}, true
+	}
+	return result, true
 }
 
 func (value scalar) valid() bool { return value.kind != scalarInvalid }
@@ -170,20 +175,23 @@ type proofCondition struct {
 }
 
 func always() proofCondition {
-	return proofCondition{
+	condition := proofCondition{
 		kind: conditionTrue,
 	}
+	return condition
 }
 
 func resolved(destination ValueID) proofCondition {
 	mustProofDestination(destination)
-	return proofCondition{
-		kind: conditionAtom,
-		atom: atom{
-			kind:        atomResolved,
-			destination: destination,
-		},
+	predicate := atom{
+		kind:        atomResolved,
+		destination: destination,
 	}
+	condition := proofCondition{
+		kind: conditionAtom,
+		atom: predicate,
+	}
+	return condition
 }
 
 func equal(destination ValueID, value scalar) proofCondition {
@@ -223,14 +231,16 @@ func matches(destination ValueID, pattern string) (proofCondition, bool) {
 	if _, err := regexp.Compile(pattern); err != nil {
 		return proofCondition{}, false
 	}
-	return proofCondition{
+	predicate := atom{
+		kind:        atomMatches,
+		destination: destination,
+		pattern:     pattern,
+	}
+	condition := proofCondition{
 		kind: conditionAtom,
-		atom: atom{
-			kind:        atomMatches,
-			destination: destination,
-			pattern:     pattern,
-		},
-	}, true
+		atom: predicate,
+	}
+	return condition, true
 }
 
 func scalarAtom(kind atomKind, destination ValueID, values []scalar) proofCondition {
@@ -240,14 +250,16 @@ func scalarAtom(kind atomKind, destination ValueID, values []scalar) proofCondit
 			panic("accept: invalid proof scalar")
 		}
 	}
-	return proofCondition{
-		kind: conditionAtom,
-		atom: atom{
-			kind:        kind,
-			destination: destination,
-			values:      append([]scalar(nil), values...),
-		},
+	predicate := atom{
+		kind:        kind,
+		destination: destination,
+		values:      append([]scalar(nil), values...),
 	}
+	condition := proofCondition{
+		kind: conditionAtom,
+		atom: predicate,
+	}
+	return condition
 }
 
 func all(first proofCondition, rest ...proofCondition) proofCondition {
@@ -256,10 +268,11 @@ func all(first proofCondition, rest ...proofCondition) proofCondition {
 	for _, child := range rest {
 		children = append(children, cloneCondition(child))
 	}
-	return proofCondition{
+	condition := proofCondition{
 		kind:     semanticConditionAll,
 		children: children,
 	}
+	return condition
 }
 
 func anyCondition(first proofCondition, rest ...proofCondition) proofCondition {
@@ -268,17 +281,19 @@ func anyCondition(first proofCondition, rest ...proofCondition) proofCondition {
 	for _, child := range rest {
 		children = append(children, cloneCondition(child))
 	}
-	return proofCondition{
+	condition := proofCondition{
 		kind:     semanticConditionAny,
 		children: children,
 	}
+	return condition
 }
 
 func not(condition proofCondition) proofCondition {
-	return proofCondition{
+	proof := proofCondition{
 		kind:     semanticConditionNot,
 		children: []proofCondition{cloneCondition(condition)},
 	}
+	return proof
 }
 
 func cloneCondition(condition proofCondition) proofCondition {

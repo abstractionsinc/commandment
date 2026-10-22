@@ -58,90 +58,107 @@ func (locator FlagLocator) Value() ValueLocator { return flagValueLocator(locato
 // Exists returns an expectation that checks the located flag exists. Positive existence may be
 // satisfied by truthful partial output when the subject is present.
 func (locator FlagLocator) Exists() DeclarationExpectation {
-	return flagExistenceExpectation{
+	expectation := flagExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located flag does not exist; an incomplete
 // observation cannot establish absence.
 func (locator FlagLocator) DoesNotExist() DeclarationExpectation {
-	return flagExistenceExpectation{
+	expectation := flagExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Required returns an expectation that checks the located flag is required.
 func (locator FlagLocator) Required() DeclarationExpectation {
-	return flagRequiredExpectationValue{locator: locator.state}
+	value := flagRequiredExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Hidden returns an expectation that checks the located flag is marked hidden by the public
 // Commandment observation.
 func (locator FlagLocator) Hidden() DeclarationExpectation {
-	return flagHiddenExpectationValue{locator: locator.state}
+	value := flagHiddenExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Sensitive returns an expectation that checks the located flag is marked sensitive. Expectation failure
 // preserves Commandment redaction and does not expose secret material.
 func (locator FlagLocator) Sensitive() DeclarationExpectation {
-	return flagSensitiveExpectationValue{locator: locator.state}
+	value := flagSensitiveExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 // Lifecycle returns an expectation that checks the located flag has the expected effective
 // lifecycle state; this is distinct from release-lifecycle metadata.
 func (locator FlagLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return flagLifecycleExpectationValue{
+	value := flagLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the located flag replacement points to the exact
 // declaration identified by v, using public declaration identity rather than presentation text.
 func (locator FlagLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return flagReplacementExpectationValue{
+	value := flagReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located flag is available in the applicable
 // public observation.
 func (locator FlagLocator) Available() EffectiveDeclarationExpectation {
-	return flagAvailabilityExpectation{
+	expectation := flagAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located flag is unavailable in the applicable
 // public observation.
 func (locator FlagLocator) Unavailable() EffectiveDeclarationExpectation {
-	return flagAvailabilityExpectation{
+	expectation := flagAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Visible returns an expectation that checks the located flag is visible in the applicable public
 // observation.
 func (locator FlagLocator) Visible() EffectiveDeclarationExpectation {
-	return flagVisibilityExpectation{
+	expectation := flagVisibilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // NotVisible returns an expectation that checks the located flag is not visible in the applicable
 // public observation.
 func (locator FlagLocator) NotVisible() EffectiveDeclarationExpectation {
-	return flagVisibilityExpectation{
+	expectation := flagVisibilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // SpellingsExactly returns an expectation that checks the located flag's flag spellings are
@@ -152,139 +169,159 @@ func (locator FlagLocator) SpellingsExactly(v ...FlagSpellingLocator) Declaratio
 	for index, locator := range v {
 		expected[index] = locator.state
 	}
-	return flagSpellingsExpectationValue{
+	value := flagSpellingsExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 // Present returns an expectation that checks the located flag is present in the analyzed
 // invocation, independently of whether its declaration merely exists.
 func (locator FlagLocator) Present() InspectionExpectation {
-	return flagPresenceExpectationValue{
+	value := flagPresenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // Absent returns an expectation that checks the located flag is absent from the analyzed
 // invocation; incomplete invocation evidence cannot be treated as fabricated absence.
 func (locator FlagLocator) Absent() InspectionExpectation {
-	return flagPresenceExpectationValue{
+	value := flagPresenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // LocaleSelector returns a reusable declaration expectation that checks the public
 // locale-selector state exposed by the located flag.
 func (locator FlagLocator) LocaleSelector() DeclarationExpectation {
-	return flagCorePropertyExpectation{
+	expectation := flagCorePropertyExpectation{
 		locator: locator.state,
 		kind:    flagCorePropertyLocaleSelector,
 	}
+	return expectation
 }
 
 // Occurrences returns a reusable declaration expectation that checks the public occurrence
 // range exposed by the located flag.
 func (locator FlagLocator) Occurrences(expected cli.CountRange) DeclarationExpectation {
-	return flagCorePropertyExpectation{
+	expectation := flagCorePropertyExpectation{
 		locator: locator.state,
 		kind:    flagCorePropertyOccurrences,
 		count:   expected,
 	}
+	return expectation
 }
 
 // ValuesPerOccurrence returns a reusable declaration expectation that checks the public
 // values-per-occurrence range exposed by the located flag.
 func (locator FlagLocator) ValuesPerOccurrence(expected cli.CountRange) DeclarationExpectation {
-	return flagCorePropertyExpectation{
+	expectation := flagCorePropertyExpectation{
 		locator: locator.state,
 		kind:    flagCorePropertyValuesPerOccurrence,
 		count:   expected,
 	}
+	return expectation
 }
 
 // Placement returns a reusable declaration expectation that checks the public placement exposed
 // by the located flag.
 func (locator FlagLocator) Placement(expected cli.FlagPlacement) DeclarationExpectation {
-	return flagCorePropertyExpectation{
+	expectation := flagCorePropertyExpectation{
 		locator:   locator.state,
 		kind:      flagCorePropertyPlacement,
 		placement: expected,
 	}
+	return expectation
 }
 
 // ValueName returns a reusable declaration expectation that checks the public value name
 // exposed by the located flag.
 func (locator FlagLocator) ValueName(expected string) DeclarationExpectation {
-	return flagCorePropertyExpectation{
+	expectation := flagCorePropertyExpectation{
 		locator: locator.state,
 		kind:    flagCorePropertyValueName,
 		text:    expected,
 	}
+	return expectation
 }
 
 // Description returns a reusable declaration expectation that checks the public description
 // exposed by the located flag.
 func (locator FlagLocator) Description(expected string) DeclarationExpectation {
-	return flagCorePropertyExpectation{
+	expectation := flagCorePropertyExpectation{
 		locator: locator.state,
 		kind:    flagCorePropertyDescription,
 		text:    expected,
 	}
+	return expectation
 }
 
 // Completion returns a locator that follows the public completion relationship from the located
 // flag. The returned locator carries locator coordinates, not observed state.
 func (locator FlagLocator) Completion() CompletionDeclarationLocator {
-	return CompletionDeclarationLocator{state: &completionDeclarationLocatorState{
+	state := &completionDeclarationLocatorState{
 		mode: completionDeclarationLocatorFlag,
 		flag: locator.state,
-	}}
+	}
+	completionDeclarationLocator := CompletionDeclarationLocator{
+		state: state,
+	}
+	return completionDeclarationLocator
 }
 
 // Origin returns an expectation that checks the located flag has the framework-established
 // DeclarationOrigin expected.
 func (locator FlagLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return flagOriginExpectation{
+	expectation := flagOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located flag has the exact public
 // release-lifecycle metadata expected.
 func (locator FlagLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return flagReleaseLifecycleExpectation{
+	expectation := flagReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located flag has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator FlagLocator) NotReplaced() DeclarationExpectation {
-	return flagReplacementAbsenceExpectation{locator: locator.state}
+	expectation := flagReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located flag replacement carries
 // the expected public presentation text.
 func (locator FlagLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return flagReplacementPresentationExpectation{
+	expectation := flagReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located flag
 // replacement carries the expected migration-deprecation marker.
 func (locator FlagLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return flagReplacementTargetDeprecatedExpectation{
+	expectation := flagReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 func (FlagSpellingLocator) declarationIdentityLocator() {}
@@ -298,180 +335,205 @@ func (FlagSpellingLocator) tokenOwner() {}
 // Exists returns an expectation that checks the located flag spelling exists. Positive existence
 // may be satisfied by truthful partial output when the subject is present.
 func (locator FlagSpellingLocator) Exists() DeclarationExpectation {
-	return flagSpellingExistenceExpectation{
+	expectation := flagSpellingExistenceExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // DoesNotExist returns an expectation that checks the located flag spelling does not exist; an
 // incomplete observation cannot establish absence.
 func (locator FlagSpellingLocator) DoesNotExist() DeclarationExpectation {
-	return flagSpellingExistenceExpectation{
+	expectation := flagSpellingExistenceExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Kind returns an expectation that checks the located flag spelling has the expected public kind.
 func (locator FlagSpellingLocator) Kind(v cli.FlagSpellingKind) DeclarationExpectation {
-	return flagSpellingKindExpectationValue{
+	value := flagSpellingKindExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Lifecycle returns an expectation that checks the located flag spelling has the expected
 // effective lifecycle state; this is distinct from release-lifecycle metadata.
 func (locator FlagSpellingLocator) Lifecycle(v cli.LifecycleState) DeclarationExpectation {
-	return flagSpellingLifecycleExpectationValue{
+	value := flagSpellingLifecycleExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ReplacedBy returns an expectation that checks the located flag spelling replacement points to
 // the exact declaration identified by v, using public declaration identity rather than
 // presentation text.
 func (locator FlagSpellingLocator) ReplacedBy(v DeclarationIdentityLocator) DeclarationExpectation {
-	return flagSpellingReplacementExpectationValue{
+	value := flagSpellingReplacementExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // Available returns an expectation that checks the located flag spelling is available in the
 // applicable public observation.
 func (locator FlagSpellingLocator) Available() EffectiveDeclarationExpectation {
-	return flagSpellingAvailabilityExpectation{
+	expectation := flagSpellingAvailabilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // Unavailable returns an expectation that checks the located flag spelling is unavailable in the
 // applicable public observation.
 func (locator FlagSpellingLocator) Unavailable() EffectiveDeclarationExpectation {
-	return flagSpellingAvailabilityExpectation{
+	expectation := flagSpellingAvailabilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Visible returns an expectation that checks the located flag spelling is visible in the
 // applicable public observation.
 func (locator FlagSpellingLocator) Visible() EffectiveDeclarationExpectation {
-	return flagSpellingVisibilityExpectation{
+	expectation := flagSpellingVisibilityExpectation{
 		locator:  locator.state,
 		expected: true,
 	}
+	return expectation
 }
 
 // NotVisible returns an expectation that checks the located flag spelling is not visible in the
 // applicable public observation.
 func (locator FlagSpellingLocator) NotVisible() EffectiveDeclarationExpectation {
-	return flagSpellingVisibilityExpectation{
+	expectation := flagSpellingVisibilityExpectation{
 		locator:  locator.state,
 		expected: false,
 	}
+	return expectation
 }
 
 // Present returns an expectation that checks the located flag spelling is present in the analyzed
 // invocation, independently of whether its declaration merely exists.
 func (locator FlagSpellingLocator) Present() InspectionExpectation {
-	return flagSpellingPresenceExpectationValue{
+	value := flagSpellingPresenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // Absent returns an expectation that checks the located flag spelling is absent from the analyzed
 // invocation; incomplete invocation evidence cannot be treated as fabricated absence.
 func (locator FlagSpellingLocator) Absent() InspectionExpectation {
-	return flagSpellingPresenceExpectationValue{
+	value := flagSpellingPresenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Hidden returns a reusable declaration expectation that checks the public hidden state exposed
 // by the located flag spelling.
 func (locator FlagSpellingLocator) Hidden() DeclarationExpectation {
-	return flagSpellingCorePropertyExpectation{
+	expectation := flagSpellingCorePropertyExpectation{
 		locator: locator.state,
 		kind:    flagSpellingCorePropertyHidden,
 	}
+	return expectation
 }
 
 // Sensitive returns a reusable declaration expectation that checks the located flag spelling is
 // marked sensitive. Expectation failures preserve Commandment redaction boundaries.
 func (locator FlagSpellingLocator) Sensitive() DeclarationExpectation {
-	return flagSpellingCorePropertyExpectation{
+	expectation := flagSpellingCorePropertyExpectation{
 		locator: locator.state,
 		kind:    flagSpellingCorePropertySensitive,
 	}
+	return expectation
 }
 
 // FixedValue returns a locator that follows the public fixed value relationship from the
 // located flag spelling. The returned locator carries locator coordinates, not observed state.
 func (locator FlagSpellingLocator) FixedValue() DeclarationValueLiteralLocator {
-	return DeclarationValueLiteralLocator{state: &declarationValueLiteralLocatorState{
+	state := &declarationValueLiteralLocatorState{
 		mode:         declarationValueLiteralLocatorFlagFixedValue,
 		flagSpelling: locator.state,
-	}}
+	}
+	declarationValueLiteralLocator := DeclarationValueLiteralLocator{
+		state: state,
+	}
+	return declarationValueLiteralLocator
 }
 
 // ValueFormsExactly returns a reusable declaration expectation that checks the complete flag
 // value-form sequence exactly in authoritative public order.
 func (locator FlagSpellingLocator) ValueFormsExactly(expected ...cli.FlagValueForm) DeclarationExpectation {
-	return flagSpellingCorePropertyExpectation{
+	expectation := flagSpellingCorePropertyExpectation{
 		locator:    locator.state,
 		kind:       flagSpellingCorePropertyValueForms,
 		valueForms: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // Origin returns an expectation that checks the located flag spelling has the
 // framework-established DeclarationOrigin expected.
 func (locator FlagSpellingLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return flagSpellingOriginExpectation{
+	expectation := flagSpellingOriginExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReleaseLifecycle returns an expectation that checks the located flag spelling has the exact
 // public release-lifecycle metadata expected.
 func (locator FlagSpellingLocator) ReleaseLifecycle(expected cli.ReleaseLifecycle) DeclarationExpectation {
-	return flagSpellingReleaseLifecycleExpectation{
+	expectation := flagSpellingReleaseLifecycleExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // NotReplaced returns an expectation that checks the located flag spelling has no public
 // declaration-replacement relationship. Incomplete observation cannot manufacture replacement
 // absence.
 func (locator FlagSpellingLocator) NotReplaced() DeclarationExpectation {
-	return flagSpellingReplacementAbsenceExpectation{locator: locator.state}
+	expectation := flagSpellingReplacementAbsenceExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // ReplacementPresentation returns an expectation that checks the located flag spelling replacement
 // carries the expected public presentation text.
 func (locator FlagSpellingLocator) ReplacementPresentation(expected string) DeclarationExpectation {
-	return flagSpellingReplacementPresentationExpectation{
+	expectation := flagSpellingReplacementPresentationExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // ReplacementTargetDeprecatedDuringMigration returns an expectation that checks the located flag
 // spelling replacement carries the expected migration-deprecation marker.
 func (locator FlagSpellingLocator) ReplacementTargetDeprecatedDuringMigration(expected bool) DeclarationExpectation {
-	return flagSpellingReplacementTargetDeprecatedExpectation{
+	expectation := flagSpellingReplacementTargetDeprecatedExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // Flag returns a locator for the uniquely resolved flag named name under the located command.
@@ -487,10 +549,11 @@ func (l CommandLocator) FlagAt(index int) FlagLocator {
 // supplied locators in authoritative public order. Exactness is not inferred from an incomplete
 // observation.
 func (l CommandLocator) FlagsExactly(values ...FlagLocator) DeclarationExpectation {
-	return commandFlagsExpectation{
+	expectation := commandFlagsExpectation{
 		command: l.state,
 		items:   flagLocatorStates(values),
 	}
+	return expectation
 }
 
 type commandFlagsExpectation struct {
@@ -697,42 +760,62 @@ func flagLocatorStates(values []FlagLocator) []*flagLocatorState {
 }
 
 func commandFlagLocator(parent CommandLocator, name string) FlagLocator {
-	return FlagLocator{state: &flagLocatorState{
+	state := &flagLocatorState{
 		mode:    flagLocatorName,
 		command: parent.state,
 		name:    name,
-	}}
+	}
+	locator := FlagLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandFlagAtLocator(parent CommandLocator, index int) FlagLocator {
-	return FlagLocator{state: &flagLocatorState{
+	state := &flagLocatorState{
 		mode:    flagLocatorIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := FlagLocator{
+		state: state,
+	}
+	return locator
 }
 
 func flagSpellingLocator(parent FlagLocator, text string) FlagSpellingLocator {
-	return FlagSpellingLocator{state: &flagSpellingLocatorState{
+	state := &flagSpellingLocatorState{
 		mode: flagSpellingLocatorText,
 		flag: parent.state,
 		text: text,
-	}}
+	}
+	locator := FlagSpellingLocator{
+		state: state,
+	}
+	return locator
 }
 
 func flagSpellingAtLocator(parent FlagLocator, index int) FlagSpellingLocator {
-	return FlagSpellingLocator{state: &flagSpellingLocatorState{
+	state := &flagSpellingLocatorState{
 		mode:  flagSpellingLocatorIndex,
 		flag:  parent.state,
 		index: index,
-	}}
+	}
+	locator := FlagSpellingLocator{
+		state: state,
+	}
+	return locator
 }
 
 func flagValueLocator(parent FlagLocator) ValueLocator {
-	return ValueLocator{state: &valueLocatorState{
+	state := &valueLocatorState{
 		mode: valueLocatorFlag,
 		flag: parent.state,
-	}}
+	}
+	locator := ValueLocator{
+		state: state,
+	}
+	return locator
 }
 
 func flagLocatorLabel(state *flagLocatorState) evaluationField {
@@ -994,10 +1077,11 @@ func selectSchemaFlag(state *flagLocatorState, ids []cli.FlagID, schema *cli.Sch
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  flagAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("flag lookup domain is incomplete")
@@ -1048,10 +1132,11 @@ func selectReferenceFlag(state *flagLocatorState, ids []cli.FlagID, reference cl
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  flagAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("flag lookup domain is incomplete")
@@ -1102,10 +1187,11 @@ func selectInspectionFlag(state *flagLocatorState, ids []cli.FlagID, inspection 
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  flagAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("flag lookup domain is incomplete")
@@ -1366,10 +1452,11 @@ func selectSchemaFlagSpelling(state *flagSpellingLocatorState, ids []cli.FlagSpe
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  flagSpellingAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("flag-spelling lookup domain is incomplete")
@@ -1411,10 +1498,11 @@ func selectReferenceFlagSpelling(state *flagSpellingLocatorState, ids []cli.Flag
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  flagSpellingAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("flag-spelling lookup domain is incomplete")
@@ -1456,10 +1544,11 @@ func selectInspectionFlagSpelling(state *flagSpellingLocatorState, ids []cli.Fla
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  flagSpellingAmbiguityDetail,
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		if missingDetail || !complete {
 			return 0, locatorResolutionNotProvable, evaluationText("flag-spelling lookup domain is incomplete")
@@ -1577,25 +1666,34 @@ func evaluateFlagSpellingReplacementPresentationInspection(expectation flagSpell
 }
 
 func flagIDLocator(id cli.FlagID) FlagLocator {
-	return FlagLocator{state: &flagLocatorState{
+	state := &flagLocatorState{
 		mode: flagLocatorID,
 		id:   id,
-	}}
+	}
+	locator := FlagLocator{
+		state: state,
+	}
+	return locator
 }
 
 func flagSpellingIDLocator(id cli.FlagSpellingID) FlagSpellingLocator {
-	return FlagSpellingLocator{state: &flagSpellingLocatorState{
+	state := &flagSpellingLocatorState{
 		mode: flagSpellingLocatorID,
 		id:   id,
-	}}
+	}
+	locator := FlagSpellingLocator{
+		state: state,
+	}
+	return locator
 }
 
 func tokenFlagValueFormExpectation(locator TokenLocator, form cli.FlagValueForm) InspectionExpectation {
-	return tokenExpectation{
+	expectation := tokenExpectation{
 		locator:       locator.state,
 		kind:          tokenExpectationFlagValueForm,
 		flagValueForm: form,
 	}
+	return expectation
 }
 
 func (commandFlagsExpectation) schemaExpectation() {}
@@ -1779,19 +1877,37 @@ func (flagReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation flagReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaFlagLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation flagReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceFlagLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation flagReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionFlagLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (flagReplacementAbsenceExpectation) schemaExpectation() {}
@@ -1890,19 +2006,37 @@ func (flagSpellingReleaseLifecycleExpectation) inspectionExpectation() {}
 func (expectation flagSpellingReleaseLifecycleExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolution := resolveSchemaFlagSpellingLocator(expectation.locator, schema)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation flagSpellingReleaseLifecycleExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolution := resolveReferenceFlagSpellingLocator(expectation.locator, reference)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (expectation flagSpellingReleaseLifecycleExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolution := resolveInspectionFlagSpellingLocator(expectation.locator, inspection)
 	actual := resolution.value.Release
-	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, releaseLifecycleField{value: expectation.expected}, releaseLifecycleField{value: actual}, actual == expectation.expected)
+	field := releaseLifecycleField{
+		value: expectation.expected,
+	}
+	observedField := releaseLifecycleField{
+		value: actual,
+	}
+	return declarationResolvedComparison(resolution.status, qualifySubject(resolution.subject, evaluationText("release lifecycle")), resolution.detail, field, observedField, actual == expectation.expected)
 }
 
 func (flagSpellingReplacementAbsenceExpectation) schemaExpectation() {}
@@ -2393,7 +2527,13 @@ func (expectation helpFlagExpectation) evaluateHelp(page cli.HelpPage) evaluatio
 		if equalHelpFlagSpelling(flag.ActionSpelling, expectation.spelling) {
 			return provedResult()
 		}
-		return helpPropertyMismatch(subject, "action-spelling", flagSpellingField{value: expectation.spelling}, flagSpellingField{value: flag.ActionSpelling})
+		field := flagSpellingField{
+			value: expectation.spelling,
+		}
+		observedField := flagSpellingField{
+			value: flag.ActionSpelling,
+		}
+		return helpPropertyMismatch(subject, "action-spelling", field, observedField)
 	case helpFlagDescription:
 		if flag.Description == expectation.text {
 			return provedResult()
@@ -2403,7 +2543,13 @@ func (expectation helpFlagExpectation) evaluateHelp(page cli.HelpPage) evaluatio
 		if slices.Equal(flag.OwnerPath, expectation.path) {
 			return provedResult()
 		}
-		return helpPropertyMismatch(subject, "owner-path", stringCollectionField{values: expectation.path}, stringCollectionField{values: flag.OwnerPath})
+		field := stringCollectionField{
+			values: expectation.path,
+		}
+		observedField := stringCollectionField{
+			values: flag.OwnerPath,
+		}
+		return helpPropertyMismatch(subject, "owner-path", field, observedField)
 	case helpFlagPlacement:
 		if flag.Placement == expectation.placement {
 			return provedResult()
@@ -2450,11 +2596,17 @@ func (expectation helpFlagExpectation) flagExpected() evaluationField {
 	case helpFlagSpellingCount:
 		return property(evaluationText("spelling-count"), evaluationText(strconv.Itoa(expectation.count)))
 	case helpFlagActionSpelling:
-		return property(evaluationText("action-spelling"), flagSpellingField{value: expectation.spelling})
+		field := flagSpellingField{
+			value: expectation.spelling,
+		}
+		return property(evaluationText("action-spelling"), field)
 	case helpFlagDescription:
 		return property(evaluationText("description"), evaluationText(expectation.text))
 	case helpFlagOwnerPath:
-		return property(evaluationText("owner-path"), stringCollectionField{values: expectation.path})
+		field := stringCollectionField{
+			values: expectation.path,
+		}
+		return property(evaluationText("owner-path"), field)
 	case helpFlagPlacement:
 		return property(evaluationText("placement"), evaluationText(fmt.Sprint(expectation.placement)))
 	case helpFlagHidden:
@@ -2486,7 +2638,13 @@ func (expectation helpFlagSpellingExpectation) evaluateHelp(page cli.HelpPage) e
 		if equalHelpFlagSpelling(spelling.Spelling, expectation.spelling) {
 			return provedResult()
 		}
-		return helpPropertyMismatch(subject, "spelling", flagSpellingField{value: expectation.spelling}, flagSpellingField{value: spelling.Spelling})
+		field := flagSpellingField{
+			value: expectation.spelling,
+		}
+		observedField := flagSpellingField{
+			value: spelling.Spelling,
+		}
+		return helpPropertyMismatch(subject, "spelling", field, observedField)
 	case helpFlagSpellingLifecycle:
 		if spelling.LifecycleState == expectation.lifecycle {
 			return provedResult()
@@ -2505,7 +2663,10 @@ func (expectation helpFlagSpellingExpectation) evaluateHelp(page cli.HelpPage) e
 func (expectation helpFlagSpellingExpectation) flagSpellingExpected() evaluationField {
 	switch expectation.property {
 	case helpFlagSpellingValue:
-		return property(evaluationText("spelling"), flagSpellingField{value: expectation.spelling})
+		field := flagSpellingField{
+			value: expectation.spelling,
+		}
+		return property(evaluationText("spelling"), field)
 	case helpFlagSpellingLifecycle:
 		return property(evaluationText("lifecycle"), evaluationText(fmt.Sprint(expectation.lifecycle)))
 	case helpFlagSpellingNotReplaced:

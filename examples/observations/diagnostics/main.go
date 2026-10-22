@@ -38,7 +38,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	request := cli.RunRequest{Args: os.Args[1:]}
+	request := cli.RunRequest{
+		Args: os.Args[1:],
+	}
 	err = app.Run(context.Background(), request)
 	if err == nil {
 		return

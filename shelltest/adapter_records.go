@@ -21,7 +21,9 @@ func decodeShellAdapterRecordsRequest(reader io.Reader) (shellAdapterRequest, er
 	if err != nil || len(data) > bridgeRequestFrameLimit {
 		return shellAdapterRequest{}, errShellAdapter
 	}
-	request := shellAdapterRequest{matching: shellAdapterMatchingPrefix}
+	request := shellAdapterRequest{
+		matching: shellAdapterMatchingPrefix,
+	}
 	var shellSeen, inputSeen, matchingSeen, responseSeen bool
 	ended := false
 	for len(data) != 0 {
@@ -316,10 +318,11 @@ func writeShellAdapterRecord(writer io.Writer, kind string, fields ...string) er
 		return errShellAdapter
 	}
 	if _, err := io.WriteString(writer, kind); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: shellAdapterRecordWriteSubject,
 			cause:   err,
 		}
+		return failure
 	}
 	for _, field := range fields {
 		encoded, err := escapeShellAdapterField(field)
@@ -327,17 +330,19 @@ func writeShellAdapterRecord(writer io.Writer, kind string, fields ...string) er
 			return err
 		}
 		if _, err := io.WriteString(writer, "\t"+encoded); err != nil {
-			return failureError{
+			failure := failureError{
 				subject: shellAdapterRecordWriteSubject,
 				cause:   err,
 			}
+			return failure
 		}
 	}
 	if _, err := io.WriteString(writer, "\n"); err != nil {
-		return failureError{
+		failure := failureError{
 			subject: shellAdapterRecordWriteSubject,
 			cause:   err,
 		}
+		return failure
 	}
 	return nil
 }

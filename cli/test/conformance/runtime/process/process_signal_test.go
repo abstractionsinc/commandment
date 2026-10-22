@@ -24,7 +24,7 @@ func TestRunFromProcessAbortTerminatesWithSelectedCode(t *testing.T) {
 	const child = "commandment-process-abort-child"
 	if processSignalProcessTestChild(child) {
 		os.Args = []string{os.Args[0]}
-		app, err := cli.Compile(cli.Definition[struct{}]{
+		definition := cli.Definition[struct{}]{
 			Name: "tool",
 			Declare: func(root *cli.CommandBuilder[struct{}]) {
 				root.Signals.Policy(
@@ -39,7 +39,8 @@ func TestRunFromProcessAbortTerminatesWithSelectedCode(t *testing.T) {
 				<-ctx.Done()
 				return ctx.Err()
 			},
-		})
+		}
+		app, err := cli.Compile(definition)
 		if err != nil {
 			t.Fatal(err)
 		}

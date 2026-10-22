@@ -35,7 +35,9 @@ func TestPolicyAndProviderInspectionExpectations(t *testing.T) {
 					ActivationOutcome: cli.EvaluationOutcomeSatisfied,
 				}},
 				NoticeSuppressions: []cli.NoticeSuppressionInspection{
-					{ConditionOutcome: cli.EvaluationOutcomeUnsatisfied},
+					{
+						ConditionOutcome: cli.EvaluationOutcomeUnsatisfied,
+					},
 				},
 			},
 		},
@@ -233,7 +235,9 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 				Path:                  []string{},
 				NamespaceCompleteness: cli.CommandNamespaceComplete,
 				CommandProviders:      []cli.CommandProviderID{providerID},
-				Conditions:            []cli.ConditionInspection{{Outcome: cli.EvaluationOutcomeSatisfied}},
+				Conditions: []cli.ConditionInspection{{
+					Outcome: cli.EvaluationOutcomeSatisfied,
+				}},
 				Rules: []cli.RuleInspection{
 					{
 						Code:    cli.RuleCode("required"),
@@ -245,7 +249,9 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 					Outcome: cli.AdvisoryOutcomeMatched,
 				}},
 				NoticeSuppressions: []cli.NoticeSuppressionInspection{
-					{ConditionOutcome: cli.EvaluationOutcomeSatisfied},
+					{
+						ConditionOutcome: cli.EvaluationOutcomeSatisfied,
+					},
 				},
 			},
 		},
@@ -281,16 +287,52 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 		inspection cli.Inspection
 		want       locatorResolutionStatus
 	}{
-		{"invalid", nil, base, locatorResolutionInvalid},
-		{"id-found", CommandProviderByID(providerID).state, base, locatorResolutionFound},
-		{"id-absent", CommandProviderByID(99).state, base, locatorResolutionAbsent},
-		{"id-truncated", CommandProviderByID(99).state, truncated, locatorResolutionNotProvable},
-		{"index-absent", CommandByID(commandID).ProviderAt(3).state, base, locatorResolutionAbsent},
-		{"index-truncated", CommandByID(commandID).ProviderAt(3).state, truncated, locatorResolutionNotProvable},
-		{"missing-parent", CommandByID(99).ProviderAt(0).state, base, locatorResolutionAbsent},
+		{
+			name:       "invalid",
+			state:      nil,
+			inspection: base,
+			want:       locatorResolutionInvalid,
+		},
+		{
+			name:       "id-found",
+			state:      CommandProviderByID(providerID).state,
+			inspection: base,
+			want:       locatorResolutionFound,
+		},
+		{
+			name:       "id-absent",
+			state:      CommandProviderByID(99).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "id-truncated",
+			state:      CommandProviderByID(99).state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
+		{
+			name:       "index-absent",
+			state:      CommandByID(commandID).ProviderAt(3).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "index-truncated",
+			state:      CommandByID(commandID).ProviderAt(3).state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
+		{
+			name:       "missing-parent",
+			state:      CommandByID(99).ProviderAt(0).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
 	}
 	for _, tc := range providerCases {
 		t.Run("provider/"+tc.name, func(t *testing.T) {
+			t.Parallel()
 			if got := resolveInspectionCommandProviderLocator(tc.state, tc.inspection); got.status != tc.want {
 				t.Fatalf("status = %v, want %v: %#v", got.status, tc.want, got)
 			}
@@ -303,13 +345,34 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 		inspection cli.Inspection
 		want       locatorResolutionStatus
 	}{
-		{"invalid", nil, base, locatorResolutionInvalid},
-		{"missing-parent", CommandByID(99).ConditionAt(0).state, base, locatorResolutionAbsent},
-		{"absent", CommandByID(commandID).ConditionAt(3).state, base, locatorResolutionAbsent},
-		{"truncated", CommandByID(commandID).ConditionAt(3).state, truncated, locatorResolutionNotProvable},
+		{
+			name:       "invalid",
+			state:      nil,
+			inspection: base,
+			want:       locatorResolutionInvalid,
+		},
+		{
+			name:       "missing-parent",
+			state:      CommandByID(99).ConditionAt(0).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "absent",
+			state:      CommandByID(commandID).ConditionAt(3).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "truncated",
+			state:      CommandByID(commandID).ConditionAt(3).state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
 	}
 	for _, tc := range conditionCases {
 		t.Run("condition/"+tc.name, func(t *testing.T) {
+			t.Parallel()
 			if got := resolveInspectionConditionLocator(tc.state, tc.inspection); got.status != tc.want {
 				t.Fatalf("status = %v, want %v: %#v", got.status, tc.want, got)
 			}
@@ -319,9 +382,13 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 	ambiguousRules := base
 	ambiguousRules.Commands = map[cli.CommandID]cli.CommandInspection{
 		commandID: {
-			ID:    commandID,
-			Path:  []string{"serve"},
-			Rules: []cli.RuleInspection{{Code: "dup"}, {Code: "dup"}},
+			ID:   commandID,
+			Path: []string{"serve"},
+			Rules: []cli.RuleInspection{{
+				Code: "dup",
+			}, {
+				Code: "dup",
+			}},
 		},
 	}
 	ruleCases := []struct {
@@ -330,16 +397,52 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 		inspection cli.Inspection
 		want       locatorResolutionStatus
 	}{
-		{"invalid", nil, base, locatorResolutionInvalid},
-		{"missing-parent", CommandByID(99).RuleAt(0).state, base, locatorResolutionAbsent},
-		{"index-absent", CommandByID(commandID).RuleAt(3).state, base, locatorResolutionAbsent},
-		{"index-truncated", CommandByID(commandID).RuleAt(3).state, truncated, locatorResolutionNotProvable},
-		{"code-ambiguous", CommandByID(commandID).Rule("dup").state, ambiguousRules, locatorResolutionAmbiguous},
-		{"code-absent", CommandByID(commandID).Rule("missing").state, base, locatorResolutionAbsent},
-		{"code-truncated", CommandByID(commandID).Rule("missing").state, truncated, locatorResolutionNotProvable},
+		{
+			name:       "invalid",
+			state:      nil,
+			inspection: base,
+			want:       locatorResolutionInvalid,
+		},
+		{
+			name:       "missing-parent",
+			state:      CommandByID(99).RuleAt(0).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "index-absent",
+			state:      CommandByID(commandID).RuleAt(3).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "index-truncated",
+			state:      CommandByID(commandID).RuleAt(3).state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
+		{
+			name:       "code-ambiguous",
+			state:      CommandByID(commandID).Rule("dup").state,
+			inspection: ambiguousRules,
+			want:       locatorResolutionAmbiguous,
+		},
+		{
+			name:       "code-absent",
+			state:      CommandByID(commandID).Rule("missing").state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "code-truncated",
+			state:      CommandByID(commandID).Rule("missing").state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
 	}
 	for _, tc := range ruleCases {
 		t.Run("rule/"+tc.name, func(t *testing.T) {
+			t.Parallel()
 			if got := resolveInspectionRuleLocator(tc.state, tc.inspection); got.status != tc.want {
 				t.Fatalf("status = %v, want %v: %#v", got.status, tc.want, got)
 			}
@@ -364,20 +467,46 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 		inspection cli.Inspection
 		want       locatorResolutionStatus
 	}{
-		{"invalid", nil, base, locatorResolutionInvalid},
-		{"index-absent", CommandByID(commandID).AdvisoryAt(3).state, base, locatorResolutionAbsent},
-		{"index-truncated", CommandByID(commandID).AdvisoryAt(3).state, truncated, locatorResolutionNotProvable},
 		{
-			"code-ambiguous",
-			CommandByID(commandID).Advisory("dup").state,
-			ambiguousAdvisories,
-			locatorResolutionAmbiguous,
+			name:       "invalid",
+			state:      nil,
+			inspection: base,
+			want:       locatorResolutionInvalid,
 		},
-		{"code-absent", CommandByID(commandID).Advisory("missing").state, base, locatorResolutionAbsent},
-		{"code-truncated", CommandByID(commandID).Advisory("missing").state, truncated, locatorResolutionNotProvable},
+		{
+			name:       "index-absent",
+			state:      CommandByID(commandID).AdvisoryAt(3).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "index-truncated",
+			state:      CommandByID(commandID).AdvisoryAt(3).state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
+		{
+			name:       "code-ambiguous",
+			state:      CommandByID(commandID).Advisory("dup").state,
+			inspection: ambiguousAdvisories,
+			want:       locatorResolutionAmbiguous,
+		},
+		{
+			name:       "code-absent",
+			state:      CommandByID(commandID).Advisory("missing").state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "code-truncated",
+			state:      CommandByID(commandID).Advisory("missing").state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
 	}
 	for _, tc := range advisoryCases {
 		t.Run("advisory/"+tc.name, func(t *testing.T) {
+			t.Parallel()
 			if got := resolveInspectionAdvisoryLocator(tc.state, tc.inspection); got.status != tc.want {
 				t.Fatalf("status = %v, want %v: %#v", got.status, tc.want, got)
 			}
@@ -390,9 +519,24 @@ func TestPolicyMaterializationResolverNegativeAndPartialLaws(t *testing.T) {
 		inspection cli.Inspection
 		want       locatorResolutionStatus
 	}{
-		{"invalid", nil, base, locatorResolutionInvalid},
-		{"absent", CommandByID(commandID).NoticeSuppressionAt(3).state, base, locatorResolutionAbsent},
-		{"truncated", CommandByID(commandID).NoticeSuppressionAt(3).state, truncated, locatorResolutionNotProvable},
+		{
+			name:       "invalid",
+			state:      nil,
+			inspection: base,
+			want:       locatorResolutionInvalid,
+		},
+		{
+			name:       "absent",
+			state:      CommandByID(commandID).NoticeSuppressionAt(3).state,
+			inspection: base,
+			want:       locatorResolutionAbsent,
+		},
+		{
+			name:       "truncated",
+			state:      CommandByID(commandID).NoticeSuppressionAt(3).state,
+			inspection: truncated,
+			want:       locatorResolutionNotProvable,
+		},
 	}
 	for _, tc := range suppressionCases {
 		t.Run("suppression/"+tc.name, func(t *testing.T) {
@@ -432,7 +576,9 @@ func TestPolicyMaterializationMismatchRedactionAndExactnessLaws(t *testing.T) {
 					Outcome: cli.AdvisoryOutcomeMatched,
 				}},
 				NoticeSuppressions: []cli.NoticeSuppressionInspection{
-					{ConditionOutcome: cli.EvaluationOutcomeUnsatisfied},
+					{
+						ConditionOutcome: cli.EvaluationOutcomeUnsatisfied,
+					},
 				},
 			},
 		},
@@ -443,18 +589,43 @@ func TestPolicyMaterializationMismatchRedactionAndExactnessLaws(t *testing.T) {
 				CommandEntries: []cli.CommandEntryID{entryID},
 			},
 		},
-		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryInspection{entryID: {ID: entryID}},
+		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryInspection{entryID: {
+			ID: entryID,
+		}},
 	}
 	command := CommandByID(commandID)
 
-	for name, expectation := range map[string]InspectionExpectation{
-		"provider-status":  command.ProviderAt(0).Outcome(0),
-		"provider-entries": command.ProviderAt(0).EntriesExactly(CommandEntryByID(entryID + 1)),
-		"condition":        command.ConditionAt(0).Outcome(cli.EvaluationOutcomeSatisfied),
-		"rule":             command.Rule("required").Outcome(cli.EvaluationOutcomeSatisfied),
-		"advisory":         command.Advisory("warn").Outcome(0),
-		"suppression":      command.NoticeSuppressionAt(0).ConditionOutcome(cli.EvaluationOutcomeSatisfied),
+	for _, test := range []struct {
+		name        string
+		expectation InspectionExpectation
+	}{
+		{
+			name:        "provider-status",
+			expectation: command.ProviderAt(0).Outcome(0),
+		},
+		{
+			name:        "provider-entries",
+			expectation: command.ProviderAt(0).EntriesExactly(CommandEntryByID(entryID + 1)),
+		},
+		{
+			name:        "condition",
+			expectation: command.ConditionAt(0).Outcome(cli.EvaluationOutcomeSatisfied),
+		},
+		{
+			name:        "rule",
+			expectation: command.Rule("required").Outcome(cli.EvaluationOutcomeSatisfied),
+		},
+		{
+			name:        "advisory",
+			expectation: command.Advisory("warn").Outcome(0),
+		},
+		{
+			name:        "suppression",
+			expectation: command.NoticeSuppressionAt(0).ConditionOutcome(cli.EvaluationOutcomeSatisfied),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		got := inspectionExpectationOutcome(t, expectation, inspection)
 		if got.status != evaluationDisproved {
 			t.Fatalf("%s = %#v, want disproved", name, got)
@@ -478,13 +649,33 @@ func TestPolicyMaterializationMismatchRedactionAndExactnessLaws(t *testing.T) {
 		t.Fatalf("sensitive rule mismatch leaked material: %#v", rule)
 	}
 
-	for name, expectation := range map[string]InspectionExpectation{
-		"provider":    CommandProviderLocator{}.Outcome(cli.CommandProviderOutcomeAccepted),
-		"condition":   ConditionLocator{}.Outcome(cli.EvaluationOutcomeSatisfied),
-		"rule":        RuleLocator{}.Outcome(cli.EvaluationOutcomeSatisfied),
-		"advisory":    AdvisoryLocator{}.Outcome(cli.AdvisoryOutcomeMatched),
-		"suppression": NoticeSuppressionLocator{}.ConditionOutcome(cli.EvaluationOutcomeSatisfied),
+	for _, test := range []struct {
+		name        string
+		expectation InspectionExpectation
+	}{
+		{
+			name:        "provider",
+			expectation: CommandProviderLocator{}.Outcome(cli.CommandProviderOutcomeAccepted),
+		},
+		{
+			name:        "condition",
+			expectation: ConditionLocator{}.Outcome(cli.EvaluationOutcomeSatisfied),
+		},
+		{
+			name:        "rule",
+			expectation: RuleLocator{}.Outcome(cli.EvaluationOutcomeSatisfied),
+		},
+		{
+			name:        "advisory",
+			expectation: AdvisoryLocator{}.Outcome(cli.AdvisoryOutcomeMatched),
+		},
+		{
+			name:        "suppression",
+			expectation: NoticeSuppressionLocator{}.ConditionOutcome(cli.EvaluationOutcomeSatisfied),
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		got := inspectionExpectationOutcome(t, expectation, inspection)
 		if got.status != evaluationDisproved || !strings.Contains(renderEvaluationField(got.observed), "invalid") {
 			t.Fatalf("invalid %s locator = %#v", name, got)
@@ -553,10 +744,21 @@ func TestProviderLocalizationPresencePreservesPresenceTruth(t *testing.T) {
 	if !ok {
 		t.Fatal("commandProviderLocalizationExpectation must return providerLocalizationPresenceExpectation")
 	}
-	for name, expectation := range map[string]providerLocalizationPresenceExpectation{
-		"present": presentExpectation,
-		"absent":  absentExpectation,
+	for _, test := range []struct {
+		name        string
+		expectation providerLocalizationPresenceExpectation
+	}{
+		{
+			name:        "present",
+			expectation: presentExpectation,
+		},
+		{
+			name:        "absent",
+			expectation: absentExpectation,
+		},
 	} {
+		name := test.name
+		expectation := test.expectation
 		got := expectation.evaluateInspection(inspection, nil)
 		if name == "present" && got.status != evaluationProved {
 			t.Fatalf("present localization = %#v", got)
@@ -566,8 +768,10 @@ func TestProviderLocalizationPresencePreservesPresenceTruth(t *testing.T) {
 		}
 	}
 	truncated := cli.Inspection{
-		Truncated:        true,
-		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{providerID: {ID: providerID}},
+		Truncated: true,
+		CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{providerID: {
+			ID: providerID,
+		}},
 	}
 	truncatedExpectation, ok := commandProviderLocalizationExpectation(
 		CommandProviderByID(providerID),
@@ -651,7 +855,11 @@ func TestProviderEntriesExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 				CommandEntries: []cli.CommandEntryID{first, second},
 			},
 		},
-		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryInspection{first: {ID: first}, second: {ID: second}},
+		CommandEntries: map[cli.CommandEntryID]cli.CommandEntryInspection{first: {
+			ID: first,
+		}, second: {
+			ID: second,
+		}},
 	}
 	if got := expectation.evaluateInspection(base, nil); got.status != evaluationProved {
 		t.Fatalf("exact entries = %#v", got)
@@ -673,7 +881,9 @@ func TestProviderEntriesExactlyPreservesExactMembershipAndOrder(t *testing.T) {
 		t.Parallel()
 		truncated := base
 		truncated.Truncated = true
-		truncated.CommandEntries = map[cli.CommandEntryID]cli.CommandEntryInspection{first: {ID: first}}
+		truncated.CommandEntries = map[cli.CommandEntryID]cli.CommandEntryInspection{first: {
+			ID: first,
+		}}
 		if got := expectation.evaluateInspection(truncated, nil); got.status != evaluationNotProvable {
 			t.Fatalf("truncated expected entry = %#v", got)
 		}
@@ -701,7 +911,9 @@ func TestConditionInspectionPreservesSemanticStatus(t *testing.T) {
 			commandID: {
 				ID:                    commandID,
 				NamespaceCompleteness: cli.CommandNamespaceComplete,
-				Conditions:            []cli.ConditionInspection{{Outcome: cli.EvaluationOutcomeSatisfied}},
+				Conditions: []cli.ConditionInspection{{
+					Outcome: cli.EvaluationOutcomeSatisfied,
+				}},
 			},
 		},
 	}
@@ -793,7 +1005,9 @@ func TestRuleInspectionPreservesSemanticStatus(t *testing.T) {
 func TestPolicyMaterializationInternalStateFailsClosed(t *testing.T) {
 	t.Parallel()
 	inspection := cli.Inspection{
-		Commands: map[cli.CommandID]cli.CommandInspection{1: {ID: 1}},
+		Commands: map[cli.CommandID]cli.CommandInspection{1: {
+			ID: 1,
+		}},
 	}
 
 	t.Run("provider kind", func(t *testing.T) {
@@ -804,24 +1018,33 @@ func TestPolicyMaterializationInternalStateFailsClosed(t *testing.T) {
 	})
 	t.Run("rule kind", func(t *testing.T) {
 		t.Parallel()
-		if got := resolveInspectionRuleLocator(&ruleLocatorState{command: CommandByID(1).state}, inspection); got.status != locatorResolutionInvalid {
+		if got := resolveInspectionRuleLocator(&ruleLocatorState{
+			command: CommandByID(1).state,
+		}, inspection); got.status != locatorResolutionInvalid {
 			t.Fatalf("rule = %#v, want invalid", got)
 		}
 	})
 	t.Run("advisory kind", func(t *testing.T) {
 		t.Parallel()
-		if got := resolveInspectionAdvisoryLocator(&advisoryLocatorState{command: CommandByID(1).state}, inspection); got.status != locatorResolutionInvalid {
+		if got := resolveInspectionAdvisoryLocator(&advisoryLocatorState{
+			command: CommandByID(1).state,
+		}, inspection); got.status != locatorResolutionInvalid {
 			t.Fatalf("advisory = %#v, want invalid", got)
 		}
 	})
 	t.Run("provider entry kind", func(t *testing.T) {
 		t.Parallel()
 		expectation := providerEntriesExactlyExpectation{
-			locator: &commandProviderLocatorState{mode: commandProviderLocatorID, id: 2},
+			locator: &commandProviderLocatorState{
+				mode: commandProviderLocatorID,
+				id:   2,
+			},
 			entries: []*commandEntryLocatorState{{}},
 		}
 		observed := cli.Inspection{
-			CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{2: {ID: 2}},
+			CommandProviders: map[cli.CommandProviderID]cli.CommandProviderInspection{2: {
+				ID: 2,
+			}},
 		}
 		got := expectation.evaluateInspection(observed, nil)
 		rendered := renderEvaluationField(got.observed)
@@ -848,7 +1071,9 @@ func TestPolicyMaterializationExpectationsConserveMissingResolution(t *testing.T
 	}
 	truncatedInspection := cli.Inspection{
 		Truncated: true,
-		Commands:  map[cli.CommandID]cli.CommandInspection{1: {ID: 1}},
+		Commands: map[cli.CommandID]cli.CommandInspection{1: {
+			ID: 1,
+		}},
 	}
 	if resolved := resolveInspectionCommandLocator(child, truncatedInspection); resolved.status != locatorResolutionNotProvable {
 		t.Fatalf("truncated missing child = %#v", resolved)

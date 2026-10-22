@@ -34,7 +34,9 @@ func TestExecutionAndSignalExpectationsUseInspectionPlan(t *testing.T) {
 			Status:         cli.ExecutionAdmissionReady,
 			HandlerCommand: 2,
 			Middleware: []cli.MiddlewareInspection{
-				{Scope: cli.MiddlewareScopeApplication},
+				{
+					Scope: cli.MiddlewareScopeApplication,
+				},
 				{
 					Scope:            cli.MiddlewareScopeCommand,
 					Command:          2,
@@ -277,7 +279,21 @@ func TestCommandArgumentConvenienceRequiresExactlyOneForm(t *testing.T) {
 			},
 		},
 	}
-	for label, locator := range map[string]ArgumentTermLocator{"name": name, "literal": literal} {
+	for _, test := range []struct {
+		label   string
+		locator ArgumentTermLocator
+	}{
+		{
+			label:   "name",
+			locator: name,
+		},
+		{
+			label:   "literal",
+			locator: literal,
+		},
+	} {
+		label := test.label
+		locator := test.locator
 		resolved := resolveSchemaArgumentTermLocator(locator.state, oneFormSchema)
 		if resolved.status != locatorResolutionFound {
 			t.Fatalf("%s one-form resolution = %#v, %v, %q", label, resolved.value, resolved.status, renderEvaluationField(resolved.detail))
@@ -311,7 +327,21 @@ func TestCommandArgumentConvenienceRequiresExactlyOneForm(t *testing.T) {
 			},
 		},
 	}
-	for label, locator := range map[string]ArgumentTermLocator{"name": name, "literal": literal} {
+	for _, test := range []struct {
+		label   string
+		locator ArgumentTermLocator
+	}{
+		{
+			label:   "name",
+			locator: name,
+		},
+		{
+			label:   "literal",
+			locator: literal,
+		},
+	} {
+		label := test.label
+		locator := test.locator
 		resolved := resolveReferenceArgumentTermLocator(locator.state, oneFormReference)
 		if resolved.status != locatorResolutionFound {
 			t.Fatalf("%s one-form reference resolution = %#v, %v, %q", label, resolved.value, resolved.status, renderEvaluationField(resolved.detail))
@@ -490,7 +520,9 @@ func TestPublicOperationExpectationSpine(t *testing.T) {
 	completeValue := func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 		completionCalls.Add(1)
 		contribution := cli.CompletionContribution{
-			Candidates: []cli.CompletionCandidate{{Value: "alpha"}},
+			Candidates: []cli.CompletionCandidate{{
+				Value: "alpha",
+			}},
 		}
 		return contribution, nil
 	}
@@ -626,7 +658,9 @@ func TestResponseFilesIntegratesWithInspectAndComplete(t *testing.T) {
 		t.Fatalf("Compile: %v", err)
 	}
 	var requests ResponseFileRequests
-	files := ResponseFiles{Requests: &requests}
+	files := ResponseFiles{
+		Requests: &requests,
+	}
 	responseRequest := cli.ResponseFileRequest{
 		Path: "args",
 		Base: "/work",
@@ -793,8 +827,12 @@ func TestHostFixturesAreInstanceLocal(t *testing.T) {
 	t.Parallel()
 	var firstRequests ResponseFileRequests
 	var secondRequests ResponseFileRequests
-	firstFiles := ResponseFiles{Requests: &firstRequests}
-	secondFiles := ResponseFiles{Requests: &secondRequests}
+	firstFiles := ResponseFiles{
+		Requests: &firstRequests,
+	}
+	secondFiles := ResponseFiles{
+		Requests: &secondRequests,
+	}
 	firstRequest := cli.ResponseFileRequest{
 		Path: "first",
 	}
@@ -921,9 +959,13 @@ func TestExecutionSignalAndInputExpectationsMatchInspection(t *testing.T) {
 			},
 		},
 		SignalEndpoints: map[cli.SignalEndpointID]cli.SignalEndpointInspection{
-			6: {Status: cli.SignalEndpointStatusReady},
+			6: {
+				Status: cli.SignalEndpointStatusReady,
+			},
 		},
-		Tokens: []cli.TokenInspection{{Redacted: true}},
+		Tokens: []cli.TokenInspection{{
+			Redacted: true,
+		}},
 	}
 	checks := []InspectionExpectation{
 		ExecutionAdmission().Status(cli.ExecutionAdmissionBlocked),

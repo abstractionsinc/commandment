@@ -25,9 +25,11 @@ type lifecycleNoticeLabelsConfig struct{ Labels map[string]string }
 func TestLifecycleNoticeInspectionsPreservesLifecycleSemantics(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleNoticeOldConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Bool(&root.Config.Old).Long("old").Release(cli.ReleaseLifecycle{
@@ -35,7 +37,8 @@ func TestLifecycleNoticeInspectionsPreservesLifecycleSemantics(t *testing.T) {
 				Reason:       "retired",
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--old"},
 	})
@@ -45,7 +48,7 @@ func TestLifecycleNoticeInspectionsPreservesLifecycleSemantics(t *testing.T) {
 func TestLifecycleNoticeDeliveryAttemptsPreservesLifecycleSemantics(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleNoticeOldConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("2.0.0"),
 		Run:     func(context.Context, *config) error { return nil },
@@ -54,7 +57,8 @@ func TestLifecycleNoticeDeliveryAttemptsPreservesLifecycleSemantics(t *testing.T
 				DeprecatedIn: "2.0.0",
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	var got []cli.Notice
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args:   []string{"--old"},
@@ -70,9 +74,11 @@ func TestLifecycleNoticeDeliveryAttemptsPreservesLifecycleSemantics(t *testing.T
 func TestLifecycleNoticeCandidatesPreservesLifecycleSemantics(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleNoticeOldConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			flag := root.Flags.Bool(&root.Config.Old)
@@ -81,7 +87,8 @@ func TestLifecycleNoticeCandidatesPreservesLifecycleSemantics(t *testing.T) {
 			})
 			old.ReplacedBy(flag.Long("new"))
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	old, current := root.Flag("--old").Spelling("--old"), root.Flag("--new").Spelling("--new")
 	notice := clitest.Notice(cli.NoticeDeprecatedFlag).On(old)
@@ -93,9 +100,11 @@ func TestLifecycleNoticeCandidatesPreservesLifecycleSemantics(t *testing.T) {
 func TestAcceptedDeprecatedDomainEntriesPreservesLifecycleSemantics(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleNoticeModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := cli.Value.Domain(cli.Value.Assign[string](), func(b *cli.ValueDomainBuilder[string]) {
@@ -106,7 +115,8 @@ func TestAcceptedDeprecatedDomainEntriesPreservesLifecycleSemantics(t *testing.T
 			})
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--mode", "old"},
 	}).Require(t, clitest.Notice(cli.NoticeDeprecatedValue).Present())
@@ -115,9 +125,11 @@ func TestAcceptedDeprecatedDomainEntriesPreservesLifecycleSemantics(t *testing.T
 func TestAcceptedDomainInputsPreservesLifecycleSemantics(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleNoticeModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := cli.Value.Domain(cli.Value.Assign[string](), func(b *cli.ValueDomainBuilder[string]) {
@@ -127,7 +139,8 @@ func TestAcceptedDomainInputsPreservesLifecycleSemantics(t *testing.T) {
 			})
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	entry := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination).Entry("old")
 	notice := clitest.Notice(cli.NoticeDeprecatedValue).On(entry)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -138,9 +151,11 @@ func TestAcceptedDomainInputsPreservesLifecycleSemantics(t *testing.T) {
 func TestLifecycleNoticeSuppressionsPreservesLifecycleSemantics(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleNoticeModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			domain := cli.Value.Domain(cli.Value.Assign[string](), func(b *cli.ValueDomainBuilder[string]) {
@@ -154,7 +169,8 @@ func TestLifecycleNoticeSuppressionsPreservesLifecycleSemantics(t *testing.T) {
 				Code: cli.NoticeDeprecatedValue,
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	entry := root.Flag("--mode").Value().Domain(cli.ValueDomainUseDestination).Entry("old")
 	notice := clitest.Notice(cli.NoticeDeprecatedValue).On(entry)
@@ -175,9 +191,11 @@ func TestLifecycleNoticeMatchesPreservesLifecycleSemantics(t *testing.T) {
 		Severity: cli.NoticeSeverityWarning,
 		Code:     cli.NoticeDeprecatedFlag,
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			old := root.Flags.Bool(&root.Config.Old)
@@ -186,7 +204,8 @@ func TestLifecycleNoticeMatchesPreservesLifecycleSemantics(t *testing.T) {
 			})
 			root.Notice.SuppressWhen(root.When.Resolved(old), match)
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	notice := clitest.Notice(cli.NoticeDeprecatedFlag).On(root.Flag("--old").Spelling("--old"))
 	clitest.Schema(app).Require(t, root.NoticeSuppressionAt(0).Match(match))
@@ -203,7 +222,7 @@ func TestLifecycleNoticeMatchesPreservesLifecycleSemantics(t *testing.T) {
 func TestLifecycleNoticeDeliveryAttempts(t *testing.T) {
 	t.Parallel()
 	type config = lifecycleNoticeOldConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.SemVer("2.0.0"),
 		Run:     func(context.Context, *config) error { return nil },
@@ -216,7 +235,8 @@ func TestLifecycleNoticeDeliveryAttempts(t *testing.T) {
 				Code: cli.NoticeDeprecatedFlag,
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	var delivered []cli.Notice
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--old"},
@@ -237,9 +257,11 @@ func TestLifecycleNoticeCandidates(t *testing.T) {
 	t.Run("duplicate flag occurrence", func(t *testing.T) {
 		t.Parallel()
 		type config = lifecycleNoticeOldConfig2
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:    "tool",
-			Help:    cli.HelpConfig{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.Count(&root.Config.Old).Occurrences(cli.Count.ZeroOrMore()).
@@ -248,7 +270,8 @@ func TestLifecycleNoticeCandidates(t *testing.T) {
 						DeprecatedIn: "2.0.0",
 					})
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		old := clitest.RootCommand().Flag("--old").Spelling("--old")
 		notice := clitest.Notice(cli.NoticeDeprecatedFlag).On(old)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -264,15 +287,18 @@ func TestLifecycleNoticeCandidates(t *testing.T) {
 				DeprecatedIn: "2.0.0",
 			})
 		})
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:    "tool",
-			Help:    cli.HelpConfig{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
 				labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(domain, domain))
 				root.Flags.Keyed(labels).Long("label")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		entry := clitest.RootCommand().Flag("--label").Value().Domain(cli.ValueDomainUseMapKey).Entry("old")
 		notice := clitest.Notice(cli.NoticeDeprecatedValue).On(entry)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -288,14 +314,17 @@ func TestLifecycleNoticeCandidates(t *testing.T) {
 				DeprecatedIn: "2.0.0",
 			})
 		})
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:    "tool",
-			Help:    cli.HelpConfig{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
 				root.Flags.Value(&root.Config.Mode, domain).Long("mode").Sensitive()
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		entry := clitest.RootCommand().Flag("--mode").Value().Domain(cli.ValueDomainUseDestination).Entry("old")
 		notice := clitest.Notice(cli.NoticeDeprecatedValue).On(entry)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -314,15 +343,18 @@ func TestAcceptedDeprecatedDomainEntries(t *testing.T) {
 			DeprecatedIn: "2.0.0",
 		})
 	})
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "tool",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Declare: func(root *cli.CommandBuilder[config]) {
 			labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(domain, domain))
 			root.Flags.Keyed(labels).Long("label")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	entry := clitest.RootCommand().Flag("--label").Value().Domain(cli.ValueDomainUseMapKey).Entry("old")
 	notice := clitest.Notice(cli.NoticeDeprecatedValue).On(entry)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
@@ -340,15 +372,18 @@ func TestAcceptedDomainInputs(t *testing.T) {
 				DeprecatedIn: "2.0.0",
 			})
 		})
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:    "tool",
-			Help:    cli.HelpConfig{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
 				items := root.Values.Sequence(&root.Config.Items, domain)
 				root.Flags.Sequence(items).Long("item")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"--item", "old"},
 		}).Require(t, clitest.Notice(cli.NoticeDeprecatedValue).Present())
@@ -362,15 +397,18 @@ func TestAcceptedDomainInputs(t *testing.T) {
 				DeprecatedIn: "2.0.0",
 			})
 		})
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:    "tool",
-			Help:    cli.HelpConfig{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
 				labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(domain, cli.Value.String()))
 				root.Flags.Keyed(labels).Long("label")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"--label", "old=value"},
 		}).Require(t, clitest.Notice(cli.NoticeDeprecatedValue).Present())
@@ -384,15 +422,18 @@ func TestAcceptedDomainInputs(t *testing.T) {
 				DeprecatedIn: "2.0.0",
 			})
 		})
-		app := clitest.Compile(t, cli.Definition[config]{
-			Name:    "tool",
-			Help:    cli.HelpConfig{Disabled: true},
+		definition := cli.Definition[config]{
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
 			Release: cli.Release.SemVer("2.0.0"),
 			Declare: func(root *cli.CommandBuilder[config]) {
 				labels := root.Values.Keyed(&root.Config.Labels, cli.Value.Keyed(cli.Value.String(), domain))
 				root.Flags.Keyed(labels).Long("label")
 			},
-		})
+		}
+		app := clitest.Compile(t, definition)
 		clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 			Args: []string{"--label", "key=old"},
 		}).Require(t, clitest.Notice(cli.NoticeDeprecatedValue).Present())
@@ -435,9 +476,11 @@ func TestLifecycleNoticeMatches(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			type config = lifecycleNoticeOldConfig
-			app := clitest.Compile(t, cli.Definition[config]{
-				Name:    "tool",
-				Help:    cli.HelpConfig{Disabled: true},
+			definition := cli.Definition[config]{
+				Name: "tool",
+				Help: cli.HelpConfig{
+					Disabled: true,
+				},
 				Release: cli.Release.SemVer("2.0.0"),
 				Declare: func(root *cli.CommandBuilder[config]) {
 					old := root.Flags.Bool(&root.Config.Old)
@@ -446,7 +489,8 @@ func TestLifecycleNoticeMatches(t *testing.T) {
 					})
 					root.Notice.SuppressWhen(root.When.Resolved(old), tc.match)
 				},
-			})
+			}
+			app := clitest.Compile(t, definition)
 			root := clitest.RootCommand()
 			notice := clitest.Notice(cli.NoticeDeprecatedFlag).On(root.Flag("--old").Spelling("--old"))
 			want := cli.NoticeSuppressionNotSuppressed
@@ -475,11 +519,12 @@ func TestDeliverNoticesPreservesNoticeSemantics(t *testing.T) {
 	t.Parallel()
 	type config = noticeDeliveryConfig
 	cause := errors.New("delivery failed")
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Declare: declareNoticeDeliveryFixture,
 		Run:     func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	calls := 0
 	err := app.Run(t.Context(), cli.RunRequest{
 		Notify: func(_ context.Context, n cli.Notice) error {
@@ -499,11 +544,12 @@ func TestDiagnosticNoticePhasePreservesNoticeSemantics(t *testing.T) {
 	t.Parallel()
 	type config = noticeDeliveryConfig
 	cause := errors.New("delivery failed")
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Declare: declareNoticeDeliveryFixture,
 		Run:     func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	err := app.Run(t.Context(), cli.RunRequest{
 		Notify: func(context.Context, cli.Notice) error { return cause },
 	})
@@ -518,11 +564,12 @@ func TestDiagnosticNoticePhasePreservesNoticeSemantics(t *testing.T) {
 func TestValidNoticePhasePreservesNoticeSemantics(t *testing.T) {
 	t.Parallel()
 	type config = noticeDeliveryConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Declare: declareNoticeDeliveryFixture,
 		Run:     func(context.Context, *config) error { return nil },
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Notify: func(context.Context, cli.Notice) error { return nil },
 	}); err != nil {
@@ -535,7 +582,7 @@ type noticeNoticeFixtureConfig struct{}
 func noticeNoticeDeliveryApp(t testing.TB, run func(), codes ...cli.AdvisoryCode) cli.Application {
 	t.Helper()
 	type config = noticeNoticeFixtureConfig
-	return clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "notices",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Subcommands.Command(cli.Command[config]{
@@ -557,7 +604,8 @@ func noticeNoticeDeliveryApp(t testing.TB, run func(), codes ...cli.AdvisoryCode
 				},
 			})
 		},
-	})
+	}
+	return clitest.Compile(t, definition)
 }
 
 type noticeNameLimitConfig struct {
@@ -729,9 +777,11 @@ func TestDeliverNoticesPreservesCallerContextAndSynchronousAttemptOrder(t *testi
 func TestLifecycleNoticesAttributeDeprecatedSpellingAndDomainEntryExactly(t *testing.T) {
 	t.Parallel()
 	type config = noticeReferenceModeConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:    "lifecycle",
-		Help:    cli.HelpConfig{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: "lifecycle",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Release: cli.Release.SemVer("2.0.0"),
 		Run:     func(context.Context, *config) error { return nil },
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -754,7 +804,8 @@ func TestLifecycleNoticesAttributeDeprecatedSpellingAndDomainEntryExactly(t *tes
 			})
 			root.Flags.Value(&root.Config.Mode, domain).Long("mode")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	oldSpelling := clitest.RootCommand().Flag("--old").Spelling("--old")
 	newSpelling := clitest.RootCommand().Flag("--new").Spelling("--new")
@@ -820,7 +871,7 @@ func TestRunFailureSettlementPreservesPrimaryNoticeAndIndependentCallerCancellat
 	callerCause := errors.New("caller cancellation")
 	ctx, cancel := context.WithCancelCause(t.Context())
 
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "commandment",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Advisory.Always(cli.Advisory{
@@ -833,7 +884,8 @@ func TestRunFailureSettlementPreservesPrimaryNoticeAndIndependentCallerCancellat
 			cancel(callerCause)
 			return primary
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}

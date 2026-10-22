@@ -23,10 +23,14 @@ func completeWorld(_ context.Context, _ *visitConfig, request cli.ValueCompletio
 	candidates := make([]cli.CompletionCandidate, 0, len(worlds))
 	for _, world := range worlds {
 		if strings.HasPrefix(world, request.Text) {
-			candidates = append(candidates, cli.CompletionCandidate{Value: world})
+			candidates = append(candidates, cli.CompletionCandidate{
+				Value: world,
+			})
 		}
 	}
-	contribution := cli.CompletionContribution{Candidates: candidates}
+	contribution := cli.CompletionContribution{
+		Candidates: candidates,
+	}
 	return contribution, nil
 }
 
@@ -59,8 +63,11 @@ func main() {
 
 	partial := args[1]
 	request := cli.CompletionRequest{
-		Args:   args,
-		Cursor: cli.CompletionCursor{Argument: 1, Byte: len(partial)},
+		Args: args,
+		Cursor: cli.CompletionCursor{
+			Argument: 1,
+			Byte:     len(partial),
+		},
 	}
 	completion, err := app.Complete(context.Background(), request)
 	if err != nil {

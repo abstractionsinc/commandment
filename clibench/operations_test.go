@@ -53,7 +53,7 @@ func runBenchmarkCorrectnessCase(t *testing.T, test func()) {
 	for i, part := range parts {
 		parts[i] = "^" + regexp.QuoteMeta(part) + "$"
 	}
-	commandCtx, commandCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	commandCtx, commandCancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer commandCancel()
 	//nolint:gosec // os.Args[0] is the current test binary; the run pattern comes only from testing.T.Name.
 	args := []string{
@@ -119,7 +119,7 @@ func TestHelpersPreserveBenchmarkIterationAndContext(t *testing.T) {
 					return nil
 				},
 			})
-			if err := app.Run(context.Background(), cli.RunRequest{}); err != nil {
+			if err := app.Run(t.Context(), cli.RunRequest{}); err != nil {
 				t.Fatalf("Run preflight: %v", err)
 			}
 			result := correctnessBenchmark(t, func(b *testing.B) {
@@ -142,19 +142,24 @@ func TestHelpersPreserveBenchmarkIterationAndContext(t *testing.T) {
 		runBenchmarkCorrectnessCase(t, func() {
 			recorder := &benchmarkCallRecorder{}
 			var benchmarkCtx context.Context
-			app := mustCompile(t, cli.Definition[struct{}]{
+			definition := cli.Definition[struct{}]{
 				Name: "tool",
 				Run:  func(context.Context, *struct{}) error { return nil },
 				Declare: func(root *cli.CommandBuilder[struct{}]) {
 					root.Subcommands.CommandsFrom(func(ctx context.Context, batch *cli.CommandBatch[struct{}]) error {
 						recorder.record(ctx == benchmarkCtx)
-						batch.Command(cli.Command[struct{}]{Name: benchmarkChildName})
+						batch.Command(cli.Command[struct{}]{
+							Name: benchmarkChildName,
+						})
 						return nil
 					})
 				},
-			})
-			request := cli.InspectionRequest{Args: []string{benchmarkChildName}}
-			preflight, err := app.Inspect(context.Background(), request)
+			}
+			app := mustCompile(t, definition)
+			request := cli.InspectionRequest{
+				Args: []string{benchmarkChildName},
+			}
+			preflight, err := app.Inspect(t.Context(), request)
 			if err != nil {
 				t.Fatalf("Inspect preflight: %v", err)
 			}
@@ -198,7 +203,7 @@ func TestHelpersPreserveBenchmarkIterationAndContext(t *testing.T) {
 					Argument: 0,
 				},
 			}
-			preflight, err := app.Complete(context.Background(), request)
+			preflight, err := app.Complete(t.Context(), request)
 			if err != nil {
 				t.Fatalf("Complete preflight: %v", err)
 			}
@@ -231,8 +236,10 @@ func TestHelpersPreserveBenchmarkIterationAndContext(t *testing.T) {
 		t.Parallel()
 		runBenchmarkCorrectnessCase(t, func() {
 			app := mustCompile(t, cli.Definition[struct{}]{
-				Name:            "tool",
-				ShellCompletion: cli.ShellCompletion{Disabled: true},
+				Name: "tool",
+				ShellCompletion: cli.ShellCompletion{
+					Disabled: true,
+				},
 			})
 			preflight := app.Schema()
 			if len(preflight.Commands) != 1 {
@@ -251,8 +258,10 @@ func TestHelpersPreserveBenchmarkIterationAndContext(t *testing.T) {
 		t.Parallel()
 		runBenchmarkCorrectnessCase(t, func() {
 			app := mustCompile(t, cli.Definition[struct{}]{
-				Name:            "tool",
-				ShellCompletion: cli.ShellCompletion{Disabled: true},
+				Name: "tool",
+				ShellCompletion: cli.ShellCompletion{
+					Disabled: true,
+				},
 			})
 			preflight, err := app.Reference(cli.ReferenceOptions{})
 			if err != nil {
@@ -275,8 +284,10 @@ func TestHelpersPreserveBenchmarkIterationAndContext(t *testing.T) {
 		runBenchmarkCorrectnessCase(t, func() {
 			var declarations atomic.Int64
 			definition := cli.Definition[struct{}]{
-				Name:            "tool",
-				ShellCompletion: cli.ShellCompletion{Disabled: true},
+				Name: "tool",
+				ShellCompletion: cli.ShellCompletion{
+					Disabled: true,
+				},
 				Declare: func(*cli.CommandBuilder[struct{}]) {
 					declarations.Add(1)
 				},
@@ -301,7 +312,7 @@ func TestHelpersPreserveBenchmarkIterationAndContext(t *testing.T) {
 
 func TestHelperFatalAttributionAndNoRetry(t *testing.T) {
 	t.Parallel()
-	commandCtx, commandCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	commandCtx, commandCancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer commandCancel()
 	//nolint:gosec // os.Args[0] is the current test binary; all arguments are test-owned literals.
 	args := []string{
@@ -363,7 +374,7 @@ func BenchmarkFatalAttributionProbe(b *testing.B) {
 				fmt.Fprintln(os.Stderr, "CLIBENCH_SETUP_Run")
 				clibench.Run(b, app, cli.RunRequest{})
 			case "Inspect":
-				app := mustCompile(b, cli.Definition[struct{}]{
+				definitionUnderTest := cli.Definition[struct{}]{
 					Name: "tool",
 					Run:  func(context.Context, *struct{}) error { return nil },
 					Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -372,9 +383,12 @@ func BenchmarkFatalAttributionProbe(b *testing.B) {
 							return failure
 						})
 					},
-				})
+				}
+				app := mustCompile(b, definitionUnderTest)
 				fmt.Fprintln(os.Stderr, "CLIBENCH_SETUP_Inspect")
-				clibench.Inspect(b, app, cli.InspectionRequest{Args: []string{benchmarkChildName}})
+				clibench.Inspect(b, app, cli.InspectionRequest{
+					Args: []string{benchmarkChildName},
+				})
 			case "Complete":
 				app := mustCompile(b, cli.Definition[struct{}]{
 					Name: "tool",

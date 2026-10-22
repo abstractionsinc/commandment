@@ -16,7 +16,9 @@ func BenchmarkInspectSignalPolicies(b *testing.B) {
 	for _, placement := range [...]declarationPlacement{placementUnrelated, placementSelected} {
 		for _, policies := range [...]int{16, 64, 256} {
 			app := signalApplication(b, placement, policies)
-			request := cli.InspectionRequest{Args: []string{"target"}}
+			request := cli.InspectionRequest{
+				Args: []string{"target"},
+			}
 			preflightSignalInspection(b, app, request, placement, policies)
 			b.Run(fmt.Sprintf("Placement=%s/Policies/N=%d", placement, policies), func(b *testing.B) {
 				b.ReportAllocs()
@@ -30,7 +32,9 @@ func signalApplication(tb testing.TB, placement declarationPlacement, policies i
 	tb.Helper()
 	definition := cli.Definition[emptyConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[emptyConfig]) {
 			source := root.Signals.Source(cli.SignalSource[string]{
 				Signals: []cli.SignalDescriptor[string]{{

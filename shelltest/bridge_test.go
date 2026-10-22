@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"net"
-	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -27,7 +27,10 @@ func TestBridgeProcessRequestRoundTripsAndRejectsOversizeFrameBeforePayload(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(decoded, request) {
+	if !slices.Equal(decoded.args, request.args) ||
+		!slices.Equal(decoded.environ, request.environ) ||
+		decoded.workingDirectory != request.workingDirectory ||
+		!slices.Equal(decoded.stdin, request.stdin) {
 		t.Fatalf("bridge request round trip = %#v, want %#v", decoded, request)
 	}
 
@@ -46,7 +49,9 @@ func TestBridgeProcessRequestRoundTripsAndRejectsOversizeFrameBeforePayload(t *t
 
 func TestBoundedWriterFailsWithoutTruncatingSemanticOutput(t *testing.T) {
 	t.Parallel()
-	writer := boundedWriter{limit: 3}
+	writer := boundedWriter{
+		limit: 3,
+	}
 	if _, err := writer.Write([]byte("abcd")); err == nil {
 		t.Fatal("overflowing write succeeded")
 	}
@@ -61,7 +66,10 @@ func TestBridgeBootstrapRoundTripAndTrailingDataRejection(t *testing.T) {
 	for index := range capability {
 		capability[index] = byte(index + 1)
 	}
-	bootstrap := bridgeBootstrap{endpoint: "127.0.0.1:12345", capability: capability}
+	bootstrap := bridgeBootstrap{
+		endpoint:   "127.0.0.1:12345",
+		capability: capability,
+	}
 	encoded := encodeBridgeBootstrap(bootstrap)
 	decoded, err := decodeBridgeBootstrap(encoded)
 	if err != nil {
@@ -83,7 +91,7 @@ func TestBridgeUnauthenticatedNoiseDoesNotCreateSemanticFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 		defer cancel()
 		_ = bridge.cleanup(ctx)
 	}()
@@ -119,11 +127,12 @@ func TestBridgeUnauthenticatedNoiseDoesNotCreateSemanticFailure(t *testing.T) {
 }
 
 func testGeneration() cli.ShellCompletionGeneration {
-	return cli.ShellCompletionGeneration{
+	generation := cli.ShellCompletionGeneration{
 		ApplicationName:       "alienctl",
 		ActivationEnvironment: "COMMANDMENT_COMPLETE",
 		ActivationValue:       "adapter",
 	}
+	return generation
 }
 
 func TestBridgeCausalFrontierUsesAcceptanceTimeAndRequiresCompletedExchange(t *testing.T) {
@@ -237,7 +246,7 @@ func waitBridgeAccepted(t *testing.T, bridge *applicationBridge, count uint64) {
 
 func cleanupTestBridge(t *testing.T, bridge *applicationBridge) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 	if err := bridge.cleanup(ctx); err != nil {
 		t.Fatal(err)

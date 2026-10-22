@@ -2,11 +2,10 @@ package shelltest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,7 +38,15 @@ func TestShellAdapterJSONAndRecordsDecodeEquivalentCommonRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(jsonDecoded, recordsDecoded) {
+	if jsonDecoded.responseCodec != recordsDecoded.responseCodec ||
+		jsonDecoded.shellFamily != recordsDecoded.shellFamily ||
+		jsonDecoded.shellVersion != recordsDecoded.shellVersion ||
+		jsonDecoded.matching != recordsDecoded.matching ||
+		jsonDecoded.capabilities != recordsDecoded.capabilities ||
+		jsonDecoded.input.Topology != recordsDecoded.input.Topology ||
+		jsonDecoded.input.ExactArgvPrefix != recordsDecoded.input.ExactArgvPrefix ||
+		jsonDecoded.input.Cursor != recordsDecoded.input.Cursor ||
+		!slices.Equal(jsonDecoded.input.Words, recordsDecoded.input.Words) {
 		t.Fatalf("JSON and Records requests differ:\nJSON: %#v\nRecords: %#v", jsonDecoded, recordsDecoded)
 	}
 	if jsonDecoded.input.ExactArgvPrefix != len(jsonDecoded.input.Words) {
@@ -50,18 +57,39 @@ func TestShellAdapterJSONAndRecordsDecodeEquivalentCommonRequest(t *testing.T) {
 func TestShellAdapterJSONRejectsMalformedCore(t *testing.T) {
 	t.Parallel()
 	valid := `{"shell":{"family":"bash","version":"5.2"},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`
-	tests := map[string][]byte{
-		"duplicate": []byte("json\n" + `{"shell":{"family":"bash","version":"5.2"},"shell":{"family":"bash","version":"5.2"},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`),
-		"unknown":   []byte("json\n" + strings.TrimSuffix(valid, "}") + `,"unknown":true}`),
-		"null":      []byte("json\n" + `{"shell":null,"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`),
-		"fraction":  []byte("json\n" + `{"shell":{"family":"bash","version":"5.2"},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0.5}}}`),
-		"trailing":  []byte("json\n" + valid + ` {}`),
-		"utf8":      append([]byte("json\n"+valid[:len(valid)-2]), 0xff, '}', '}'),
+	tests := []struct {
+		name  string
+		input []byte
+	}{
+		{
+			name:  "duplicate",
+			input: []byte("json\n" + `{"shell":{"family":"bash","version":"5.2"},"shell":{"family":"bash","version":"5.2"},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`),
+		},
+		{
+			name:  "unknown",
+			input: []byte("json\n" + strings.TrimSuffix(valid, "}") + `,"unknown":true}`),
+		},
+		{
+			name:  "null",
+			input: []byte("json\n" + `{"shell":null,"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`),
+		},
+		{
+			name:  "fraction",
+			input: []byte("json\n" + `{"shell":{"family":"bash","version":"5.2"},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0.5}}}`),
+		},
+		{
+			name:  "trailing",
+			input: []byte("json\n" + valid + ` {}`),
+		},
+		{
+			name:  "utf8",
+			input: append([]byte("json\n"+valid[:len(valid)-2]), 0xff, '}', '}'),
+		},
 	}
-	for name, input := range tests {
-		t.Run(name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := decodeShellAdapterRequest(input); err == nil {
+			if _, err := decodeShellAdapterRequest(test.input); err == nil {
 				t.Fatal("malformed JSON request accepted")
 			}
 		})
@@ -71,13 +99,33 @@ func TestShellAdapterJSONRejectsMalformedCore(t *testing.T) {
 func TestShellAdapterRecordsCanonicalityAndByteDomain(t *testing.T) {
 	t.Parallel()
 	validPrefix := "records\nshell\tbash\t5.2\ninput\texact\t1\t0\t0\tobserved-word-bytes\nword\t0\talienctl\texact\n"
-	for name, suffix := range map[string]string{
-		"missing-end":        "",
-		"duplicate-shell":    "shell\tbash\t5.2\nend\n",
-		"noncanonical-int":   "input\texact\t01\t0\t0\tobserved-word-bytes\nend\n",
-		"lowercase-hex":      "word\t1\t\\x6a\texact\nend\n",
-		"trailing-after-end": "end\nshell\tbash\t5.2\n",
+	for _, test := range []struct {
+		name   string
+		suffix string
+	}{
+		{
+			name:   "missing-end",
+			suffix: "",
+		},
+		{
+			name:   "duplicate-shell",
+			suffix: "shell\tbash\t5.2\nend\n",
+		},
+		{
+			name:   "noncanonical-int",
+			suffix: "input\texact\t01\t0\t0\tobserved-word-bytes\nend\n",
+		},
+		{
+			name:   "lowercase-hex",
+			suffix: "word\t1\t\\x6a\texact\nend\n",
+		},
+		{
+			name:   "trailing-after-end",
+			suffix: "end\nshell\tbash\t5.2\n",
+		},
 	} {
+		name := test.name
+		suffix := test.suffix
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			input := validPrefix + suffix
@@ -111,8 +159,12 @@ func TestShellAdapterRejectsArgumentByteCursorWithoutExactEvidence(t *testing.T)
 func TestShellAdapterResponseEncodingPreservesRequestedProjection(t *testing.T) {
 	t.Parallel()
 	response := shellAdapterResponse{
-		failed:  true,
-		replace: cli.CompletionSpan{Argument: 1, Start: 2, End: 3},
+		failed: true,
+		replace: cli.CompletionSpan{
+			Argument: 1,
+			Start:    2,
+			End:      3,
+		},
 		spacing: cli.CompletionSpacingAppendSpace,
 		items: []shellAdapterItem{{
 			value:          "remote",
@@ -163,12 +215,29 @@ func TestShellAdapterJSONMinimalDefaultsAndNestedStrictness(t *testing.T) {
 		t.Fatalf("word/cursor defaults = fidelity %v, space %v", request.input.Words[0].Fidelity, request.input.Cursor.Space)
 	}
 
-	for name, payload := range map[string]string{
-		"nested-duplicate": `{"shell":{"family":"bash","family":"zsh","version":"5.2"},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`,
-		"nested-unknown":   `{"shell":{"family":"bash","version":"5.2","future":true},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`,
-		"wrong-type":       `{"shell":{"family":"bash","version":"5.2"},"input":{"words":{},"cursor":{"word":0,"byte":0}}}`,
-		"null-word":        `{"shell":{"family":"bash","version":"5.2"},"input":{"words":[null],"cursor":{"word":0,"byte":0}}}`,
+	for _, test := range []struct {
+		name    string
+		payload string
+	}{
+		{
+			name:    "nested-duplicate",
+			payload: `{"shell":{"family":"bash","family":"zsh","version":"5.2"},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`,
+		},
+		{
+			name:    "nested-unknown",
+			payload: `{"shell":{"family":"bash","version":"5.2","future":true},"input":{"words":[{"value":"alienctl"}],"cursor":{"word":0,"byte":0}}}`,
+		},
+		{
+			name:    "wrong-type",
+			payload: `{"shell":{"family":"bash","version":"5.2"},"input":{"words":{},"cursor":{"word":0,"byte":0}}}`,
+		},
+		{
+			name:    "null-word",
+			payload: `{"shell":{"family":"bash","version":"5.2"},"input":{"words":[null],"cursor":{"word":0,"byte":0}}}`,
+		},
 	} {
+		name := test.name
+		payload := test.payload
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			if _, err := decodeShellAdapterRequest([]byte("json\n" + payload)); err == nil {
@@ -197,11 +266,25 @@ func TestShellAdapterExactTopologyIgnoresSerializedPrefixAndUncertainRequiresZer
 
 func TestShellAdapterRecordsRejectsNegativeAndMalformedFields(t *testing.T) {
 	t.Parallel()
-	for name, input := range map[string][]byte{
-		"negative": []byte("records\nshell\tbash\t5.2\ninput\tuncertain\t-1\t0\t0\tobserved-word-bytes\nword\t0\talienctl\tlexical\nend\n"),
-		"nul":      append([]byte("records\nshell\tba"), append([]byte{0}, []byte("sh\t5.2\ninput\tuncertain\t0\t0\t0\tobserved-word-bytes\nword\t0\talienctl\tlexical\nend\n")...)...),
-		"escape":   []byte("records\nshell\tba\\qsh\t5.2\ninput\tuncertain\t0\t0\t0\tobserved-word-bytes\nword\t0\talienctl\tlexical\nend\n"),
+	for _, test := range []struct {
+		name  string
+		input []byte
+	}{
+		{
+			name:  "negative",
+			input: []byte("records\nshell\tbash\t5.2\ninput\tuncertain\t-1\t0\t0\tobserved-word-bytes\nword\t0\talienctl\tlexical\nend\n"),
+		},
+		{
+			name:  "nul",
+			input: append([]byte("records\nshell\tba"), append([]byte{0}, []byte("sh\t5.2\ninput\tuncertain\t0\t0\t0\tobserved-word-bytes\nword\t0\talienctl\tlexical\nend\n")...)...),
+		},
+		{
+			name:  "escape",
+			input: []byte("records\nshell\tba\\qsh\t5.2\ninput\tuncertain\t0\t0\t0\tobserved-word-bytes\nword\t0\talienctl\tlexical\nend\n"),
+		},
 	} {
+		name := test.name
+		input := test.input
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			if _, err := decodeShellAdapterRequest(input); err == nil {
@@ -234,8 +317,15 @@ func TestShellAdapterCompletionRequestUsesLastActivationAndExactResponseFileSnap
 		shellVersion: "5.2",
 		input: cli.CompletionInputObservation{
 			Topology: cli.CompletionArgvTopologyUncertain,
-			Words:    []cli.CompletionObservedWord{{Value: "alienctl", Fidelity: cli.CompletionInputFidelityLexical}},
-			Cursor:   cli.CompletionObservedCursor{Word: 0, Byte: 8, Space: cli.CompletionCursorSpaceObservedWordBytes},
+			Words: []cli.CompletionObservedWord{{
+				Value:    "alienctl",
+				Fidelity: cli.CompletionInputFidelityLexical,
+			}},
+			Cursor: cli.CompletionObservedCursor{
+				Word:  0,
+				Byte:  8,
+				Space: cli.CompletionCursorSpaceObservedWordBytes,
+			},
 		},
 		matching: shellAdapterMatchingPrefix,
 	}
@@ -244,8 +334,14 @@ func TestShellAdapterCompletionRequestUsesLastActivationAndExactResponseFileSnap
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantEnv := cli.Env{{Name: "A", Value: "one"}, {Name: "B", Value: "two"}}
-	if !reflect.DeepEqual(completionRequest.Env, wantEnv) {
+	wantEnv := cli.Env{{
+		Name:  "A",
+		Value: "one",
+	}, {
+		Name:  "B",
+		Value: "two",
+	}}
+	if !slices.Equal(completionRequest.Env, wantEnv) {
 		t.Fatalf("semantic environment = %#v, want %#v", completionRequest.Env, wantEnv)
 	}
 	if completionRequest.Trigger.Kind != cli.CompletionTriggerInvoked || completionRequest.Visibility != cli.CompletionVisibilityPublic || completionRequest.Client.Ranking != cli.CompletionRankingModeRelevance || completionRequest.Limit != 0 {
@@ -258,7 +354,10 @@ func TestShellAdapterCompletionRequestUsesLastActivationAndExactResponseFileSnap
 	if err := os.WriteFile(file, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := completionRequest.ResponseFiles.Load(context.Background(), cli.ResponseFileRequest{Path: "args.txt", Base: workspace})
+	loaded, err := completionRequest.ResponseFiles.Load(t.Context(), cli.ResponseFileRequest{
+		Path: "args.txt",
+		Base: workspace,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +373,11 @@ func TestShellAdapterCompletionRequestUsesLastActivationAndExactResponseFileSnap
 func TestShellAdapterProjectionGatesOptionalMaterialAndNeverLeaksPrivateMetadata(t *testing.T) {
 	t.Parallel()
 	completion := cli.Completion{
-		Replace: cli.CompletionSpan{Argument: 1, Start: 2, End: 3},
+		Replace: cli.CompletionSpan{
+			Argument: 1,
+			Start:    2,
+			End:      3,
+		},
 		Spacing: cli.CompletionSpacingAppendSpace,
 		Items: []cli.CompletionItem{{
 			Value:            "remote",
@@ -288,20 +391,45 @@ func TestShellAdapterProjectionGatesOptionalMaterialAndNeverLeaksPrivateMetadata
 			CommitCharacters: []rune{'/'},
 			Sensitive:        true,
 			TargetIndexes:    []int{7},
-			Match:            cli.CompletionMatch{Score: 999, Ranges: []cli.CompletionRange{{Start: 0, End: 2}}},
-			Required:         true,
+			Match: cli.CompletionMatch{
+				Score: 999,
+				Ranges: []cli.CompletionRange{{
+					Start: 0,
+					End:   2,
+				}},
+			},
+			Required: true,
 		}},
-		Groups:         []cli.CompletionGroup{{ID: "commands", Label: "Commands", Sensitive: true}},
-		Messages:       []cli.CompletionMessage{{Kind: cli.CompletionMessageWarning, Text: "message", Sensitive: true}},
-		NativeRequests: []cli.CompletionNativeRequest{{Kind: cli.CompletionNativeFiles}, {Kind: cli.CompletionNativeHosts}},
-		Delegation:     &cli.CompletionDelegation{Args: []string{"child"}, Cursor: cli.CompletionCursor{Argument: 0, Byte: 5}, Sensitive: true},
+		Groups: []cli.CompletionGroup{{
+			ID:        "commands",
+			Label:     "Commands",
+			Sensitive: true,
+		}},
+		Messages: []cli.CompletionMessage{{
+			Kind:      cli.CompletionMessageWarning,
+			Text:      "message",
+			Sensitive: true,
+		}},
+		NativeRequests: []cli.CompletionNativeRequest{{
+			Kind: cli.CompletionNativeFiles,
+		}, {
+			Kind: cli.CompletionNativeHosts,
+		}},
+		Delegation: &cli.CompletionDelegation{
+			Args: []string{"child"},
+			Cursor: cli.CompletionCursor{
+				Argument: 0,
+				Byte:     5,
+			},
+			Sensitive: true,
+		},
 	}
 
 	minimal := projectShellAdapterResponse(completion, false, cli.CompletionClientCapabilities{})
 	if minimal.items[0].description != "" || minimal.items[0].detail != "" || minimal.items[0].kind != cli.CompletionCandidateUnknown || minimal.items[0].group != "" || minimal.items[0].matchRanges != nil || minimal.items[0].commitCharacters != nil || minimal.groups != nil || minimal.messages != nil || minimal.native != nil || minimal.delegation != nil {
 		t.Fatalf("minimal projection leaked optional material: %#v", minimal)
 	}
-	if minimal.items[0].displayText != "Remote" || !minimal.items[0].replacementSet || !reflect.DeepEqual(minimal.items[0].replacement, []string{"remote"}) {
+	if minimal.items[0].displayText != "Remote" || !minimal.items[0].replacementSet || !slices.Equal(minimal.items[0].replacement, []string{"remote"}) {
 		t.Fatalf("minimal projection lost core item material: %#v", minimal.items[0])
 	}
 
@@ -319,10 +447,25 @@ func TestShellAdapterProjectionGatesOptionalMaterialAndNeverLeaksPrivateMetadata
 		},
 	}
 	full := projectShellAdapterResponse(completion, true, capabilities)
-	if !full.failed || full.items[0].description != "description" || full.items[0].detail != "detail" || full.items[0].kind != cli.CompletionCandidateCommand || full.items[0].group != "commands" || !reflect.DeepEqual(full.items[0].matchRanges, []cli.CompletionRange{{Start: 0, End: 2}}) || !reflect.DeepEqual(full.items[0].commitCharacters, []string{"/"}) {
-		t.Fatalf("full item projection = %#v", full.items[0])
+	item := full.items[0]
+	if !full.failed || item.description != "description" || item.detail != "detail" || item.kind != cli.CompletionCandidateCommand || item.group != "commands" {
+		t.Fatalf("full item projection = %#v", item)
 	}
-	if len(full.groups) != 1 || len(full.messages) != 1 || !reflect.DeepEqual(full.native, []cli.CompletionNativeKind{cli.CompletionNativeFiles}) || full.delegation == nil {
+	wantRanges := []cli.CompletionRange{
+		{
+			Start: 0,
+			End:   2,
+		},
+	}
+	if !slices.Equal(item.matchRanges, wantRanges) {
+		t.Fatalf("full item match ranges = %#v, want %#v", item.matchRanges, wantRanges)
+	}
+	wantCommitCharacters := []string{"/"}
+	if !slices.Equal(item.commitCharacters, wantCommitCharacters) {
+		t.Fatalf("full item commit characters = %#v, want %#v", item.commitCharacters, wantCommitCharacters)
+	}
+	wantNative := []cli.CompletionNativeKind{cli.CompletionNativeFiles}
+	if len(full.groups) != 1 || len(full.messages) != 1 || !slices.Equal(full.native, wantNative) || full.delegation == nil {
 		t.Fatalf("full root projection = %#v", full)
 	}
 }
@@ -337,7 +480,9 @@ func TestShellAdapterResponseEncodingFailsAtBoundWithoutTruncation(t *testing.T)
 		}},
 	}
 	for _, codec := range []shellAdapterCodec{shellAdapterCodecJSON, shellAdapterCodecRecords} {
-		writer := boundedWriter{limit: 32}
+		writer := boundedWriter{
+			limit: 32,
+		}
 		if err := encodeShellAdapterResponse(&writer, codec, response); err == nil {
 			t.Fatalf("codec %v encoded past semantic response budget", codec)
 		}

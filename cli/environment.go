@@ -286,10 +286,11 @@ func (values *Values[C]) Environment[T any](destination destinationLike[C, T], n
 		valid: state != nil && name != "",
 	}
 	producer := stageValueDirective(values.session, values.profile, directive, state)
-	return EnvironmentInputDeclaration[C, T]{
+	declaration := EnvironmentInputDeclaration[C, T]{
 		state:    values.session,
 		producer: producer,
 	}
+	return declaration
 }
 
 // EnvironmentPrefix declares a prefix-matched environment producer for a keyed destination.
@@ -301,10 +302,11 @@ func (values *Values[C]) EnvironmentPrefix[K comparable, V any](destination dest
 		valid: state != nil && prefix != "",
 	}
 	producer := stageValueDirective(values.session, values.profile, directive, state)
-	return EnvironmentPrefixDeclaration[C, K, V]{
+	declaration := EnvironmentPrefixDeclaration[C, K, V]{
 		state:    values.session,
 		producer: producer,
 	}
+	return declaration
 }
 
 func configureEnvironmentShape[C, T any](declaration EnvironmentInputDeclaration[C, T], shape environmentInputShape, delimiter string) EnvironmentInputDeclaration[C, T] {

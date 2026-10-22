@@ -75,12 +75,30 @@ func TestFlagAuthoringRejectsMalformedSpellings(t *testing.T) {
 		name string
 		add  func(cli.FlagDeclaration[config, string])
 	}{
-		{"empty long", func(flag cli.FlagDeclaration[config, string]) { flag.Long("") }},
-		{"long starts dash", func(flag cli.FlagDeclaration[config, string]) { flag.Long("-x") }},
-		{"long assigned", func(flag cli.FlagDeclaration[config, string]) { flag.Long("x=y") }},
-		{"short nul", func(flag cli.FlagDeclaration[config, string]) { flag.Short(0) }},
-		{"literal empty", func(flag cli.FlagDeclaration[config, string]) { flag.Literal("") }},
-		{"literal nul", func(flag cli.FlagDeclaration[config, string]) { flag.Literal("x\x00y") }},
+		{
+			name: "empty long",
+			add:  func(flag cli.FlagDeclaration[config, string]) { flag.Long("") },
+		},
+		{
+			name: "long starts dash",
+			add:  func(flag cli.FlagDeclaration[config, string]) { flag.Long("-x") },
+		},
+		{
+			name: "long assigned",
+			add:  func(flag cli.FlagDeclaration[config, string]) { flag.Long("x=y") },
+		},
+		{
+			name: "short nul",
+			add:  func(flag cli.FlagDeclaration[config, string]) { flag.Short(0) },
+		},
+		{
+			name: "literal empty",
+			add:  func(flag cli.FlagDeclaration[config, string]) { flag.Literal("") },
+		},
+		{
+			name: "literal nul",
+			add:  func(flag cli.FlagDeclaration[config, string]) { flag.Literal("x\x00y") },
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -151,13 +169,14 @@ func TestAuthoringAcceptanceRetainsTypedNegativeNumberOwnership(t *testing.T) {
 	t.Parallel()
 	type config = authoringAcceptanceNumberConfig
 	var got int
-	app := compileMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "negative",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Flags.Int(&root.Config.Number).HyphenValues(cli.HyphenValueNegativeNumbers).Long("number")
 		},
 		Run: func(_ context.Context, c *config) error { got = c.Number; return nil },
-	})
+	}
+	app := compileMustCompilePublic(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--number", "-7"},
 	}); err != nil {
@@ -198,16 +217,19 @@ func TestAuthoringAcceptanceRetainsBuiltinAndCodecDestinationLanguages(t *testin
 		Format:   strings.ToLower,
 		Snapshot: cli.Value.Assign[string](),
 	}
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "languages",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			count := root.Values.Int(&root.Config.Count)
 			name := root.Values.Value(&root.Config.Name, codec)
 			root.Flags.ValueFor(count).Long("count")
 			root.Flags.ValueFor(name).Long("name")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	count := root.Flag("--count").Value()
 	name := root.Flag("--name").Value()
@@ -288,11 +310,13 @@ func TestHelpEntriesDeclareFlagSpellings(t *testing.T) {
 	t.Parallel()
 	app := clitest.Compile(t, cli.Definition[struct{}]{
 		Name: "actions",
-		Help: cli.HelpConfig{ReplaceEntries: func(entries *cli.HelpActionEntries) {
-			entries.Long("assist")
-			entries.Short('h')
-			entries.Literal("/?")
-		}},
+		Help: cli.HelpConfig{
+			ReplaceEntries: func(entries *cli.HelpActionEntries) {
+				entries.Long("assist")
+				entries.Short('h')
+				entries.Literal("/?")
+			},
+		},
 	})
 	help := clitest.RootCommand().ActionEntries(cli.InvocationActionHelp)
 	long := help.Long("--assist")
@@ -306,14 +330,17 @@ func TestHelpEntriesDeclareFlagSpellings(t *testing.T) {
 
 func TestVersionEntriesDeclareFlagAndCommand(t *testing.T) {
 	t.Parallel()
-	app := clitest.Compile(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name:    "actions",
 		Release: cli.Release.SemVer("1.2.3"),
-		Version: cli.VersionConfig{ReplaceEntries: func(entries *cli.VersionActionEntries) {
-			entries.Long("build")
-			entries.Command("build")
-		}},
-	})
+		Version: cli.VersionConfig{
+			ReplaceEntries: func(entries *cli.VersionActionEntries) {
+				entries.Long("build")
+				entries.Command("build")
+			},
+		},
+	}
+	app := clitest.Compile(t, definition)
 	version := clitest.RootCommand().ActionEntries(cli.InvocationActionVersion)
 	flag := version.Long("--build")
 	command := version.Command("build")
@@ -324,21 +351,31 @@ func TestHelpEntryFluentMetadataPreservesAuthoringSemantics(t *testing.T) {
 	t.Parallel()
 	app := clitest.Compile(t, cli.Definition[struct{}]{
 		Name: "actions",
-		Help: cli.HelpConfig{ReplaceEntries: func(entries *cli.HelpActionEntries) {
-			entries.Long("assist").
-				Placement(cli.FlagPlacementSubtree).
-				Description(cli.Description{Short: "custom help"}).
-				Hidden()
-			entries.Command("manual").Description(cli.Description{Short: "manual help"}).Hidden()
-		}},
+		Help: cli.HelpConfig{
+			ReplaceEntries: func(entries *cli.HelpActionEntries) {
+				entries.Long("assist").
+					Placement(cli.FlagPlacementSubtree).
+					Description(cli.Description{
+						Short: "custom help",
+					}).
+					Hidden()
+				entries.Command("manual").Description(cli.Description{
+					Short: "manual help",
+				}).Hidden()
+			},
+		},
 	})
 	help := clitest.RootCommand().ActionEntries(cli.InvocationActionHelp)
 	flag := help.Long("--assist")
 	command := help.Command("manual")
 	clitest.Schema(app).Require(t,
 		help.Exactly(flag, command),
-		flag.Placement(cli.FlagPlacementSubtree), flag.SourceDescription(cli.Description{Short: "custom help"}), flag.Hidden(),
-		command.SourceDescription(cli.Description{Short: "manual help"}), command.Hidden(),
+		flag.Placement(cli.FlagPlacementSubtree), flag.SourceDescription(cli.Description{
+			Short: "custom help",
+		}), flag.Hidden(),
+		command.SourceDescription(cli.Description{
+			Short: "manual help",
+		}), command.Hidden(),
 	)
 }
 
@@ -346,20 +383,24 @@ func TestHelpEntryReplacementPreservesAuthoringSemantics(t *testing.T) {
 	t.Parallel()
 	app := clitest.Compile(t, cli.Definition[struct{}]{
 		Name: "actions",
-		Help: cli.HelpConfig{ReplaceEntries: func(entries *cli.HelpActionEntries) {
-			legacy := entries.Long("help")
-			current := entries.Long("assist")
-			legacy.ReplacedBy(current)
-		}},
+		Help: cli.HelpConfig{
+			ReplaceEntries: func(entries *cli.HelpActionEntries) {
+				legacy := entries.Long("help")
+				current := entries.Long("assist")
+				legacy.ReplacedBy(current)
+			},
+		},
 	})
 	clitest.Schema(app).Require(t, clitest.RootCommand().ActionEntryAt(0).ReplacedBy(clitest.RootCommand().ActionEntryAt(1)))
 
 	clitest.CompileFails(t, cli.Definition[struct{}]{
 		Name: "actions",
-		Help: cli.HelpConfig{ReplaceEntries: func(entries *cli.HelpActionEntries) {
-			entry := entries.Long("help")
-			entry.ReplacedBy(entry)
-		}},
+		Help: cli.HelpConfig{
+			ReplaceEntries: func(entries *cli.HelpActionEntries) {
+				entry := entries.Long("help")
+				entry.ReplacedBy(entry)
+			},
+		},
 	})
 }
 
@@ -368,11 +409,13 @@ func TestHelpEntryScopeAndReplacementCycleAreRejected(t *testing.T) {
 	var escaped func()
 	clitest.Compile(t, cli.Definition[struct{}]{
 		Name: "actions",
-		Help: cli.HelpConfig{ReplaceEntries: func(entries *cli.HelpActionEntries) {
-			first := entries.Long("one")
-			second := entries.Long("two")
-			escaped = func() { first.ReplacedBy(second) }
-		}},
+		Help: cli.HelpConfig{
+			ReplaceEntries: func(entries *cli.HelpActionEntries) {
+				first := entries.Long("one")
+				second := entries.Long("two")
+				escaped = func() { first.ReplacedBy(second) }
+			},
+		},
 	})
 	func() {
 		defer func() {
@@ -385,14 +428,16 @@ func TestHelpEntryScopeAndReplacementCycleAreRejected(t *testing.T) {
 
 	clitest.CompileFails(t, cli.Definition[struct{}]{
 		Name: "actions",
-		Help: cli.HelpConfig{ReplaceEntries: func(entries *cli.HelpActionEntries) {
-			one := entries.Long("one")
-			two := entries.Long("two")
-			three := entries.Long("three")
-			one.ReplacedBy(two)
-			two.ReplacedBy(three)
-			three.ReplacedBy(one)
-		}},
+		Help: cli.HelpConfig{
+			ReplaceEntries: func(entries *cli.HelpActionEntries) {
+				one := entries.Long("one")
+				two := entries.Long("two")
+				three := entries.Long("three")
+				one.ReplacedBy(two)
+				two.ReplacedBy(three)
+				three.ReplacedBy(one)
+			},
+		},
 	})
 }
 
@@ -410,7 +455,9 @@ func TestActionEntryInvalidDeclarationsAreRejected(t *testing.T) {
 	} {
 		clitest.CompileFails(t, cli.Definition[struct{}]{
 			Name: "actions",
-			Help: cli.HelpConfig{ReplaceEntries: declare},
+			Help: cli.HelpConfig{
+				ReplaceEntries: declare,
+			},
 		})
 	}
 }
@@ -418,10 +465,18 @@ func TestActionEntryInvalidDeclarationsAreRejected(t *testing.T) {
 func TestVersionDerivesTextFromReleaseAndCommit(t *testing.T) {
 	t.Parallel()
 	for _, definition := range []cli.Definition[struct{}]{
-		{Name: "actions", Version: cli.VersionConfig{Commit: "abc"}},
-		{Name: "actions", Release: cli.Release.SemVer("1.2.3"), Version: cli.VersionConfig{CommitLength: -1}},
-		{Name: "actions", Release: cli.Release.SemVer("1.2.3"), Version: cli.VersionConfig{CommitLength: 1}},
-		{Name: "actions", Release: cli.Release.SemVer("1.2.3"), Version: cli.VersionConfig{Commit: "bad\ncommit"}},
+		{Name: "actions", Version: cli.VersionConfig{
+			Commit: "abc",
+		}},
+		{Name: "actions", Release: cli.Release.SemVer("1.2.3"), Version: cli.VersionConfig{
+			CommitLength: -1,
+		}},
+		{Name: "actions", Release: cli.Release.SemVer("1.2.3"), Version: cli.VersionConfig{
+			CommitLength: 1,
+		}},
+		{Name: "actions", Release: cli.Release.SemVer("1.2.3"), Version: cli.VersionConfig{
+			Commit: "bad\ncommit",
+		}},
 	} {
 		clitest.CompileFails(t, definition)
 	}
@@ -429,32 +484,43 @@ func TestVersionDerivesTextFromReleaseAndCommit(t *testing.T) {
 		Name:    "actions",
 		Release: cli.Release.SemVer("1.2.3"),
 	})
-	clitest.Compile(t, cli.Definition[struct{}]{
+	definitionUnderTest := cli.Definition[struct{}]{
 		Name:    "actions",
 		Release: cli.Release.SemVer("1.2.3"),
 		Version: cli.VersionConfig{
 			Commit:       "abcdef",
 			CommitLength: 3,
 		},
-	})
+	}
+	clitest.Compile(t, definitionUnderTest)
 }
 
 func TestIntrinsicActionAcceptancePreservesAuthoringSemantics(t *testing.T) {
 	t.Parallel()
 	app := clitest.Compile(t, cli.Definition[struct{}]{
 		Name: "actions",
-		Help: cli.HelpConfig{ReplaceEntries: func(entries *cli.HelpActionEntries) {
-			old := entries.Long("help").Description(cli.Description{Short: "old help"})
-			current := entries.Command("assist").Description(cli.Description{Short: "new help"}).Hidden()
-			old.ReplacedBy(current).Hidden()
-		}},
+		Help: cli.HelpConfig{
+			ReplaceEntries: func(entries *cli.HelpActionEntries) {
+				old := entries.Long("help").Description(cli.Description{
+					Short: "old help",
+				})
+				current := entries.Command("assist").Description(cli.Description{
+					Short: "new help",
+				}).Hidden()
+				old.ReplacedBy(current).Hidden()
+			},
+		},
 	})
 	help := clitest.RootCommand().ActionEntries(cli.InvocationActionHelp)
 	old := help.Long("--help")
 	current := help.Command("assist")
 	clitest.Schema(app).Require(t,
-		help.Exactly(old, current), old.SourceDescription(cli.Description{Short: "old help"}), old.ReplacedBy(current),
-		old.Hidden(), current.SourceDescription(cli.Description{Short: "new help"}), current.Hidden(),
+		help.Exactly(old, current), old.SourceDescription(cli.Description{
+			Short: "old help",
+		}), old.ReplacedBy(current),
+		old.Hidden(), current.SourceDescription(cli.Description{
+			Short: "new help",
+		}), current.Hidden(),
 	)
 }
 
@@ -495,7 +561,9 @@ func TestArgumentAuthoringProjectsDeclaredSemantics(t *testing.T) {
 					Optional().
 					Description("text").
 					Hidden().
-					Release(cli.ReleaseLifecycle{IntroducedIn: "1"}).
+					Release(cli.ReleaseLifecycle{
+						IntroducedIn: "1",
+					}).
 					CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 						return cli.CompletionContribution{}, nil
 					}).
@@ -815,9 +883,11 @@ func TestCommandTargetPreservesAuthoringSemantics(t *testing.T) {
 func TestDeclareSubcommandPreservesAuthoringSemantics(t *testing.T) {
 	t.Parallel()
 	type childConfig = authoringCommandValueChildConfig
-	app := clitest.Compile(t, cli.Definition[struct{}]{
-		Name:            "tool",
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[struct{}]{
+		Name: "tool",
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
 			root.Subcommands.Command(cli.Command[childConfig]{
 				Name:    "child",
@@ -831,7 +901,8 @@ func TestDeclareSubcommandPreservesAuthoringSemantics(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	child := clitest.RootCommand().Command("child")
 	clitest.Schema(app).Require(t,
 		clitest.RootCommand().ChildrenExactly(child),
@@ -1007,7 +1078,7 @@ func TestSnapshotCommandExecutionPreservesAuthoringSemantics(t *testing.T) {
 	t.Parallel()
 	type config = authoringExecutionValueConfig
 	var order []string
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Middleware: []cli.Middleware[config]{
 			func(ctx context.Context, cfg *config, next cli.MiddlewareNext) error {
@@ -1024,7 +1095,8 @@ func TestSnapshotCommandExecutionPreservesAuthoringSemantics(t *testing.T) {
 			order = append(order, "run:"+cfg.Value)
 			return nil
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{
 		Args: []string{"--value", "x"},
 	}); err != nil {

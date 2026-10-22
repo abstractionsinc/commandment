@@ -31,7 +31,9 @@ func TestExternalBashClassGeneratorUsesOnlyPublicShellAdapterSurface(t *testing.
 			t.Fatalf("external Bash-class adapter missing shell-adapter capability %q", required)
 		}
 	}
-	got := shelltest.Complete(t, app, externalBashTarget(bash, provider), shelltest.Input{BeforeCursor: "alienctl re"})
+	got := shelltest.Complete(t, app, externalBashTarget(bash, provider), shelltest.Input{
+		BeforeCursor: "alienctl re",
+	})
 	if !strings.Contains(got, "remote") {
 		t.Fatalf("settled external Bash-class screen does not contain remote: %q", got)
 	}
@@ -51,7 +53,9 @@ func TestExternalCustomProviderDrivesRealShellAdapterProcessRoundTrip(t *testing
 			t.Fatalf("external Xonsh-class adapter missing shell-adapter material %q", required)
 		}
 	}
-	got := shelltest.Complete(t, app, externalBashTarget(bash, provider), shelltest.Input{BeforeCursor: "alienctl re"})
+	got := shelltest.Complete(t, app, externalBashTarget(bash, provider), shelltest.Input{
+		BeforeCursor: "alienctl re",
+	})
 	if !strings.Contains(got, "remote") {
 		t.Fatalf("settled external custom-provider screen does not contain remote: %q", got)
 	}
@@ -74,7 +78,9 @@ func externalCompletionApplication(t *testing.T) cli.Application {
 	app, err := cli.Compile(cli.Definition[struct{}]{
 		Name: "alienctl",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
-			root.Subcommands.Command(cli.Command[struct{}]{Name: "remote"})
+			root.Subcommands.Command(cli.Command[struct{}]{
+				Name: "remote",
+			})
 		},
 	})
 	if err != nil {
@@ -84,23 +90,24 @@ func externalCompletionApplication(t *testing.T) cli.Application {
 }
 
 func externalBashTarget(executable string, provider cli.ShellCompletionProvider) shelltest.Target[string] {
-	return shelltest.Target[string]{
-		Provider: provider,
-		Runtime: shelltest.Runtime{
-			Executable:  executable,
-			VersionArgs: []string{"--version"},
-			ParseVersion: func(output string) (string, error) {
-				_, suffix, ok := strings.Cut(output, "version ")
-				if !ok {
-					return "", errors.New("Bash version marker missing")
-				}
-				fields := strings.Fields(suffix)
-				if len(fields) == 0 {
-					return "", errors.New("Bash version token missing")
-				}
-				return fields[0], nil
-			},
+	runtimeSpec := shelltest.Runtime{
+		Executable:  executable,
+		VersionArgs: []string{"--version"},
+		ParseVersion: func(output string) (string, error) {
+			_, suffix, ok := strings.Cut(output, "version ")
+			if !ok {
+				return "", errors.New("Bash version marker missing")
+			}
+			fields := strings.Fields(suffix)
+			if len(fields) == 0 {
+				return "", errors.New("Bash version token missing")
+			}
+			return fields[0], nil
 		},
+	}
+	target := shelltest.Target[string]{
+		Provider: provider,
+		Runtime:  runtimeSpec,
 		Prepare: func(setup shelltest.Setup) error {
 			integration := setup.IntegrationFile("completion.bash")
 			rc := setup.File("bashrc", "source "+externalShellQuote(integration)+"\n")
@@ -119,6 +126,7 @@ func externalBashTarget(executable string, provider cli.ShellCompletionProvider)
 			return strings.Join(lines, "\n"), nil
 		},
 	}
+	return target
 }
 
 func externalBashClassGenerator(generation cli.ShellCompletionGeneration) (string, error) {

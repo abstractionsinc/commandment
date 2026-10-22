@@ -557,15 +557,25 @@ func stageStaticDeclarations(input declarationPlan, source *declarationDraft, me
 		if !validSemanticDialectInput(dialect) {
 			panic("cli: accepted grammar profile has invalid dialect")
 		}
-		draft.GrammarProfileCase(
-			profile,
-			selector,
-			profileCase.value,
-			switchDraft.equal,
-			profileCase.defaultCase,
-			dialect,
-			input.positionFor(index),
-		)
+		if profileCase.defaultCase {
+			draft.GrammarProfileDefaultCase(
+				profile,
+				selector,
+				profileCase.value,
+				switchDraft.equal,
+				dialect,
+				input.positionFor(index),
+			)
+		} else {
+			draft.GrammarProfileCase(
+				profile,
+				selector,
+				profileCase.value,
+				switchDraft.equal,
+				dialect,
+				input.positionFor(index),
+			)
+		}
 	}
 
 	for index := range len(input.records) {
@@ -816,10 +826,11 @@ func acceptAcceptanceDecision(boundary acceptanceBoundary, groups ...[]rejection
 	for _, group := range groups {
 		rejections = append(rejections, group...)
 	}
-	return acceptanceDecision{
+	decision := acceptanceDecision{
 		boundary:   boundary,
 		rejections: normalizeRejections(rejections),
 	}
+	return decision
 }
 
 func (decision acceptanceDecision) Boundary() acceptanceBoundary { return decision.boundary }
@@ -840,7 +851,10 @@ type publicationAcceptance struct {
 }
 
 func preparePublicationAcceptance(input declarationRecordInput, grammar grammarModel, metadata applicationMetadata, ids operationIDs) *publicationAcceptance {
-	return &publicationAcceptance{draft: preparePublicationDraft(input, grammar, metadata, ids)}
+	acceptance := &publicationAcceptance{
+		draft: preparePublicationDraft(input, grammar, metadata, ids),
+	}
+	return acceptance
 }
 
 func (acceptance *publicationAcceptance) Draft() *declarationCandidate {

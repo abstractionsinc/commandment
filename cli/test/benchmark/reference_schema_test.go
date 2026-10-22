@@ -15,9 +15,13 @@ func BenchmarkReference(b *testing.B) {
 	}
 	for _, declarations := range [...]int{1, 16, 64, 256} {
 		definition := cli.Definition[stringConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[stringConfig]) {
 				for index := range declarations {
 					root.Flags.String(&root.Config.Values[index]).Long(fmt.Sprintf("flag-%03d", index))
@@ -73,9 +77,13 @@ func BenchmarkReference(b *testing.B) {
 func BenchmarkSchema(b *testing.B) {
 	for _, declarations := range [...]int{1, 16, 64, 256} {
 		definition := cli.Definition[stringConfig]{
-			Name:            "tool",
-			Help:            cli.HelpConfig{Disabled: true},
-			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Name: "tool",
+			Help: cli.HelpConfig{
+				Disabled: true,
+			},
+			ShellCompletion: cli.ShellCompletion{
+				Disabled: true,
+			},
 			Declare: func(root *cli.CommandBuilder[stringConfig]) {
 				for index := range declarations {
 					root.Flags.String(&root.Config.Values[index]).Long(fmt.Sprintf("flag-%03d", index))
@@ -122,9 +130,13 @@ func BenchmarkSchema(b *testing.B) {
 func projectionBreadthFixture(tb testing.TB, commands int) cli.Application {
 	tb.Helper()
 	definition := cli.Definition[stringConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[stringConfig]) {
 			for index := range commands {
 				root.Subcommands.Command(cli.Command[stringConfig]{
@@ -158,9 +170,13 @@ func projectionDepthFixture(tb testing.TB, depth int) cli.Application {
 		})
 	}
 	definition := cli.Definition[stringConfig]{
-		Name:            "tool",
-		Help:            cli.HelpConfig{Disabled: true},
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[stringConfig]) {
 			declare(root, 0)
 		},

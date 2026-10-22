@@ -110,10 +110,11 @@ func boundedReportWriterForLimit(limit int) *boundedReportWriter {
 		contentLimit = 0
 	}
 
-	return &boundedReportWriter{
+	writer := &boundedReportWriter{
 		hardLimit:    limit,
 		contentLimit: contentLimit,
 	}
+	return writer
 }
 
 func renderEvaluationField(field evaluationField) string {
@@ -891,9 +892,10 @@ func encodeReportRune(firstByte byte, r rune, size int) string {
 }
 
 func failureExpectation(expectations []DiagnosticReportExpectation) FailureExpectation {
-	return failureExpectationValue{
+	value := failureExpectationValue{
 		expectations: slices.Clone(expectations),
 	}
+	return value
 }
 
 func (writer *boundedReportWriter) remaining() int {

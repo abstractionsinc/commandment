@@ -28,10 +28,11 @@ func acceptSignalAcceptanceSnapshot(phase SignalPhase, policies []SignalPolicyID
 		}
 		seen[policy] = struct{}{}
 	}
-	return signalAcceptanceSnapshot{
+	snapshot := signalAcceptanceSnapshot{
 		phase:    phase,
 		policies: copied,
-	}, nil
+	}
+	return snapshot, nil
 }
 
 func (snapshot signalAcceptanceSnapshot) Valid() bool { return snapshot.phase.valid() }
@@ -73,10 +74,11 @@ func acceptSignalWatchFailure(err error) (signalWatchEvent, error) {
 	if err == nil {
 		return signalWatchEvent{}, errInvalidSignalWatchEvent
 	}
-	return signalWatchEvent{
+	event := signalWatchEvent{
 		kind: signalWatchEventFailure,
 		err:  err,
-	}, nil
+	}
+	return event, nil
 }
 
 func (event signalWatchEvent) Valid() bool {
@@ -250,10 +252,11 @@ func (intake *signalIntake) Accept(event signalWatchEvent) error {
 // routing distinguish notifications that became pending behind one
 // sequence from notifications accepted after the dispatcher was eligible again.
 func (intake *signalIntake) AcceptWithDispatchState(event signalWatchEvent, blocked bool, generation uint64) error {
-	return intake.AcceptWithRoutingSnapshot(event, signalRoutingSnapshot{
+	snapshot := signalRoutingSnapshot{
 		Blocked:    blocked,
 		Generation: generation,
-	})
+	}
+	return intake.AcceptWithRoutingSnapshot(event, snapshot)
 }
 
 // AcceptWithRoutingSnapshot admits one watch event with the exact acceptance-time
@@ -267,24 +270,27 @@ func (intake *signalIntake) AcceptWithRoutingSnapshot(event signalWatchEvent, ro
 	defer intake.mu.Unlock()
 
 	if !event.Valid() {
-		return intake.failLocked(&runSignalWatchSourceError{
+		failure := &runSignalWatchSourceError{
 			Reason: "invalid source event",
-		})
+		}
+		return intake.failLocked(failure)
 	}
 
 	if event.Kind() == signalWatchEventFailure {
 		if intake.sourceTerminal {
-			return intake.failLocked(&runSignalWatchSourceError{
+			failure := &runSignalWatchSourceError{
 				Reason: "watch event followed terminal source failure",
-			})
+			}
+			return intake.failLocked(failure)
 		}
 		intake.sourceTerminal = true
 		return intake.sourceFailureLocked(event.Err())
 	}
 	if intake.sourceTerminal {
-		return intake.failLocked(&runSignalWatchSourceError{
+		failure := &runSignalWatchSourceError{
 			Reason: "watch event followed terminal source failure",
-		})
+		}
+		return intake.failLocked(failure)
 	}
 	if intake.terminal != nil {
 		return errors.Join(errSignalIntakeTerminal, intake.terminal)
@@ -294,39 +300,44 @@ func (intake *signalIntake) AcceptWithRoutingSnapshot(event signalWatchEvent, ro
 	case signalWatchEventNotification:
 		return intake.acceptNotificationLocked(event, routing)
 	default:
-		return intake.failLocked(&runSignalWatchSourceError{
+		failure := &runSignalWatchSourceError{
 			Reason: "unknown watch event kind",
-		})
+		}
+		return intake.failLocked(failure)
 	}
 }
 
 func (intake *signalIntake) acceptNotificationLocked(event signalWatchEvent, routing signalRoutingSnapshot) error {
 	revision := event.Revision()
 	if intake.lastRevision.valid() && revision < intake.lastRevision {
-		return intake.failLocked(&runSignalWatchSourceError{
+		failure := &runSignalWatchSourceError{
 			Reason:   "notification revision decreased",
 			Revision: revision,
-		})
+		}
+		return intake.failLocked(failure)
 	}
 
 	watch, published, transitionSettled := intake.watch.lookupRevision(revision)
 	if !published && transitionSettled == nil {
-		return intake.failLocked(&runSignalWatchSourceError{
+		failure := &runSignalWatchSourceError{
 			Reason:   "notification references an unestablished watch revision",
 			Revision: revision,
-		})
+		}
+		return intake.failLocked(failure)
 	}
 
 	if len(intake.queue) >= intake.capacity {
-		return intake.failLocked(&signalRoutingOverflowError{
+		failure := &signalRoutingOverflowError{
 			Capacity: intake.capacity,
 			Buffered: len(intake.queue),
-		})
+		}
+		return intake.failLocked(failure)
 	}
 	if intake.nextSequence == 0 {
-		return intake.failLocked(&runSignalWatchSourceError{
+		failure := &runSignalWatchSourceError{
 			Reason: "accepted notification sequence exhausted",
-		})
+		}
+		return intake.failLocked(failure)
 	}
 
 	entry := signalIntakeEntry{
@@ -948,7 +959,9 @@ func sourceWatch(source compiledSignalSource, desired map[Signal]struct{}) []Sig
 
 func (subscription *signalWatchSourceSubscription) activate(ctx context.Context, source compiledSignalSource, revision SignalWatchRevision, watched []Signal) (*signalSourceActivation, error) {
 	lifecycleCtx, lifecycleCancel := subscription.activationContext(ctx)
-	activation := &signalSourceActivation{cancel: lifecycleCancel}
+	activation := &signalSourceActivation{
+		cancel: lifecycleCancel,
+	}
 	if source.ordinary {
 		stream, err := source.open(ctx)
 		if err != nil {
@@ -1175,8 +1188,9 @@ func validSignalSourceOverflow(overflow *SignalSourceOverflowError) bool {
 }
 
 func signalWatchSourceError(reason string, revision SignalWatchRevision) error {
-	return &runSignalWatchSourceError{
+	failure := &runSignalWatchSourceError{
 		Reason:   reason,
 		Revision: revision,
 	}
+	return failure
 }

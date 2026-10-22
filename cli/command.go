@@ -530,24 +530,27 @@ func acceptRootCommandRecord(id CommandID, position declarationPosition, configu
 	if !configuration.Valid() {
 		panic("semantic: invalid command configuration")
 	}
-	return commandRecord{
+	record := commandRecord{
 		meta:          acceptRecordMeta(id, position),
 		configuration: configuration,
 	}
+	return record
 }
 
 func acceptCommandRecord(id, parent CommandID, position declarationPosition, configuration semanticCommandConfiguration) commandRecord {
 	if !parent.present() {
 		panic("semantic: invalid parent command identity")
 	}
-	return commandRecord{
-		meta: acceptRecordMeta(id, position),
-		parent: staticCommandParent{
-			id:      parent,
-			present: true,
-		},
+	commandParent := staticCommandParent{
+		id:      parent,
+		present: true,
+	}
+	record := commandRecord{
+		meta:          acceptRecordMeta(id, position),
+		parent:        commandParent,
 		configuration: configuration,
 	}
+	return record
 }
 
 func (record commandRecord) Parent() (CommandID, bool) {

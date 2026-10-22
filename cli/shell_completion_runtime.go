@@ -66,10 +66,11 @@ func serveCompletionProcess(ctx context.Context, app Application, activationName
 	result, completionErr := app.Complete(ctx, semanticRequest)
 	response := projectShellCompletionAdapterResponse(result, completionErr != nil, request.capabilities)
 	if err := encodeShellCompletionAdapterResponse(stdout, request.responseCodec, response); err != nil {
-		return &shellCompletionAdapterError{
+		failure := &shellCompletionAdapterError{
 			detail: "encode response",
 			cause:  err,
 		}
+		return failure
 	}
 	return nil
 }

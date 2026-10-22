@@ -172,13 +172,15 @@ func (operation *invocation) dynamicDomainValueLanguage(ctx context.Context) gra
 		}
 		outcome := operation.materializeDynamicDomain(ctx, demand.Grammar, index)
 		if outcome.status == dynamicDomainOutcomeReady {
-			return grammarValueLanguageMaterialization{
+			materialization := grammarValueLanguageMaterialization{
 				Ready: true,
 			}
+			return materialization
 		}
-		return grammarValueLanguageMaterialization{
+		materialization := grammarValueLanguageMaterialization{
 			Err: outcome.err,
 		}
+		return materialization
 	}
 }
 

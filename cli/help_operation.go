@@ -127,11 +127,14 @@ func (operation *invocation) showHelp(ctx context.Context, stdout io.Writer, gra
 	renderCtx = withProfile(renderCtx, profileForWriter(stdout, destinationStdoutInformational))
 	text, err := renderer(renderCtx, page)
 	if err != nil {
+		failure := &helpRenderingError{
+			cause: err,
+		}
 		return operationDiagnosticFailure(
 			operation,
 			DiagnosticHelpRenderingFailure,
 			"help rendering failure",
-			&helpRenderingError{cause: err},
+			failure,
 		)
 	}
 	return writeFrameworkOutput(operation, stdout, text, "help")
@@ -436,8 +439,8 @@ func evaluateHelpDefaultOutcomes(defaults []defaultRecord, grammar grammarResult
 	return result
 }
 
-func helpDefaultTargets(model *effectiveModel, target CommandID, profiles map[CommandID]GrammarProfileID, outcomes map[CommandDefaultID]conditionOutcome) map[CommandID]bool {
-	var result map[CommandID]bool
+func helpDefaultTargets(model *effectiveModel, target CommandID, profiles map[CommandID]GrammarProfileID, outcomes map[CommandDefaultID]conditionOutcome) map[CommandID]struct{} {
+	var result map[CommandID]struct{}
 	for _, record := range model.DefaultsForParent(target) {
 		if !structuralProfileActive(profiles, target, record.meta.profile) {
 			continue
@@ -450,9 +453,9 @@ func helpDefaultTargets(model *effectiveModel, target CommandID, profiles map[Co
 			continue
 		}
 		if result == nil {
-			result = make(map[CommandID]bool)
+			result = make(map[CommandID]struct{})
 		}
-		result[record.target] = true
+		result[record.target] = struct{}{}
 	}
 	return result
 }

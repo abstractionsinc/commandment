@@ -22,11 +22,12 @@ func fixtureDescriptor(signal string, reraisable bool) cli.SignalDescriptor[stri
 	if reraisable {
 		capabilities |= cli.SignalSourceCapabilityReraise
 	}
-	return cli.SignalDescriptor[string]{
+	descriptor := cli.SignalDescriptor[string]{
 		Signal:       signal,
 		Capabilities: capabilities,
 		Fidelity:     cli.SignalSourceDeliveryFidelityExact,
 	}
+	return descriptor
 }
 
 func TestSignalSourceFixtureOrdinaryLifecycleAndRetainedReraiseHistory(t *testing.T) {
@@ -47,7 +48,9 @@ func TestSignalSourceFixtureOrdinaryLifecycleAndRetainedReraiseHistory(t *testin
 	case <-time.After(time.Second):
 		t.Fatal("ordinary source did not report Opened")
 	}
-	sentNotification := cli.SignalNotification[string]{Signal: fixtureSignalInterrupt}
+	sentNotification := cli.SignalNotification[string]{
+		Signal: fixtureSignalInterrupt,
+	}
 	if err := control.Notify(sentNotification); err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +97,9 @@ func TestSignalSourceFixtureOrdinaryFailureIsOrderedAfterNotifications(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	notification := cli.SignalNotification[string]{Signal: fixtureSignalInterrupt}
+	notification := cli.SignalNotification[string]{
+		Signal: fixtureSignalInterrupt,
+	}
 	if err := control.Notify(notification); err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +122,9 @@ func TestSignalWatchSourceFixtureRecordsDetachedWatchStates(t *testing.T) {
 		fixtureDescriptor(fixtureSignalInterrupt, false),
 		fixtureDescriptor(fixtureSignalTerminate, false),
 	}
-	options := SignalWatchSourceOptions[string]{Signals: descriptors}
+	options := SignalWatchSourceOptions[string]{
+		Signals: descriptors,
+	}
 	source, control := SignalWatchSource(options)
 	initial := []string{fixtureSignalInterrupt}
 	subscription, err := source.Subscribe(t.Context(), 1, initial)
@@ -132,8 +139,14 @@ func TestSignalWatchSourceFixtureRecordsDetachedWatchStates(t *testing.T) {
 	next[0] = fixtureSignalMutated
 	changes := control.WatchStates()
 	want := []SignalWatchState[string]{
-		{Revision: 1, Signals: []string{fixtureSignalInterrupt}},
-		{Revision: 2, Signals: []string{fixtureSignalTerminate}},
+		{
+			Revision: 1,
+			Signals:  []string{fixtureSignalInterrupt},
+		},
+		{
+			Revision: 2,
+			Signals:  []string{fixtureSignalTerminate},
+		},
 	}
 	for index, expected := range want {
 		select {
@@ -168,7 +181,9 @@ func TestSignalWatchSourceFixtureEventsAndReraiseUseNativeDomain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	notification := cli.SignalNotification[string]{Signal: fixtureSignalTerminate}
+	notification := cli.SignalNotification[string]{
+		Signal: fixtureSignalTerminate,
+	}
 	if err := control.Notify(notification); err != nil {
 		t.Fatal(err)
 	}
@@ -200,8 +215,12 @@ func TestSignalWatchSourceFixtureEventsAndReraiseUseNativeDomain(t *testing.T) {
 func TestSignalSourceFixtureConstructorsSnapshotDescriptors(t *testing.T) {
 	t.Parallel()
 	descriptors := []cli.SignalDescriptor[string]{fixtureDescriptor(fixtureSignalInterrupt, false)}
-	ordinaryOptions := SignalSourceOptions[string]{Signals: descriptors}
-	advancedOptions := SignalWatchSourceOptions[string]{Signals: descriptors}
+	ordinaryOptions := SignalSourceOptions[string]{
+		Signals: descriptors,
+	}
+	advancedOptions := SignalWatchSourceOptions[string]{
+		Signals: descriptors,
+	}
 	ordinary, _ := SignalSource(ordinaryOptions)
 	advanced, _ := SignalWatchSource(advancedOptions)
 	descriptors[0].Signal = fixtureSignalMutated
@@ -217,12 +236,30 @@ func TestSignalSourceFixtureInvalidObservationMethodsPanic(t *testing.T) {
 		name string
 		run  func()
 	}{
-		{name: "ordinary opened", run: func() { var control SignalSourceControl[string]; _ = control.Opened() }},
-		{name: "ordinary reraises", run: func() { var control SignalSourceControl[string]; _ = control.Reraises() }},
-		{name: "ordinary closed", run: func() { var control SignalSourceControl[string]; _ = control.Closed() }},
-		{name: "advanced watch changes", run: func() { var control SignalWatchSourceControl[string]; _ = control.WatchStates() }},
-		{name: "advanced reraises", run: func() { var control SignalWatchSourceControl[string]; _ = control.Reraises() }},
-		{name: "advanced closed", run: func() { var control SignalWatchSourceControl[string]; _ = control.Closed() }},
+		{
+			name: "ordinary opened",
+			run:  func() { var control SignalSourceControl[string]; _ = control.Opened() },
+		},
+		{
+			name: "ordinary reraises",
+			run:  func() { var control SignalSourceControl[string]; _ = control.Reraises() },
+		},
+		{
+			name: "ordinary closed",
+			run:  func() { var control SignalSourceControl[string]; _ = control.Closed() },
+		},
+		{
+			name: "advanced watch changes",
+			run:  func() { var control SignalWatchSourceControl[string]; _ = control.WatchStates() },
+		},
+		{
+			name: "advanced reraises",
+			run:  func() { var control SignalWatchSourceControl[string]; _ = control.Reraises() },
+		},
+		{
+			name: "advanced closed",
+			run:  func() { var control SignalWatchSourceControl[string]; _ = control.Closed() },
+		},
 	}
 
 	for _, operation := range operations {
@@ -245,8 +282,12 @@ func TestSignalSourceFixtureDescriptorSnapshotOwnsReraiseCapability(t *testing.T
 
 	for _, reraisable := range []bool{false, true} {
 		descriptors := []cli.SignalDescriptor[string]{fixtureDescriptor(fixtureSignalInterrupt, reraisable)}
-		ordinaryOptions := SignalSourceOptions[string]{Signals: descriptors}
-		advancedOptions := SignalWatchSourceOptions[string]{Signals: descriptors}
+		ordinaryOptions := SignalSourceOptions[string]{
+			Signals: descriptors,
+		}
+		advancedOptions := SignalWatchSourceOptions[string]{
+			Signals: descriptors,
+		}
 		ordinary, _ := SignalSource(ordinaryOptions)
 		advanced, _ := SignalWatchSource(advancedOptions)
 

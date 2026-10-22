@@ -345,12 +345,13 @@ func acceptDestinationRecord(id ValueID, command CommandID, position declaration
 	if !definition.Valid() {
 		panic("semantic: invalid destination definition")
 	}
-	return destinationRecord{
+	record := destinationRecord{
 		meta:       acceptRecordMeta(id, position),
 		command:    command,
 		definition: definition,
 		binding:    binding,
 	}
+	return record
 }
 
 func (record destinationRecord) Definition() (destinationDefinition, bool) {
@@ -404,7 +405,9 @@ func (handle *destinationHandle) setStagedIdentity(ref destinationRef) {
 	if handle.identity != nil {
 		panic("cli: destination identity already initialized")
 	}
-	handle.identity = stagedDestinationIdentity{ref: ref}
+	handle.identity = stagedDestinationIdentity{
+		ref: ref,
+	}
 }
 
 func (handle *destinationHandle) snapshotValue(value any) (any, bool) {
@@ -426,10 +429,11 @@ func prepareDestinationAcceptance(handle *destinationHandle, identity acceptedDe
 	if _, ok := handle.currentIdentity().(stagedDestinationIdentity); !ok {
 		panic("cli: destination identity is not staged")
 	}
-	return destinationAcceptance{
+	acceptance := destinationAcceptance{
 		handle:   handle,
 		identity: identity,
 	}
+	return acceptance
 }
 
 func (acceptance destinationAcceptance) publish() {

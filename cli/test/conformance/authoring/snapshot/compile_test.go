@@ -53,9 +53,11 @@ type authoringShortcutNameConfig struct{ Name string }
 func TestShortcutAuthoringProjectsDeclaredSemantics(t *testing.T) {
 	t.Parallel()
 	type config = authoringShortcutNameConfig
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name:            authoringShortcutToolName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	definition := cli.Definition[config]{
+		Name: authoringShortcutToolName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			name := root.Values.String(&root.Config.Name)
 			root.Flags.ValueFor(name).Placement(cli.FlagPlacementSubtree).Long("name")
@@ -75,7 +77,8 @@ func TestShortcutAuthoringProjectsDeclaredSemantics(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	serve := root.Command("serve")
 	quick := root.Shortcut("quick")
@@ -213,7 +216,7 @@ func TestSnapshotDefinitionMetadataDetachesRetainedPublicInput(t *testing.T) {
 		CommandLine: "tool show",
 	}}
 	order := []string{"one", "two"}
-	app := compileMustCompilePublic(t, cli.Definition[struct{}]{
+	definition := cli.Definition[struct{}]{
 		Name: "tool",
 		Description: cli.Description{
 			Short: "short",
@@ -225,7 +228,8 @@ func TestSnapshotDefinitionMetadataDetachesRetainedPublicInput(t *testing.T) {
 			DefaultLocale: "en",
 			Bundles:       bundles,
 		},
-	})
+	}
+	app := compileMustCompilePublic(t, definition)
 	examples[0].CommandLine = "mutated"
 	translations["hello"] = "mutated"
 	bundles[0].Locale = "de"
@@ -291,9 +295,12 @@ func TestArgumentAuthoringSnapshotsCompletionAndAcceptsSourceSensitivity(t *test
 				argument := form.String(&form.Config.Value, "value").Sensitive()
 				argument.CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 					callbackCalls++
-					return cli.CompletionContribution{
-						Candidates: []cli.CompletionCandidate{{Value: "candidate"}},
-					}, nil
+					contribution := cli.CompletionContribution{
+						Candidates: []cli.CompletionCandidate{{
+							Value: "candidate",
+						}},
+					}
+					return contribution, nil
 				}, sources...).From(deps...)
 			})
 			sources[0] = cli.Source.Key("mutated")
@@ -308,8 +315,10 @@ func TestArgumentAuthoringSnapshotsCompletionAndAcceptsSourceSensitivity(t *test
 		term.Completion().DependenciesExactly(root.ValueAt(0)),
 	)
 	clitest.Complete(t.Context(), app, cli.CompletionRequest{
-		Args:   []string{""},
-		Cursor: cli.CompletionCursor{Argument: 0},
+		Args: []string{""},
+		Cursor: cli.CompletionCursor{
+			Argument: 0,
+		},
 	}).Require(t, clitest.CompletionItem("candidate").Present())
 	if callbackCalls != 1 {
 		t.Fatalf("completion calls = %d, want 1", callbackCalls)
@@ -318,7 +327,9 @@ func TestArgumentAuthoringSnapshotsCompletionAndAcceptsSourceSensitivity(t *test
 
 func TestCommandDefaultBelongsToExactParentChildDeclaration(t *testing.T) {
 	t.Parallel()
-	reusable := cli.Command[struct{}]{Name: "leaf"}
+	reusable := cli.Command[struct{}]{
+		Name: "leaf",
+	}
 	app := clitest.Compile(t, cli.Definition[struct{}]{
 		Name: "tool",
 		Declare: func(root *cli.CommandBuilder[struct{}]) {
@@ -359,7 +370,9 @@ func TestCommandDefaultPreservesProfileOfStagedChild(t *testing.T) {
 			root.Values.Default(profile, "active")
 			root.Profiles.Switch(profile, func(cases *cli.GrammarProfileCases[config, string]) {
 				cases.Case("active", func(active *cli.CommandBuilder[config]) {
-					active.Subcommands.Command(cli.Command[struct{}]{Name: "child"}).Default()
+					active.Subcommands.Command(cli.Command[struct{}]{
+						Name: "child",
+					}).Default()
 				})
 			})
 		},
@@ -386,10 +399,16 @@ func TestSubcommandAuthoringSnapshotsAliasesAndLowersInheritedGrammar(t *testing
 	t.Parallel()
 	type rootConfig = authoringSnapshotRootConfig
 	type childConfig = authoringSnapshotForceNameChildConfig
-	aliases := []cli.CommandAlias{{Name: "c"}, {Name: "kid"}}
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
-		Name:            "command-snapshot",
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
+	aliases := []cli.CommandAlias{{
+		Name: "c",
+	}, {
+		Name: "kid",
+	}}
+	definition := cli.Definition[rootConfig]{
+		Name: "command-snapshot",
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			root.Dialect.ResponseFiles(true)
 			root.Subcommands.Command(cli.Command[childConfig]{
@@ -405,7 +424,8 @@ func TestSubcommandAuthoringSnapshotsAliasesAndLowersInheritedGrammar(t *testing
 			}).Default()
 			aliases[0].Name = "mutated"
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	child := root.Command("child")
 	childForm := child.ArgumentFormAt(0)
@@ -484,14 +504,17 @@ func TestKeyValueLanguageSnapshotsSyntaxConfiguration(t *testing.T) {
 	type config = authoringSnapshotValuesConfig
 	language := cli.Value.Keyed(cli.Value.String(), cli.Value.Int()).SeparatedBy(":")
 	keyOnly := language.KeyOnly(7)
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "keyed",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			d := root.Values.Keyed(&root.Config.Values, keyOnly)
 			root.Flags.Keyed(d).Long("label")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().Flag("--label").Value()
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
 		Args: []string{"--label", "a:3", "--label", "b"},
@@ -517,7 +540,7 @@ func TestComputationExpressionsSnapshotCallerOwnedSlices(t *testing.T) {
 	options := []cli.SourceOption{cli.Source.Key("before")}
 	var base cli.Destination[config, string]
 	var computationCalls int
-	app := compileMustCompilePublic(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "computation-snapshot",
 		Declare: func(root *cli.CommandBuilder[config]) {
 			base = root.Values.String(&root.Config.Base)
@@ -533,7 +556,8 @@ func TestComputationExpressionsSnapshotCallerOwnedSlices(t *testing.T) {
 			deps[0] = base.OptionalDependency()
 		},
 		Run: func(context.Context, *config) error { return nil },
-	})
+	}
+	app := compileMustCompilePublic(t, definition)
 	if err := app.Run(t.Context(), cli.RunRequest{}); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -589,9 +613,12 @@ func TestCompletionExpressionsSnapshotDependenciesWhenExtended(t *testing.T) {
 			deps := []cli.Dependency{dep.OptionalDependency()}
 			root.Flags.String(&root.Config.Flag).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 				calls++
-				return cli.CompletionContribution{
-					Candidates: []cli.CompletionCandidate{{Value: "f"}},
-				}, nil
+				contribution := cli.CompletionContribution{
+					Candidates: []cli.CompletionCandidate{{
+						Value: "f",
+					}},
+				}
+				return contribution, nil
 			}, cli.Source.Key("before")).From(deps...).
 				Long("flag")
 			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
@@ -600,9 +627,12 @@ func TestCompletionExpressionsSnapshotDependenciesWhenExtended(t *testing.T) {
 					"arg",
 				).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
 					calls++
-					return cli.CompletionContribution{
-						Candidates: []cli.CompletionCandidate{{Value: "a"}},
-					}, nil
+					contribution := cli.CompletionContribution{
+						Candidates: []cli.CompletionCandidate{{
+							Value: "a",
+						}},
+					}
+					return contribution, nil
 				}, cli.Source.Key("before")).
 					From(deps...)
 			})
@@ -635,16 +665,19 @@ func TestValueDirectiveStagesAfterDestinationAndSnapshotsCallerSlices(t *testing
 	type config = authoringSnapshotValueConfig
 	policies := []any{cli.Value.KeepFirst()}
 	_ = policies
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "directive",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			d := root.Values.String(&root.Config.Value)
 			root.Values.ResolveWith(d, cli.Value.KeepFirst())
 			root.Values.Default(d, "first")
 			root.Values.Default(d, "second")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	value := clitest.RootCommand().ValueAt(0)
 	c0, c1 := value.CandidateAt(0), value.CandidateAt(1)
 	clitest.Inspect(t.Context(), app, cli.InspectionRequest{}).Require(t,
@@ -665,11 +698,13 @@ func TestDefinitionAuthoringEntersOneRootTransactionAndSnapshotsRetainedInput(t 
 		Description: "before",
 		CommandLine: "commandment child",
 	}}
-	app := compileMustCompilePublic(t, cli.Definition[rootConfig]{
-		Name:            authoringSnapshotCommandmentName,
-		ShellCompletion: cli.ShellCompletion{Disabled: true},
-		Examples:        examples,
-		Middleware:      middleware,
+	definition := cli.Definition[rootConfig]{
+		Name: authoringSnapshotCommandmentName,
+		ShellCompletion: cli.ShellCompletion{
+			Disabled: true,
+		},
+		Examples:   examples,
+		Middleware: middleware,
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
 			root.Subcommands.Command(cli.Command[childConfig]{
@@ -682,7 +717,8 @@ func TestDefinitionAuthoringEntersOneRootTransactionAndSnapshotsRetainedInput(t 
 			})
 		},
 		Run: func(context.Context, *rootConfig) error { return nil },
-	})
+	}
+	app := compileMustCompilePublic(t, definition)
 	examples[0].Description = "mutated"
 	middleware[0] = nil
 	schema := app.Schema()
@@ -710,8 +746,10 @@ func TestProviderBatchCaptureUsesCanonicalAuthoringAndSnapshotsContributions(t *
 	type childConfig = authoringSnapshotModeChildConfig
 
 	command := cli.Command[childConfig]{
-		Name:    "child",
-		Aliases: []cli.CommandAlias{{Name: "kid"}},
+		Name: "child",
+		Aliases: []cli.CommandAlias{{
+			Name: "kid",
+		}},
 		Examples: []cli.Example{{
 			Description: "example",
 			CommandLine: "app child",
@@ -744,7 +782,9 @@ func TestProviderBatchCaptureUsesCanonicalAuthoringAndSnapshotsContributions(t *
 	provide := func(_ context.Context, batch *cli.CommandBatch[ownerConfig]) error {
 		command.Declare = declareChild
 		child := batch.Command(command, cli.Source.Key("command-source"))
-		batch.Alias(child, cli.CommandAlias{Name: "c"}, cli.Source.Location("alias-source"))
+		batch.Alias(child, cli.CommandAlias{
+			Name: "c",
+		}, cli.Source.Location("alias-source"))
 		binding := batch.Shortcut(cli.CommandPath{"child"}, shortcut, cli.Source.Key("shortcut-source"))
 		binding.Default(mode, "safe", cli.Source.Key("typed-default"))
 		binding.DefaultFlag("--format", []string{"fast"}, cli.Source.Location("flag-default"))
@@ -770,7 +810,9 @@ func TestProviderBatchCaptureUsesCanonicalAuthoringAndSnapshotsContributions(t *
 		Args:   []string{"c"},
 		Locale: "fr",
 	}
-	shortcutRequest := cli.InspectionRequest{Args: []string{"quick"}}
+	shortcutRequest := cli.InspectionRequest{
+		Args: []string{"quick"},
+	}
 
 	clitest.Inspect(t.Context(), app, aliasRequest).Require(t,
 		clitest.InspectionReady(),
@@ -886,7 +928,7 @@ func TestStagingProjectsDeclaredSemantics(t *testing.T) {
 func TestStagingProjectsEverySemanticCarrier(t *testing.T) {
 	t.Parallel()
 	type config = authoringStagingGateEnvSelectedDerivedConfig
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name:    "tool",
 		Release: cli.Release.Ordered("2", "1", "2"),
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -933,7 +975,8 @@ func TestStagingProjectsEverySemanticCarrier(t *testing.T) {
 			})
 			form.Selects(selected, "chosen")
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	root := clitest.RootCommand()
 	gate := root.Environment("GATE").Value()
 	selected := root.ValueAt(1)

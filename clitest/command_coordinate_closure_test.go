@@ -207,7 +207,9 @@ func TestSelectionCommandNotProvablePropagatesThroughSemanticExpectations(t *tes
 				NamespaceCompleteness: cli.CommandNamespaceIncomplete,
 			},
 		},
-		Tokens: []cli.TokenInspection{{Command: rootID}},
+		Tokens: []cli.TokenInspection{{
+			Command: rootID,
+		}},
 		ExecutionAdmission: cli.ExecutionAdmissionInspection{
 			HandlerCommand: rootID,
 			Middleware: []cli.MiddlewareInspection{{

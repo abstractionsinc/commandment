@@ -96,20 +96,22 @@ func (locator CommandLocator) Lifecycle(state cli.LifecycleState) DeclarationExp
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (locator CommandLocator) ChildrenExactly(values ...CommandLocator) DeclarationExpectation {
-	return commandChildrenExpectation{
+	expectation := commandChildrenExpectation{
 		command: locator.state,
 		items:   commandLocatorStates(values),
 	}
+	return expectation
 }
 
 // SignalPoliciesExactly returns an expectation that checks the located command's signal policies
 // are exactly the supplied locators in authoritative public order. Exactness is not inferred from
 // an incomplete observation.
 func (locator CommandLocator) SignalPoliciesExactly(values ...SignalPolicyLocator) DeclarationExpectation {
-	return commandSignalPoliciesExpectation{
+	expectation := commandSignalPoliciesExpectation{
 		command: locator.state,
 		items:   signalPolicyLocatorStates(values),
 	}
+	return expectation
 }
 
 // Available returns an expectation that checks the located command is available in the applicable
@@ -145,38 +147,42 @@ func (locator CommandLocator) NamespaceCompleteness(state cli.CommandNamespaceCo
 // EffectiveDialect checks the exact effective command dialect exposed by the
 // public Schema, Reference, or Inspection observation for this command.
 func (locator CommandLocator) EffectiveDialect(expected cli.CommandDialect) DeclarationExpectation {
-	return commandDialectExpectationValue{
+	value := commandDialectExpectationValue{
 		locator:  locator.state,
 		expected: cloneExpectedCommandDialect(expected),
 	}
+	return value
 }
 
 // Origin checks the framework-established declaration origin projected for this
 // command. It observes the public artifact; it does not infer origin from names
 // or caller-provided metadata.
 func (locator CommandLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return commandOriginExpectationValue{
+	value := commandOriginExpectationValue{
 		locator: locator.state,
 		origin:  expected,
 	}
+	return value
 }
 
 // Name returns a reusable declaration expectation that checks the public name exposed by the
 // located command.
 func (locator CommandLocator) Name(expected string) DeclarationExpectation {
-	return commandNameExpectationValue{
+	value := commandNameExpectationValue{
 		locator: locator.state,
 		name:    expected,
 	}
+	return value
 }
 
 // ActionEntries returns a locator that follows the public action entries relationship from the
 // located command. The returned locator carries locator coordinates, not observed state.
 func (locator CommandLocator) ActionEntries(action cli.InvocationAction) ActionEntriesLocator {
-	return ActionEntriesLocator{
+	actionEntriesLocator := ActionEntriesLocator{
 		command: locator.state,
 		action:  action,
 	}
+	return actionEntriesLocator
 }
 
 // ObservedDoesNotExist returns an Inspection expectation that no matching command is present in the returned
@@ -184,44 +190,51 @@ func (locator CommandLocator) ActionEntries(action cli.InvocationAction) ActionE
 // This is observed-snapshot absence and may succeed even when a namespace is incomplete; unlike complete-domain
 // nonexistence expectation, it makes no claim about commands omitted from the observation.
 func (locator CommandLocator) ObservedDoesNotExist() InspectionExpectation {
-	return observedCommandDoesNotExistExpectation{locator: locator.state}
+	expectation := observedCommandDoesNotExistExpectation{
+		locator: locator.state,
+	}
+	return expectation
 }
 
 // SourceDescription returns a Schema expectation that checks the located
 // command's source description.
 func (locator CommandLocator) SourceDescription(expected cli.Description) SchemaExpectation {
-	return commandSourceDescriptionExpectation{
+	expectation := commandSourceDescriptionExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // PresentedDescription returns a Reference and Inspection expectation that
 // checks the located command's resolved description.
 func (locator CommandLocator) PresentedDescription(expected cli.Description) PresentedDeclarationExpectation {
-	return commandPresentedDescriptionExpectation{
+	expectation := commandPresentedDescriptionExpectation{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return expectation
 }
 
 // SourceExamplesExactly returns a Schema expectation that checks the located
 // command's complete ordered source examples.
 func (locator CommandLocator) SourceExamplesExactly(expected ...cli.Example) SchemaExpectation {
-	return commandSourceExamplesExpectation{
+	expectation := commandSourceExamplesExpectation{
 		locator:  locator.state,
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 // PresentedExamplesExactly returns a Reference and Inspection expectation that
 // checks the located command's complete ordered resolved examples. Exactness is
 // not provable from a truncated Inspection.
 func (locator CommandLocator) PresentedExamplesExactly(expected ...cli.Example) PresentedDeclarationExpectation {
-	return commandPresentedExamplesExpectation{
+	expectation := commandPresentedExamplesExpectation{
 		locator:  locator.state,
 		expected: slices.Clone(expected),
 	}
+	return expectation
 }
 
 type commandChildrenExpectation struct {
@@ -336,9 +349,15 @@ func commandLocatorLabelAtDepth(state *commandLocatorState, depth int) evaluatio
 		if len(state.path) == 0 {
 			return evaluationText("root command")
 		}
-		return commandPathField{values: state.path}
+		field := commandPathField{
+			values: state.path,
+		}
+		return field
 	case commandLocatorID:
-		return commandIDField{value: state.id}
+		field := commandIDField{
+			value: state.id,
+		}
+		return field
 	case commandLocatorChild:
 		parent := commandLocatorLabelAtDepth(state.parent, depth+1)
 		if emptyEvaluationField(parent) {
@@ -567,10 +586,11 @@ func resolveInspectionCommandID(state *commandLocatorState, commands map[cli.Com
 			return matches[0], locatorResolutionFound, evaluationText("")
 		}
 		if len(matches) > 1 {
-			return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+			field := collectionCardinalityField{
 				name:  "matches command-path IDs",
 				count: len(matches),
 			}
+			return 0, locatorResolutionAmbiguous, field
 		}
 		return resolveInspectionCommandPath(state.path, commands)
 	default:
@@ -601,10 +621,11 @@ func resolveInspectionCommandChild(parentID cli.CommandID, name string, commands
 		return matches[0], locatorResolutionFound, evaluationText("")
 	}
 	if len(matches) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  "matches child-command IDs",
 			count: len(matches),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if missingDetail {
 		return 0, locatorResolutionNotProvable, evaluationText("child command details needed for name lookup are absent")
@@ -627,10 +648,11 @@ func resolveInspectionCommandPath(path []string, commands map[cli.CommandID]cli.
 		return 0, locatorResolutionNotProvable, evaluationText("root command is not observable")
 	}
 	if len(roots) > 1 {
-		return 0, locatorResolutionAmbiguous, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  "matches root-command IDs",
 			count: len(roots),
 		}
+		return 0, locatorResolutionAmbiguous, field
 	}
 	if len(path) == 0 {
 		return roots[0], locatorResolutionFound, evaluationText("")
@@ -763,10 +785,11 @@ func collectionResolutionFailure(label evaluationField, name string, index int, 
 	case locatorResolutionNotProvable:
 		return notProvableResult(label, evaluationText("resolvable ordered "+name+" locators"), detail), true
 	default:
-		return disprovedResult(label, evaluationText("resolvable ordered "+name+" locators"), prefixedDetail{
+		detail := prefixedDetail{
 			prefix: fmt.Sprintf("item %d", index),
 			detail: detail,
-		}), true
+		}
+		return disprovedResult(label, evaluationText("resolvable ordered "+name+" locators"), detail), true
 	}
 }
 
@@ -775,7 +798,10 @@ func collectionClosureFailure(label evaluationField, name string, detail evaluat
 }
 
 func commandsExactlyExpectation(locators ...CommandLocator) DeclarationExpectation {
-	return commandsExactlyExpectationValue{states: commandLocatorStates(locators)}
+	value := commandsExactlyExpectationValue{
+		states: commandLocatorStates(locators),
+	}
+	return value
 }
 
 func inspectionCommandTopologyClosure(inspection cli.Inspection) (locatorResolutionStatus, evaluationField) {
@@ -817,76 +843,110 @@ func inspectionCommandTopologyClosure(inspection cli.Inspection) (locatorResolut
 }
 
 func commandChildLocator(parent CommandLocator, name string) CommandLocator {
-	return CommandLocator{
-		state: &commandLocatorState{
-			mode:   commandLocatorChild,
-			parent: parent.state,
-			name:   name,
-		},
+	state := &commandLocatorState{
+		mode:   commandLocatorChild,
+		parent: parent.state,
+		name:   name,
 	}
+	locator := CommandLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandCanonicalEntryLocator(parent CommandLocator) CommandEntryLocator {
-	return CommandEntryLocator{state: &commandEntryLocatorState{
+	state := &commandEntryLocatorState{
 		mode:    commandEntryLocatorCanonical,
 		command: parent.state,
-	}}
+	}
+	locator := CommandEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandAliasLocator(parent CommandLocator, name string) CommandEntryLocator {
-	return CommandEntryLocator{state: &commandEntryLocatorState{
+	state := &commandEntryLocatorState{
 		mode:    commandEntryLocatorAlias,
 		command: parent.state,
 		name:    name,
-	}}
+	}
+	locator := CommandEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandShortcutLocator(parent CommandLocator, name string) CommandEntryLocator {
-	return CommandEntryLocator{state: &commandEntryLocatorState{
+	state := &commandEntryLocatorState{
 		mode:    commandEntryLocatorShortcut,
 		command: parent.state,
 		name:    name,
-	}}
+	}
+	locator := CommandEntryLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandArgumentLocator(parent CommandLocator, name string) ArgumentTermLocator {
-	return ArgumentTermLocator{state: &argumentTermLocatorState{
+	state := &argumentTermLocatorState{
 		mode:    argumentTermLocatorCommandName,
 		command: parent.state,
 		text:    name,
-	}}
+	}
+	locator := ArgumentTermLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandArgumentLiteralLocator(parent CommandLocator, literal string) ArgumentTermLocator {
-	return ArgumentTermLocator{state: &argumentTermLocatorState{
+	state := &argumentTermLocatorState{
 		mode:    argumentTermLocatorCommandLiteral,
 		command: parent.state,
 		text:    literal,
-	}}
+	}
+	locator := ArgumentTermLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandEnvironmentLocator(parent CommandLocator, name string) EnvironmentInputLocator {
-	return EnvironmentInputLocator{state: &environmentInputLocatorState{
+	state := &environmentInputLocatorState{
 		mode:    environmentInputLocatorCommandName,
 		command: parent.state,
 		name:    name,
-	}}
+	}
+	locator := EnvironmentInputLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandEnvironmentAtLocator(parent CommandLocator, index int) EnvironmentInputLocator {
-	return EnvironmentInputLocator{state: &environmentInputLocatorState{
+	state := &environmentInputLocatorState{
 		mode:    environmentInputLocatorCommandIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := EnvironmentInputLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandValueAtLocator(parent CommandLocator, index int) ValueLocator {
-	return ValueLocator{state: &valueLocatorState{
+	state := &valueLocatorState{
 		mode:    valueLocatorCommandIndex,
 		command: parent.state,
 		index:   index,
-	}}
+	}
+	locator := ValueLocator{
+		state: state,
+	}
+	return locator
 }
 
 func cloneExpectedCommandDialect(value cli.CommandDialect) cli.CommandDialect {
@@ -954,28 +1014,34 @@ func commandExistenceOutcome(status locatorResolutionStatus, subject, detail eva
 }
 
 func commandExistenceExpectation(locator CommandLocator, exists bool) DeclarationExpectation {
-	return commandExistenceExpectationValue{
+	value := commandExistenceExpectationValue{
 		locator: locator.state,
 		exists:  exists,
 	}
+	return value
 }
 
 func commandHiddenExpectation(locator CommandLocator) DeclarationExpectation {
-	return commandHiddenExpectationValue{locator: locator.state}
+	value := commandHiddenExpectationValue{
+		locator: locator.state,
+	}
+	return value
 }
 
 func commandRunnableExpectation(locator CommandLocator, runnable bool) DeclarationExpectation {
-	return commandRunnableExpectationValue{
+	value := commandRunnableExpectationValue{
 		locator:  locator.state,
 		runnable: runnable,
 	}
+	return value
 }
 
 func commandLifecycleExpectation(locator CommandLocator, lifecycle cli.LifecycleState) DeclarationExpectation {
-	return commandLifecycleExpectationValue{
+	value := commandLifecycleExpectationValue{
 		locator:   locator.state,
 		lifecycle: lifecycle,
 	}
+	return value
 }
 
 func resolveSchemaCommand(state *commandLocatorState, schema *cli.Schema) (cli.CommandSchema, bool, evaluationField) {
@@ -996,51 +1062,60 @@ func commandPropertyOutcome(label, expect evaluationField, ok bool, actual evalu
 }
 
 func commandAvailabilityExpectation(locator CommandLocator, available bool) InspectionExpectation {
-	return commandAvailabilityExpectationValue{
+	value := commandAvailabilityExpectationValue{
 		locator:   locator.state,
 		available: available,
 	}
+	return value
 }
 
 func commandVisibilityExpectation(locator CommandLocator, visible bool) InspectionExpectation {
-	return commandVisibilityExpectationValue{
+	value := commandVisibilityExpectationValue{
 		locator: locator.state,
 		visible: visible,
 	}
+	return value
 }
 
 func commandNamespaceExpectation(locator CommandLocator, namespace cli.CommandNamespaceCompleteness) InspectionExpectation {
-	return commandNamespaceExpectationValue{
+	value := commandNamespaceExpectationValue{
 		locator:   locator.state,
 		namespace: namespace,
 	}
+	return value
 }
 
 func commandRootLocator() CommandLocator {
-	return CommandLocator{
-		state: &commandLocatorState{
-			mode: commandLocatorPath,
-			path: []string{},
-		},
+	state := &commandLocatorState{
+		mode: commandLocatorPath,
+		path: []string{},
 	}
+	locator := CommandLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandPathLocator(path []string) CommandLocator {
-	return CommandLocator{
-		state: &commandLocatorState{
-			mode: commandLocatorPath,
-			path: slices.Clone(path),
-		},
+	state := &commandLocatorState{
+		mode: commandLocatorPath,
+		path: slices.Clone(path),
 	}
+	locator := CommandLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandIDLocator(id cli.CommandID) CommandLocator {
-	return CommandLocator{
-		state: &commandLocatorState{
-			mode: commandLocatorID,
-			id:   id,
-		},
+	state := &commandLocatorState{
+		mode: commandLocatorID,
+		id:   id,
 	}
+	locator := CommandLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandPathCoordinate(state *commandLocatorState) ([]string, bool) {
@@ -1662,7 +1737,10 @@ func (commandSourceDescriptionExpectation) schemaExpectation() {}
 func (e commandSourceDescriptionExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolved := resolveSchemaCommandLocator(e.locator, schema)
 	if resolved.status != locatorResolutionFound {
-		return outcomeForValueStatus(resolved.status, resolved.subject, descriptionField{value: e.expected}, resolved.detail)
+		field := descriptionField{
+			value: e.expected,
+		}
+		return outcomeForValueStatus(resolved.status, resolved.subject, field, resolved.detail)
 	}
 	return compareDescription(qualifySubject(resolved.subject, evaluationText("source description")), e.expected, resolved.value.Description)
 }
@@ -1674,7 +1752,10 @@ func (commandPresentedDescriptionExpectation) inspectionExpectation() {}
 func (e commandPresentedDescriptionExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolved := resolveReferenceCommandLocator(e.locator, reference)
 	if resolved.status != locatorResolutionFound {
-		return outcomeForValueStatus(resolved.status, resolved.subject, descriptionField{value: e.expected}, resolved.detail)
+		field := descriptionField{
+			value: e.expected,
+		}
+		return outcomeForValueStatus(resolved.status, resolved.subject, field, resolved.detail)
 	}
 	return compareDescription(qualifySubject(resolved.subject, evaluationText("presented description")), e.expected, resolved.value.Description)
 }
@@ -1682,7 +1763,10 @@ func (e commandPresentedDescriptionExpectation) evaluateReference(reference cli.
 func (e commandPresentedDescriptionExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolved := resolveInspectionCommandLocator(e.locator, inspection)
 	if resolved.status != locatorResolutionFound {
-		return outcomeForValueStatus(resolved.status, resolved.subject, descriptionField{value: e.expected}, resolved.detail)
+		field := descriptionField{
+			value: e.expected,
+		}
+		return outcomeForValueStatus(resolved.status, resolved.subject, field, resolved.detail)
 	}
 	return compareDescription(qualifySubject(resolved.subject, evaluationText("presented description")), e.expected, resolved.value.Description)
 }
@@ -1692,10 +1776,11 @@ func (commandSourceExamplesExpectation) schemaExpectation() {}
 func (e commandSourceExamplesExpectation) evaluateSchema(schema *cli.Schema) evaluationResult {
 	resolved := resolveSchemaCommandLocator(e.locator, schema)
 	if resolved.status != locatorResolutionFound {
-		return outcomeForValueStatus(resolved.status, resolved.subject, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  semanticNameExamples,
 			count: len(e.expected),
-		}, resolved.detail)
+		}
+		return outcomeForValueStatus(resolved.status, resolved.subject, field, resolved.detail)
 	}
 	if slices.Equal(resolved.value.Examples, e.expected) {
 		return provedResult()
@@ -1710,10 +1795,11 @@ func (commandPresentedExamplesExpectation) inspectionExpectation() {}
 func (e commandPresentedExamplesExpectation) evaluateReference(reference cli.Reference, _ error) evaluationResult {
 	resolved := resolveReferenceCommandLocator(e.locator, reference)
 	if resolved.status != locatorResolutionFound {
-		return outcomeForValueStatus(resolved.status, resolved.subject, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  semanticNameExamples,
 			count: len(e.expected),
-		}, resolved.detail)
+		}
+		return outcomeForValueStatus(resolved.status, resolved.subject, field, resolved.detail)
 	}
 	if slices.Equal(resolved.value.Examples, e.expected) {
 		return provedResult()
@@ -1724,18 +1810,20 @@ func (e commandPresentedExamplesExpectation) evaluateReference(reference cli.Ref
 func (e commandPresentedExamplesExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
 	resolved := resolveInspectionCommandLocator(e.locator, inspection)
 	if resolved.status != locatorResolutionFound {
-		return outcomeForValueStatus(resolved.status, resolved.subject, collectionCardinalityField{
+		field := collectionCardinalityField{
 			name:  semanticNameExamples,
 			count: len(e.expected),
-		}, resolved.detail)
+		}
+		return outcomeForValueStatus(resolved.status, resolved.subject, field, resolved.detail)
 	}
 	if inspection.Truncated {
+		field := collectionCardinalityField{
+			name:  "exact examples",
+			count: len(e.expected),
+		}
 		return notProvableResult(
 			qualifySubject(resolved.subject, evaluationText("presented examples")),
-			collectionCardinalityField{
-				name:  "exact examples",
-				count: len(e.expected),
-			},
+			field,
 			observed(semanticSubjectInspection, observationTruncated),
 		)
 	}

@@ -1,7 +1,6 @@
 package shelltest
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -27,7 +26,7 @@ func TestVerifyRuntimePreservesSelectedLaunchSpellingAndRequiresObservedVersionT
 	if err := os.Symlink(targetPath, runtimePath); err != nil {
 		t.Fatal(err)
 	}
-	verified, err := verifyRuntime(context.Background(), workspace, Runtime{
+	verified, err := verifyRuntime(t.Context(), workspace, Runtime{
 		Executable:  runtimePath,
 		VersionArgs: []string{"--version"},
 		ParseVersion: func(output string) (string, error) {
@@ -56,7 +55,7 @@ func TestVerifyRuntimePreservesSelectedLaunchSpellingAndRequiresObservedVersionT
 	if err := verifyRuntimeExecutable(verified); err == nil || !strings.Contains(err.Error(), "changed after version verification") {
 		t.Fatalf("mutated runtime verification error = %v", err)
 	}
-	_, err = verifyRuntime(context.Background(), workspace, Runtime{
+	_, err = verifyRuntime(t.Context(), workspace, Runtime{
 		Executable:   runtimePath,
 		VersionArgs:  []string{"--version"},
 		ParseVersion: func(string) (string, error) { return "not-observed", nil },
@@ -70,8 +69,12 @@ func TestSnapshotTargetClonesVersionArgumentsAndAcceptsEmptyInput(t *testing.T) 
 	t.Parallel()
 	args := []string{"--version"}
 	target := Target[struct{}]{
-		Provider:  cli.Shell.Bash,
-		Runtime:   Runtime{Executable: "runtime", VersionArgs: args, ParseVersion: func(string) (string, error) { return "v", nil }},
+		Provider: cli.Shell.Bash,
+		Runtime: Runtime{
+			Executable:   "runtime",
+			VersionArgs:  args,
+			ParseVersion: func(string) (string, error) { return "v", nil },
+		},
 		Interpret: func(Observation) (struct{}, error) { return struct{}{}, nil },
 	}
 	got, err := snapshotTarget(target, Input{})
@@ -87,8 +90,12 @@ func TestSnapshotTargetClonesVersionArgumentsAndAcceptsEmptyInput(t *testing.T) 
 func TestSnapshotTargetRejectsInvalidDeclarations(t *testing.T) {
 	t.Parallel()
 	valid := Target[struct{}]{
-		Provider:  cli.Shell.Bash,
-		Runtime:   Runtime{Executable: "runtime", VersionArgs: []string{"--version"}, ParseVersion: func(string) (string, error) { return "v", nil }},
+		Provider: cli.Shell.Bash,
+		Runtime: Runtime{
+			Executable:   "runtime",
+			VersionArgs:  []string{"--version"},
+			ParseVersion: func(string) (string, error) { return "v", nil },
+		},
 		Interpret: func(Observation) (struct{}, error) { return struct{}{}, nil },
 	}
 	tests := []struct {
@@ -96,13 +103,31 @@ func TestSnapshotTargetRejectsInvalidDeclarations(t *testing.T) {
 		target Target[struct{}]
 		input  Input
 	}{
-		{name: "zero-target"},
-		{name: "missing-executable", target: func() Target[struct{}] { value := valid; value.Runtime.Executable = ""; return value }()},
-		{name: "missing-version-args", target: func() Target[struct{}] { value := valid; value.Runtime.VersionArgs = nil; return value }()},
-		{name: "missing-version-parser", target: func() Target[struct{}] { value := valid; value.Runtime.ParseVersion = nil; return value }()},
-		{name: "missing-interpret", target: func() Target[struct{}] { value := valid; value.Interpret = nil; return value }()},
-		{name: "invalid-before-cursor", target: valid, input: Input{BeforeCursor: string([]byte{0xff})}},
-		{name: "invalid-after-cursor", target: valid, input: Input{AfterCursor: string([]byte{0xff})}},
+		{
+			name: "zero-target",
+		},
+		{
+			name:   "missing-executable",
+			target: func() Target[struct{}] { value := valid; value.Runtime.Executable = ""; return value }(),
+		},
+		{
+			name:   "missing-version-args",
+			target: func() Target[struct{}] { value := valid; value.Runtime.VersionArgs = nil; return value }(),
+		},
+		{
+			name:   "missing-version-parser",
+			target: func() Target[struct{}] { value := valid; value.Runtime.ParseVersion = nil; return value }(),
+		},
+		{
+			name:   "missing-interpret",
+			target: func() Target[struct{}] { value := valid; value.Interpret = nil; return value }(),
+		},
+		{name: "invalid-before-cursor", target: valid, input: Input{
+			BeforeCursor: string([]byte{0xff}),
+		}},
+		{name: "invalid-after-cursor", target: valid, input: Input{
+			AfterCursor: string([]byte{0xff}),
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -127,7 +152,9 @@ func writeExecutableFixture(path, contents string) error {
 
 func TestBoundedRuntimeProbeOutputMarksOverflowWithoutGrowingPastLimit(t *testing.T) {
 	t.Parallel()
-	output := boundedOutput{limit: 4}
+	output := boundedOutput{
+		limit: 4,
+	}
 	if written, err := output.Write([]byte("abcdef")); err != nil || written != 6 {
 		t.Fatalf("Write() = %d, %v", written, err)
 	}
@@ -147,12 +174,29 @@ func TestValidateGeneratedCompletionRejectsUnmaterializableGenerationFacts(t *te
 		ActivationEnvironment: "COMMANDMENT_COMPLETE",
 		ActivationValue:       "adapter",
 	}
-	for name, mutate := range map[string]func(*cli.ShellCompletionGeneration){
-		"empty-application": func(g *cli.ShellCompletionGeneration) { g.ApplicationName = "" },
-		"path-application":  func(g *cli.ShellCompletionGeneration) { g.ApplicationName = "bin/alienctl" },
-		"empty-activation":  func(g *cli.ShellCompletionGeneration) { g.ActivationEnvironment = "" },
-		"empty-value":       func(g *cli.ShellCompletionGeneration) { g.ActivationValue = "" },
+	for _, test := range []struct {
+		name   string
+		mutate func(*cli.ShellCompletionGeneration)
+	}{
+		{
+			name:   "empty-application",
+			mutate: func(g *cli.ShellCompletionGeneration) { g.ApplicationName = "" },
+		},
+		{
+			name:   "path-application",
+			mutate: func(g *cli.ShellCompletionGeneration) { g.ApplicationName = "bin/alienctl" },
+		},
+		{
+			name:   "empty-activation",
+			mutate: func(g *cli.ShellCompletionGeneration) { g.ActivationEnvironment = "" },
+		},
+		{
+			name:   "empty-value",
+			mutate: func(g *cli.ShellCompletionGeneration) { g.ActivationValue = "" },
+		},
 	} {
+		name := test.name
+		mutate := test.mutate
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			generation := valid

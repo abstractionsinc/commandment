@@ -26,17 +26,19 @@ const (
 // ContributeValue returns an optional-computation result containing value, including when value
 // is a Go zero value or nil.
 func ContributeValue[T any](value T) ValueContribution[T] {
-	return ValueContribution[T]{
+	contribution := ValueContribution[T]{
 		state: contributionValue,
 		value: value,
 	}
+	return contribution
 }
 
 // OmitValue returns an optional-computation result representing semantic absence.
 func OmitValue[T any]() ValueContribution[T] {
-	return ValueContribution[T]{
+	contribution := ValueContribution[T]{
 		state: contributionOmitted,
 	}
+	return contribution
 }
 
 // ValueComputation computes one required typed value from read-only configuration and declared
@@ -87,17 +89,19 @@ func (valueConstructors) OptionallyComputedBy[C, T any](compute OptionalValueCom
 }
 
 func stageValueComputation[C, T any](compute ValueComputation[C, T], options ...SourceOption) valueComputation[C, T] {
-	return valueComputation[C, T]{
+	computation := valueComputation[C, T]{
 		compute: compute,
 		options: append([]SourceOption(nil), options...),
 	}
+	return computation
 }
 
 func stageOptionalValueComputation[C, T any](compute OptionalValueComputation[C, T], options ...SourceOption) optionalValueComputation[C, T] {
-	return optionalValueComputation[C, T]{
+	computation := optionalValueComputation[C, T]{
 		compute: compute,
 		options: append([]SourceOption(nil), options...),
 	}
+	return computation
 }
 
 func (values *Values[C]) ComputedDefault[T any](destination destinationLike[C, T], computation valueComputation[C, T]) {
@@ -149,7 +153,10 @@ func (values *Values[C]) Derive[T any](storage *T, computation valueComputation[
 		values.profile,
 		destinationValue,
 	)
-	return Destination[C, T]{handle: state}
+	destination := Destination[C, T]{
+		handle: state,
+	}
+	return destination
 }
 
 func (values *Values[C]) OptionalDerive[T any](storage *T, computation optionalValueComputation[C, T]) Destination[C, T] {
@@ -169,7 +176,10 @@ func (values *Values[C]) OptionalDerive[T any](storage *T, computation optionalV
 		values.profile,
 		destinationValue,
 	)
-	return Destination[C, T]{handle: state}
+	destination := Destination[C, T]{
+		handle: state,
+	}
+	return destination
 }
 
 type authoringValueEvaluator func(context.Context, any, Dependencies) (any, bool, error)

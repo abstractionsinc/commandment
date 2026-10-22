@@ -30,11 +30,24 @@ type adapterFuzzChildResult struct {
 
 func adapterFuzzApp(t testing.TB, candidate string) cli.Application {
 	type config struct{ Value string }
-	return clitest.Compile(t, cli.Definition[config]{Name: "tool", Help: cli.HelpConfig{Disabled: true}, Declare: func(root *cli.CommandBuilder[config]) {
-		root.Flags.String(&root.Config.Value).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
-			return cli.CompletionContribution{Candidates: []cli.CompletionCandidate{{Value: candidate}}}, nil
-		}).Long("value")
-	}})
+	helpConfig := cli.HelpConfig{
+		Disabled: true,
+	}
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: helpConfig,
+		Declare: func(root *cli.CommandBuilder[config]) {
+			root.Flags.String(&root.Config.Value).CompleteBy(func(context.Context, *config, cli.ValueCompletionRequest) (cli.CompletionContribution, error) {
+				contribution := cli.CompletionContribution{
+					Candidates: []cli.CompletionCandidate{{
+						Value: candidate,
+					}},
+				}
+				return contribution, nil
+			}).Long("value")
+		},
+	}
+	return clitest.Compile(t, definition)
 }
 
 func adapterFuzzCaptureGeneration(t testing.TB, app cli.Application) cli.ShellCompletionGeneration {
@@ -192,7 +205,7 @@ func FuzzShellCompletionAdapterCanonicalInteger(f *testing.F) {
 			index = int(parsed)
 		}
 		lines := make([]string, 0, index+1)
-		for i := 0; i < index; i++ {
+		for i := range index {
 			lines = append(lines, "word\t"+strconv.Itoa(i)+"\tx\tlexical")
 		}
 		lines = append(lines, "word\t"+value+"\tx\tlexical")
@@ -213,7 +226,7 @@ func FuzzShellCompletionAdapterRecordsRequireContiguousWordIndexes(f *testing.F)
 	f.Fuzz(func(t *testing.T, rawCount uint8) {
 		count := int(rawCount%16) + 1
 		lines := make([]string, 0, count)
-		for i := 0; i < count; i++ {
+		for i := range count {
 			lines = append(lines, "word\t"+strconv.Itoa(i)+"\tx\tlexical")
 		}
 		_, canonical := runAdapterFuzzChild(t, "x", recordsFuzzRequest(lines, "0", "0"))

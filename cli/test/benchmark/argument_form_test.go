@@ -69,9 +69,13 @@ func BenchmarkCompleteArgumentForms(b *testing.B) {
 }
 
 func isolatedArgumentFormDefinition(definition cli.Definition[inputConfig]) cli.Definition[inputConfig] {
-	definition.Help = cli.HelpConfig{Disabled: true}
+	definition.Help = cli.HelpConfig{
+		Disabled: true,
+	}
 	definition.Version = cli.VersionConfig{}
-	definition.ShellCompletion = cli.ShellCompletion{Disabled: true}
+	definition.ShellCompletion = cli.ShellCompletion{
+		Disabled: true,
+	}
 	definition.Run = func(context.Context, *inputConfig) error { return nil }
 	return definition
 }
@@ -107,20 +111,26 @@ func literalArgumentFormFixture(tb testing.TB, forms, terms int) argumentFormFix
 	args[terms-1] = fmt.Sprintf("final-%03d", forms-1)
 	completionArgs := append([]string(nil), args...)
 	completionArgs[terms-1] = "final-"
-	return argumentFormFixture{
-		app:        app,
-		inspection: cli.InspectionRequest{Args: args},
-		completion: cli.CompletionRequest{
-			Args: completionArgs,
-			Cursor: cli.CompletionCursor{
-				Argument: terms - 1,
-				Byte:     len("final-"),
-			},
-		},
-		forms: forms,
-		terms: terms,
-		items: forms,
+	request := cli.InspectionRequest{
+		Args: args,
 	}
+	cursor := cli.CompletionCursor{
+		Argument: terms - 1,
+		Byte:     len("final-"),
+	}
+	completionRequest := cli.CompletionRequest{
+		Args:   completionArgs,
+		Cursor: cursor,
+	}
+	fixture := argumentFormFixture{
+		app:        app,
+		inspection: request,
+		completion: completionRequest,
+		forms:      forms,
+		terms:      terms,
+		items:      forms,
+	}
+	return fixture
 }
 
 func exactCountArgumentFormFixture(tb testing.TB, tokens int) argumentFormFixture {
@@ -144,19 +154,25 @@ func exactCountArgumentFormFixture(tb testing.TB, tokens int) argumentFormFixtur
 	}
 	completionArgs := append([]string(nil), args...)
 	completionArgs[tokens-1] = ""
-	return argumentFormFixture{
+	request := cli.InspectionRequest{
+		Args: args,
+	}
+	cursor := cli.CompletionCursor{
+		Argument: tokens - 1,
+	}
+	completionRequest := cli.CompletionRequest{
+		Args:   completionArgs,
+		Cursor: cursor,
+	}
+	fixture := argumentFormFixture{
 		app:        app,
-		inspection: cli.InspectionRequest{Args: args},
-		completion: cli.CompletionRequest{
-			Args: completionArgs,
-			Cursor: cli.CompletionCursor{
-				Argument: tokens - 1,
-			},
-		},
+		inspection: request,
+		completion: completionRequest,
 		forms:      1,
 		terms:      1,
 		exactCount: true,
 	}
+	return fixture
 }
 
 func preflightArgumentFormInspection(tb testing.TB, fixture argumentFormFixture) {

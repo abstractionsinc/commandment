@@ -11,6 +11,22 @@ import (
 	"github.com/abstractionsinc/commandment/cli"
 )
 
+// Target binds one production completion provider to its runtime and adapter behavior. Its zero
+// value is invalid: Provider and Interpret must be non-nil. Prepare may be nil. Operations snapshot
+// mutable Runtime inputs they retain so later caller mutation cannot change an in-flight proof.
+type Target[R any] struct {
+	Provider  cli.ShellCompletionProvider
+	Runtime   Runtime
+	Prepare   PrepareFunc
+	Interpret InterpretFunc[R]
+}
+
+// Input is editor text split at the completion cursor. Its zero value is valid empty editor input with the cursor at the start.
+type Input struct {
+	BeforeCursor string
+	AfterCursor  string
+}
+
 const (
 	completionOperationTimeout = 60 * time.Second
 	bridgeCleanupTimeout       = 5 * time.Second
@@ -157,7 +173,9 @@ func runGeneratedCompletion[R any](t testing.TB, app cli.Application, target Tar
 				panic("shelltest: Observation use crossed Interpret callback boundary")
 			}
 		}()
-		result, interpretErr = target.Interpret(Observation{state: state})
+		result, interpretErr = target.Interpret(Observation{
+			state: state,
+		})
 	}()
 	if interpretErr != nil {
 		t.Fatalf("shelltest: interpret settled observation: %v", interpretErr)
@@ -227,22 +245,40 @@ func cleanupBridgeAfterFailure(t testing.TB, bridge *applicationBridge) {
 
 func snapshotTarget[R any](target Target[R], input Input) (Target[R], error) {
 	if target.Provider == nil {
-		return Target[R]{}, failureError{subject: "target Provider is required"}
+		failure := failureError{
+			subject: "target Provider is required",
+		}
+		return Target[R]{}, failure
 	}
 	if target.Runtime.Executable == "" {
-		return Target[R]{}, failureError{subject: "runtime Executable is required"}
+		failure := failureError{
+			subject: "runtime Executable is required",
+		}
+		return Target[R]{}, failure
 	}
 	if len(target.Runtime.VersionArgs) == 0 {
-		return Target[R]{}, failureError{subject: "runtime VersionArgs is required"}
+		failure := failureError{
+			subject: "runtime VersionArgs is required",
+		}
+		return Target[R]{}, failure
 	}
 	if target.Runtime.ParseVersion == nil {
-		return Target[R]{}, failureError{subject: "runtime ParseVersion is required"}
+		failure := failureError{
+			subject: "runtime ParseVersion is required",
+		}
+		return Target[R]{}, failure
 	}
 	if target.Interpret == nil {
-		return Target[R]{}, failureError{subject: "target Interpret is required"}
+		failure := failureError{
+			subject: "target Interpret is required",
+		}
+		return Target[R]{}, failure
 	}
 	if !utf8.ValidString(input.BeforeCursor) || !utf8.ValidString(input.AfterCursor) {
-		return Target[R]{}, failureError{subject: "editor input must be valid UTF-8 on both sides of the cursor"}
+		failure := failureError{
+			subject: "editor input must be valid UTF-8 on both sides of the cursor",
+		}
+		return Target[R]{}, failure
 	}
 	target.Runtime.VersionArgs = slices.Clone(target.Runtime.VersionArgs)
 	return target, nil

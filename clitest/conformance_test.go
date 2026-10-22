@@ -19,7 +19,9 @@ func TestConformanceDeclarationIsOrderedCallerOwnedAndSnapshotsAtExecutionBounda
 		},
 		Expectations: expectations,
 	}
-	secondCase := SchemaCase{Name: "second"}
+	secondCase := SchemaCase{
+		Name: "second",
+	}
 	conformance := Conformance{firstCase, secondCase}
 
 	args[0] = "mutated"
@@ -55,7 +57,9 @@ func TestEmptyConformanceIsValidAndUsesOrdinaryGoComposition(t *testing.T) {
 	t.Parallel()
 	var zero Conformance
 	zero.Require(t, t.Context(), cli.Application{})
-	base := Conformance{SchemaCase{Name: "schema"}}
+	base := Conformance{SchemaCase{
+		Name: "schema",
+	}}
 	got := append(Conformance(nil), base...)
 	if len(zero) != 0 || len(got) != 1 {
 		t.Fatalf("zero/composed state = %#v / %#v", zero, got)
@@ -68,7 +72,10 @@ func TestResultRawAccessorsRetainExactStoredObservation(t *testing.T) {
 		Truncated: true,
 	}
 	ir := InspectionResult{
-		state: &inspectionResultState{observation: inspection, err: context.Canceled},
+		state: &inspectionResultState{
+			observation: inspection,
+			err:         context.Canceled,
+		},
 	}
 	gotInspection, gotErr := ir.Inspection()
 	if gotInspection.Truncated != inspection.Truncated ||
@@ -80,7 +87,10 @@ func TestResultRawAccessorsRetainExactStoredObservation(t *testing.T) {
 		Partial: true,
 	}
 	cr := CompletionResult{
-		state: &completionResultState{observation: completion, err: context.DeadlineExceeded},
+		state: &completionResultState{
+			observation: completion,
+			err:         context.DeadlineExceeded,
+		},
 	}
 	gotCompletion, gotErr := cr.Completion()
 	if gotCompletion.Partial != completion.Partial ||
@@ -90,7 +100,9 @@ func TestResultRawAccessorsRetainExactStoredObservation(t *testing.T) {
 
 	schema := cli.Schema{}
 	sr := SchemaResult{
-		state: &schemaResultState{observation: schema},
+		state: &schemaResultState{
+			observation: schema,
+		},
 	}
 	gotSchema := sr.Schema()
 	if gotSchema.EvaluatedRelease != schema.EvaluatedRelease || gotSchema.Root != schema.Root ||
@@ -103,7 +115,10 @@ func TestResultRawAccessorsRetainExactStoredObservation(t *testing.T) {
 		EvaluatedRelease: "r1",
 	}
 	rr := ReferenceResult{
-		state: &referenceResultState{observation: reference, err: context.Canceled},
+		state: &referenceResultState{
+			observation: reference,
+			err:         context.Canceled,
+		},
 	}
 	gotReference, gotErr := rr.Reference()
 	if gotReference.EvaluatedRelease != reference.EvaluatedRelease ||
@@ -346,8 +361,13 @@ func TestConformanceTypedNilPointerCasesUseNilCasePanicContract(t *testing.T) {
 func TestConformanceCompletionObservedInputWordsAreDeepSnapshotted(t *testing.T) {
 	t.Parallel()
 
-	words := []cli.CompletionObservedWord{{Value: "original"}}
-	observed := &cli.CompletionInputObservation{Words: words, Topology: cli.CompletionArgvTopologyExact}
+	words := []cli.CompletionObservedWord{{
+		Value: "original",
+	}}
+	observed := &cli.CompletionInputObservation{
+		Words:    words,
+		Topology: cli.CompletionArgvTopologyExact,
+	}
 	request := cli.CompletionRequest{
 		ObservedInput: observed,
 	}
@@ -358,7 +378,9 @@ func TestConformanceCompletionObservedInputWordsAreDeepSnapshotted(t *testing.T)
 	snapshot := snapshotConformanceCases(conformance)
 
 	words[0].Value = "mutated"
-	observed.Words = append(observed.Words, cli.CompletionObservedWord{Value: "extra"})
+	observed.Words = append(observed.Words, cli.CompletionObservedWord{
+		Value: "extra",
+	})
 
 	retained, ok := snapshot[0].(CompletionCase)
 	if !ok {
@@ -431,9 +453,13 @@ func TestConformanceSnapshotPreservesExactMembershipAndOrder(t *testing.T) {
 
 func TestConformanceOrdinaryCompositionPreservesExactMembershipAndOrder(t *testing.T) {
 	t.Parallel()
-	base := Conformance{SchemaCase{Name: "schema"}}
+	base := Conformance{SchemaCase{
+		Name: "schema",
+	}}
 	got := append(Conformance(nil), base...)
-	got = append(got, InspectionCase{Name: "inspection"})
+	got = append(got, InspectionCase{
+		Name: "inspection",
+	})
 	if len(base) != 1 || len(got) != 2 {
 		t.Fatalf("composition changed membership: base %#v got %#v", base, got)
 	}

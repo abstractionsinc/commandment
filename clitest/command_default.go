@@ -30,38 +30,45 @@ func (locator CommandLocator) DefaultAt(index int) CommandDefaultLocator {
 // exactly the supplied locators in authoritative public order. Exactness is not inferred from an
 // incomplete observation.
 func (locator CommandLocator) DefaultsExactly(values ...CommandDefaultLocator) DeclarationExpectation {
-	return commandDefaultsExpectation{
+	expectation := commandDefaultsExpectation{
 		command: locator.state,
 		items:   commandDefaultLocatorStates(values),
 	}
+	return expectation
 }
 
 // DefaultGrammarProfile returns a static declaration expectation that checks the command's
 // default grammar-profile relationship resolves to the expected public profile identity.
 func (locator CommandLocator) DefaultGrammarProfile(expected GrammarProfileLocator) StaticDeclarationExpectation {
-	return commandDefaultGrammarProfileExpectation{
+	expectation := commandDefaultGrammarProfileExpectation{
 		command: locator.state,
 		profile: expected.state,
 	}
+	return expectation
 }
 
 // Condition returns a locator that follows the public condition relationship from the located
 // command default. The returned locator carries locator coordinates, not observed state.
 func (locator CommandDefaultLocator) Condition() ConditionExpressionLocator {
-	return ConditionExpressionLocator{state: &conditionExpressionLocatorState{
+	state := &conditionExpressionLocatorState{
 		mode:           conditionExpressionLocatorCommandDefault,
 		commandDefault: locator.state,
-	}}
+	}
+	conditionExpressionLocator := ConditionExpressionLocator{
+		state: state,
+	}
+	return conditionExpressionLocator
 }
 
 // Origin also applies to public declaration families that are not represented
 // by DeclarationIdentity but still expose framework-established origin in the
 // public Schema/Reference/Inspection model.
 func (locator CommandDefaultLocator) Origin(expected cli.DeclarationOrigin) DeclarationExpectation {
-	return commandDefaultOriginExpectationValue{
+	value := commandDefaultOriginExpectationValue{
 		locator:  locator.state,
 		expected: expected,
 	}
+	return value
 }
 
 func (CommandDefaultLocator) diagnosticSubject() {}
@@ -69,37 +76,41 @@ func (CommandDefaultLocator) diagnosticSubject() {}
 // Exists returns an expectation that checks the located command default exists in the relevant
 // public declaration observation.
 func (locator CommandDefaultLocator) Exists() DeclarationExpectation {
-	return commandDefaultExistenceExpectationValue{
+	value := commandDefaultExistenceExpectationValue{
 		locator:  locator.state,
 		expected: true,
 	}
+	return value
 }
 
 // DoesNotExist returns an expectation that checks the located command default is absent from a
 // complete relevant public declaration domain; incomplete observation cannot manufacture
 // absence.
 func (locator CommandDefaultLocator) DoesNotExist() DeclarationExpectation {
-	return commandDefaultExistenceExpectationValue{
+	value := commandDefaultExistenceExpectationValue{
 		locator:  locator.state,
 		expected: false,
 	}
+	return value
 }
 
 // Target returns an expectation that checks the command default targets the requested
 // canonical command.
 func (locator CommandDefaultLocator) Target(v CommandLocator) DeclarationExpectation {
-	return commandDefaultTargetExpectationValue{
+	value := commandDefaultTargetExpectationValue{
 		locator: locator.state,
 		target:  v.state,
 	}
+	return value
 }
 
 // Reachability returns an expectation that checks the declared command-default reachability.
 func (locator CommandDefaultLocator) Reachability(v cli.Reachability) DeclarationExpectation {
-	return commandDefaultReachabilityExpectationValue{
+	value := commandDefaultReachabilityExpectationValue{
 		locator:  locator.state,
 		expected: v,
 	}
+	return value
 }
 
 // ConditionOutcome returns an expectation that checks the command default's invocation-time
@@ -150,10 +161,14 @@ type commandDefaultOriginExpectationValue struct {
 }
 
 func commandDefaultIDLocator(id cli.CommandDefaultID) CommandDefaultLocator {
-	return CommandDefaultLocator{state: &commandDefaultLocatorState{
+	state := &commandDefaultLocatorState{
 		mode: commandDefaultLocatorID,
 		id:   id,
-	}}
+	}
+	locator := CommandDefaultLocator{
+		state: state,
+	}
+	return locator
 }
 
 func commandDefaultLocatorLabel(state *commandDefaultLocatorState) evaluationField {
@@ -489,7 +504,10 @@ func commandDefaultIndexLocator(command CommandLocator, index int) CommandDefaul
 		index:   index,
 	}
 
-	return CommandDefaultLocator{state: state}
+	locator := CommandDefaultLocator{
+		state: state,
+	}
+	return locator
 }
 
 func (commandDefaultGrammarProfileExpectation) schemaExpectation() {}

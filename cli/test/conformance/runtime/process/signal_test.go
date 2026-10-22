@@ -27,20 +27,22 @@ type authoringSignalGateConfig struct{ Gate string }
 type authoringSignalSignalConfig struct{ Signal cli.Signal }
 
 func authoringSignalPassiveSource() cli.SignalSource[string] {
-	return cli.SignalSource[string]{
+	source := cli.SignalSource[string]{
 		Signals: []cli.SignalDescriptor[string]{{
 			Signal:   "sent",
 			Fidelity: cli.SignalSourceDeliveryFidelityExact,
 		}},
 		Open: func(_ context.Context) (cli.SignalStream[string], error) {
-			return cli.SignalStream[string]{
+			stream := cli.SignalStream[string]{
 				Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 					<-ctx.Done()
 					return cli.SignalNotification[string]{}, ctx.Err()
 				},
-			}, nil
+			}
+			return stream, nil
 		},
 	}
+	return source
 }
 
 func declareAuthoringSignalFixture(root *cli.CommandBuilder[authoringSignalEventsConfig]) {
@@ -1332,9 +1334,11 @@ func TestProviderSignalPolicyInspectionDetachesAcrossOperations(t *testing.T) {
 			panic("provider signal source opened during Inspect")
 		},
 	}
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			interrupt := root.Signals.Source(source).Signal(signalSignalNativeInterrupt)
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
@@ -1350,12 +1354,15 @@ func TestProviderSignalPolicyInspectionDetachesAcrossOperations(t *testing.T) {
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
 	first, err := func() (cli.Inspection, error) {
-		proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: []string{"remote"}})
+		proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+			Args: []string{"remote"},
+		})
 		proof.Require(t, clitest.InspectionReady())
 		return proof.Inspection()
 	}()
@@ -1365,7 +1372,9 @@ func TestProviderSignalPolicyInspectionDetachesAcrossOperations(t *testing.T) {
 	id := first.ExecutionAdmission.SignalPolicies[0]
 	delete(first.SignalPolicies, id)
 	first.ExecutionAdmission.SignalPolicies[0] = 0
-	second, err := app.Inspect(t.Context(), cli.InspectionRequest{Args: []string{"remote"}})
+	second, err := app.Inspect(t.Context(), cli.InspectionRequest{
+		Args: []string{"remote"},
+	})
 	if err != nil || len(second.ExecutionAdmission.SignalPolicies) != 1 {
 		t.Fatalf("second provider signal policy = %#v err=%v", second.ExecutionAdmission, err)
 	}
@@ -1387,22 +1396,24 @@ const (
 )
 
 func exactStringSignal(name string, capabilities cli.SignalSourceCapabilities) cli.SignalDescriptor[string] {
-	return cli.SignalDescriptor[string]{
+	descriptor := cli.SignalDescriptor[string]{
 		Signal:       name,
 		Capabilities: capabilities,
 		Fidelity:     cli.SignalSourceDeliveryFidelityExact,
 	}
+	return descriptor
 }
 
 func TestSignalSourceScopedIdentityIsStableDistinctAndClosed(t *testing.T) {
 	t.Parallel()
 	passive := func(context.Context) (cli.SignalStream[string], error) {
-		return cli.SignalStream[string]{
+		stream := cli.SignalStream[string]{
 			Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 				<-ctx.Done()
 				return cli.SignalNotification[string]{}, ctx.Err()
 			},
-		}, nil
+		}
+		return stream, nil
 	}
 	var firstA, firstAgain, secondA cli.Signal
 	app := clitest.Compile(t, cli.Definition[declarativeSignalConfig]{
@@ -1451,9 +1462,11 @@ func TestSignalSourceDescriptorsAreSnapshottedAndInspectionIsStatic(t *testing.T
 	var opens atomic.Int32
 	descriptors := []cli.SignalDescriptor[string]{exactStringSignal(signalSignalNativeInterrupt, 0)}
 	var semantic cli.Signal
-	app := clitest.Compile(t, cli.Definition[declarativeSignalConfig]{
+	definition := cli.Definition[declarativeSignalConfig]{
 		Name: "snapshot",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[declarativeSignalConfig]) {
 			registered := root.Signals.Source(cli.SignalSource[string]{
 				Signals: descriptors,
@@ -1469,7 +1482,8 @@ func TestSignalSourceDescriptorsAreSnapshottedAndInspectionIsStatic(t *testing.T
 			descriptors[0].Signal = signalSignalNativeMutated
 			root.Signals.Policy(root.Signals.Match.On(semantic).Each(), root.Signals.Action.Ignore())
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	inspection, err := app.Inspect(t.Context(), cli.InspectionRequest{})
 	if err != nil || inspection.Status != cli.InspectionStatusReady {
 		t.Fatalf("Inspect() = status %v err %v", inspection.Status, err)
@@ -1494,12 +1508,13 @@ func TestSignalSourceReraiseDeclarationValidation(t *testing.T) {
 			source: cli.SignalSource[string]{
 				Signals: []cli.SignalDescriptor[string]{exactStringSignal("a", cli.SignalSourceCapabilityReraise)},
 				Open: func(context.Context) (cli.SignalStream[string], error) {
-					return cli.SignalStream[string]{
+					stream := cli.SignalStream[string]{
 						Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 							<-ctx.Done()
 							return cli.SignalNotification[string]{}, ctx.Err()
 						},
-					}, nil
+					}
+					return stream, nil
 				},
 			},
 		},
@@ -1508,12 +1523,13 @@ func TestSignalSourceReraiseDeclarationValidation(t *testing.T) {
 			source: cli.SignalSource[string]{
 				Signals: []cli.SignalDescriptor[string]{exactStringSignal("a", 0)},
 				Open: func(context.Context) (cli.SignalStream[string], error) {
-					return cli.SignalStream[string]{
+					stream := cli.SignalStream[string]{
 						Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
 							<-ctx.Done()
 							return cli.SignalNotification[string]{}, ctx.Err()
 						},
-					}, nil
+					}
+					return stream, nil
 				},
 				Reraise: func(context.Context, string) error { return nil },
 			},
@@ -1544,10 +1560,13 @@ func TestSignalReraisePolicyRejectsMixedCapabilitiesAtCompile(t *testing.T) {
 			exactStringSignal("plain", 0),
 		},
 		Open: func(context.Context) (cli.SignalStream[string], error) {
-			return cli.SignalStream[string]{Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
-				<-ctx.Done()
-				return cli.SignalNotification[string]{}, ctx.Err()
-			}}, nil
+			stream := cli.SignalStream[string]{
+				Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
+					<-ctx.Done()
+					return cli.SignalNotification[string]{}, ctx.Err()
+				},
+			}
+			return stream, nil
 		},
 		Reraise: func(context.Context, string) error { return nil },
 	}
@@ -1575,10 +1594,13 @@ func TestProviderReraisePolicyRejectsAtomicBatchBeforeActivation(t *testing.T) {
 			exactStringSignal("plain", 0),
 		},
 		Open: func(context.Context) (cli.SignalStream[string], error) {
-			return cli.SignalStream[string]{Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
-				<-ctx.Done()
-				return cli.SignalNotification[string]{}, ctx.Err()
-			}}, nil
+			stream := cli.SignalStream[string]{
+				Receive: func(ctx context.Context) (cli.SignalNotification[string], error) {
+					<-ctx.Done()
+					return cli.SignalNotification[string]{}, ctx.Err()
+				},
+			}
+			return stream, nil
 		},
 		Reraise: func(context.Context, string) error { return nil },
 	}
@@ -1618,7 +1640,7 @@ func TestOrdinarySignalSourceRunsAndReraisesNativeDomainValue(t *testing.T) {
 		Signals: []cli.SignalDescriptor[string]{exactStringSignal("reload", cli.SignalSourceCapabilityReraise)},
 	})
 	var semantic cli.Signal
-	app := clitest.Compile(t, cli.Definition[declarativeSignalConfig]{
+	definition := cli.Definition[declarativeSignalConfig]{
 		Name: "ordinary-reraise",
 		Declare: func(root *cli.CommandBuilder[declarativeSignalConfig]) {
 			registered := root.Signals.Source(source)
@@ -1632,7 +1654,8 @@ func TestOrdinarySignalSourceRunsAndReraisesNativeDomainValue(t *testing.T) {
 			<-ctx.Done()
 			return ctx.Err()
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	done := make(chan error, 1)
 	go func() { done <- app.Run(t.Context(), cli.RunRequest{}) }()
 	select {
@@ -1676,7 +1699,7 @@ func TestAdvancedSignalSourceUsesTypedWatchAndSameReraiseLaw(t *testing.T) {
 		},
 	})
 	var semantic cli.Signal
-	app := clitest.Compile(t, cli.Definition[declarativeSignalConfig]{
+	definition := cli.Definition[declarativeSignalConfig]{
 		Name: "advanced-reraise",
 		Declare: func(root *cli.CommandBuilder[declarativeSignalConfig]) {
 			registered := root.Signals.Source(source)
@@ -1690,7 +1713,8 @@ func TestAdvancedSignalSourceUsesTypedWatchAndSameReraiseLaw(t *testing.T) {
 			<-ctx.Done()
 			return ctx.Err()
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	done := make(chan error, 1)
 	go func() { done <- app.Run(t.Context(), cli.RunRequest{}) }()
 	var watch clitest.SignalWatchState[string]
@@ -1739,10 +1763,13 @@ func TestMultipleDeclaredSignalSourcesShareOneInvocationRuntime(t *testing.T) {
 		Signals: []cli.SignalDescriptor[string]{exactStringSignal(signalSignalNativeFirst, 0)},
 	})
 	secondSource, secondControl := clitest.SignalSource(clitest.SignalSourceOptions[int]{
-		Signals: []cli.SignalDescriptor[int]{{Signal: 2, Fidelity: cli.SignalSourceDeliveryFidelityExact}},
+		Signals: []cli.SignalDescriptor[int]{{
+			Signal:   2,
+			Fidelity: cli.SignalSourceDeliveryFidelityExact,
+		}},
 	})
 	seen := make(chan cli.Signal, 2)
-	app := clitest.Compile(t, cli.Definition[declarativeSignalConfig]{
+	definition := cli.Definition[declarativeSignalConfig]{
 		Name: "multi-source",
 		Declare: func(root *cli.CommandBuilder[declarativeSignalConfig]) {
 			first := root.Signals.Source(firstSource).Signal(signalSignalNativeFirst)
@@ -1767,7 +1794,8 @@ func TestMultipleDeclaredSignalSourcesShareOneInvocationRuntime(t *testing.T) {
 			<-ctx.Done()
 			return nil
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() { done <- app.Run(ctx, cli.RunRequest{}) }()
@@ -1778,10 +1806,14 @@ func TestMultipleDeclaredSignalSourcesShareOneInvocationRuntime(t *testing.T) {
 			t.Fatal("declared signal source was not activated")
 		}
 	}
-	if err := firstControl.Notify(cli.SignalNotification[string]{Signal: signalSignalNativeFirst}); err != nil {
+	if err := firstControl.Notify(cli.SignalNotification[string]{
+		Signal: signalSignalNativeFirst,
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := secondControl.Notify(cli.SignalNotification[int]{Signal: 2}); err != nil {
+	if err := secondControl.Notify(cli.SignalNotification[int]{
+		Signal: 2,
+	}); err != nil {
 		t.Fatal(err)
 	}
 	observed := make([]cli.Signal, 0, 2)
@@ -1834,7 +1866,7 @@ func runAlienctlDeclarativeSignalSourceEmitFromProcess(t *testing.T) {
 		Signals: []cli.SignalDescriptor[string]{exactStringSignal("alarm", 0)},
 	})
 	var alarm cli.Signal
-	app := clitest.Compile(t, cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: signalSignalAlienctlName,
 		Declare: func(root *cli.CommandBuilder[config]) {
 			alien := root.Signals.Source(source)
@@ -1862,7 +1894,8 @@ func runAlienctlDeclarativeSignalSourceEmitFromProcess(t *testing.T) {
 				return ctx.Err()
 			}
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	oldArgs := os.Args
 	os.Args = []string{signalSignalAlienctlName}
@@ -1911,9 +1944,11 @@ func TestSignalPolicyPreparationIgnoresUnrelatedCommandPolicies(t *testing.T) {
 			panic("signal source opened during Inspect")
 		},
 	}
-	app := clitest.Compile(t, cli.Definition[signalConfig]{
+	definition := cli.Definition[signalConfig]{
 		Name: "tool",
-		Help: cli.HelpConfig{Disabled: true},
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[signalConfig]) {
 			sig := root.Signals.Source(source).Signal("signal")
 			root.Signals.Policy(
@@ -1942,9 +1977,12 @@ func TestSignalPolicyPreparationIgnoresUnrelatedCommandPolicies(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	target := clitest.RootCommand().Command("target")
-	clitest.Inspect(t.Context(), app, cli.InspectionRequest{Args: []string{"target"}}).Require(
+	clitest.Inspect(t.Context(), app, cli.InspectionRequest{
+		Args: []string{"target"},
+	}).Require(
 		t,
 		clitest.InspectionReady(),
 		clitest.SelectionPathExactly(clitest.RootCommand(), target),
@@ -2028,7 +2066,9 @@ func TestDeferredSignalWindowsRemainSeparateAcrossExecutionAndCleanup(t *testing
 		}()
 		<-control.Opened()
 		<-executionEntered
-		if err := control.Notify(cli.SignalNotification[string]{Signal: "reload"}); err != nil {
+		if err := control.Notify(cli.SignalNotification[string]{
+			Signal: "reload",
+		}); err != nil {
 			t.Fatalf("Execution Notify() error = %v", err)
 		}
 		firstAck := <-acknowledged
@@ -2037,7 +2077,9 @@ func TestDeferredSignalWindowsRemainSeparateAcrossExecutionAndCleanup(t *testing
 		}
 		close(allowHandlerReturn)
 		<-cleanupEntered
-		if err := control.Notify(cli.SignalNotification[string]{Signal: "reload"}); err != nil {
+		if err := control.Notify(cli.SignalNotification[string]{
+			Signal: "reload",
+		}); err != nil {
 			t.Fatalf("Cleanup Notify() error = %v", err)
 		}
 		secondAck := <-acknowledged
@@ -2092,8 +2134,14 @@ func TestUnreleasedDeferredSignalWindowIsDiscardedAtShutdown(t *testing.T) {
 		}
 		declare := func(root *cli.CommandBuilder[struct{}]) {
 			signal := root.Signals.Source(source).Signal("reload")
-			ack := cli.SignalHandler[struct{}]{Name: "acknowledge", Handle: acknowledge}
-			record := cli.SignalHandler[struct{}]{Name: "record-deferred", Handle: recordDeferred}
+			ack := cli.SignalHandler[struct{}]{
+				Name:   "acknowledge",
+				Handle: acknowledge,
+			}
+			record := cli.SignalHandler[struct{}]{
+				Name:   "record-deferred",
+				Handle: recordDeferred,
+			}
 			root.Signals.Policy(
 				root.Signals.Match.On(signal).
 					During(cli.SignalPhaseExecution).
@@ -2129,7 +2177,9 @@ func TestUnreleasedDeferredSignalWindowIsDiscardedAtShutdown(t *testing.T) {
 		}()
 		<-control.Opened()
 		<-executionEntered
-		if err := control.Notify(cli.SignalNotification[string]{Signal: "reload"}); err != nil {
+		if err := control.Notify(cli.SignalNotification[string]{
+			Signal: "reload",
+		}); err != nil {
 			t.Fatalf("Notify() error = %v", err)
 		}
 		ack := <-acknowledged
@@ -2174,9 +2224,18 @@ func TestUnadmittedDelayedSignalActionIsDiscardedAtShutdown(t *testing.T) {
 		}
 		declare := func(root *cli.CommandBuilder[struct{}]) {
 			signal := root.Signals.Source(source).Signal("reload")
-			ack := cli.SignalHandler[struct{}]{Name: "acknowledge", Handle: acknowledge}
-			immediateHandler := cli.SignalHandler[struct{}]{Name: "immediate", Handle: immediate}
-			delayedHandler := cli.SignalHandler[struct{}]{Name: "delayed", Handle: delayed}
+			ack := cli.SignalHandler[struct{}]{
+				Name:   "acknowledge",
+				Handle: acknowledge,
+			}
+			immediateHandler := cli.SignalHandler[struct{}]{
+				Name:   "immediate",
+				Handle: immediate,
+			}
+			delayedHandler := cli.SignalHandler[struct{}]{
+				Name:   "delayed",
+				Handle: delayed,
+			}
 			root.Signals.Policy(
 				root.Signals.Match.On(signal).
 					During(cli.SignalPhaseExecution).
@@ -2212,7 +2271,9 @@ func TestUnadmittedDelayedSignalActionIsDiscardedAtShutdown(t *testing.T) {
 		}()
 		<-control.Opened()
 		<-executionEntered
-		if err := control.Notify(cli.SignalNotification[string]{Signal: "reload"}); err != nil {
+		if err := control.Notify(cli.SignalNotification[string]{
+			Signal: "reload",
+		}); err != nil {
 			t.Fatalf("Notify() error = %v", err)
 		}
 		<-acknowledged
@@ -2281,7 +2342,9 @@ func TestResolutionCancelStopsPostRuleAdvisoryAnalysis(t *testing.T) {
 		}()
 		<-control.Opened()
 		<-ruleEntered
-		if err := control.Notify(cli.SignalNotification[string]{Signal: "interrupt"}); err != nil {
+		if err := control.Notify(cli.SignalNotification[string]{
+			Signal: "interrupt",
+		}); err != nil {
 			t.Fatalf("Notify() error = %v", err)
 		}
 		err := <-done

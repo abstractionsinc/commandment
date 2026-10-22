@@ -16,7 +16,10 @@ type watchConfig struct {
 
 func openAlarm(_ context.Context) (cli.SignalStream[string], error) {
 	notifications := make(chan cli.SignalNotification[string], 1)
-	notification := cli.SignalNotification[string]{Signal: "alarm", Origin: cli.SignalOriginRuntime}
+	notification := cli.SignalNotification[string]{
+		Signal: "alarm",
+		Origin: cli.SignalOriginRuntime,
+	}
 	notifications <- notification
 
 	receive := func(ctx context.Context) (cli.SignalNotification[string], error) {

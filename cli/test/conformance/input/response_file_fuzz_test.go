@@ -45,7 +45,7 @@ type responseFileFuzzValueConfig struct{ Value string }
 
 func FuzzResponsePipelineProperties(f *testing.F) {
 	type config = responseFileFuzzValueConfig
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
 		Run:  func(context.Context, *config) error { return nil },
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -54,11 +54,12 @@ func FuzzResponsePipelineProperties(f *testing.F) {
 				form.String(&form.Config.Value, "value")
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		f.Fatalf("Compile(response) error = %v", err)
 	}
-	literalApp, err := cli.Compile(cli.Definition[config]{
+	definitionUnderTest := cli.Definition[config]{
 		Name: "literal-tool",
 		Run:  func(context.Context, *config) error { return nil },
 		Declare: func(root *cli.CommandBuilder[config]) {
@@ -67,7 +68,8 @@ func FuzzResponsePipelineProperties(f *testing.F) {
 				form.String(&form.Config.Value, "value")
 			})
 		},
-	})
+	}
+	literalApp, err := cli.Compile(definitionUnderTest)
 	if err != nil {
 		f.Fatalf("Compile(literal) error = %v", err)
 	}
@@ -90,24 +92,27 @@ func FuzzResponsePipelineProperties(f *testing.F) {
 					switch request.Path {
 					case "outer":
 						if nested {
-							return cli.ResponseFile{
+							file := cli.ResponseFile{
 								Key:         "outer",
 								Revision:    cli.Revision("1"),
 								IncludeBase: "root",
 								Content:     []byte("@inner"),
-							}, nil
+							}
+							return file, nil
 						}
-						return cli.ResponseFile{
+						file := cli.ResponseFile{
 							Key:      "outer",
 							Revision: cli.Revision("1"),
 							Content:  []byte(text),
-						}, nil
+						}
+						return file, nil
 					case "inner":
-						return cli.ResponseFile{
+						file := cli.ResponseFile{
 							Key:      "inner",
 							Revision: cli.Revision("1"),
 							Content:  []byte(text),
-						}, nil
+						}
+						return file, nil
 					default:
 						return cli.ResponseFile{}, errors.New("unexpected response path")
 					}

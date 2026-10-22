@@ -406,7 +406,9 @@ func runPublicExpectationAttributionFailure(t *testing.T, evaluationCase string)
 	case "ordered-collection":
 		declare := func(root *cli.CommandBuilder[struct{}]) {
 			for i := range 256 {
-				child := cli.Command[struct{}]{Name: fmt.Sprintf("child-%02d", i)}
+				child := cli.Command[struct{}]{
+					Name: fmt.Sprintf("child-%02d", i),
+				}
 				root.Subcommands.Command(child)
 			}
 		}
@@ -435,7 +437,11 @@ func runPublicExpectationAttributionFailure(t *testing.T, evaluationCase string)
 			Require(t, clitest.Diagnostic(cli.DiagnosticUnknownFlag).Present())
 	case "truncated-diagnostic":
 		validate := func(context.Context, *struct{}, cli.Dependencies) ([]cli.Violation, error) {
-			violations := []cli.Violation{{Kind: cli.ViolationInvalid}, {Kind: cli.ViolationInvalid}}
+			violations := []cli.Violation{{
+				Kind: cli.ViolationInvalid,
+			}, {
+				Kind: cli.ViolationInvalid,
+			}}
 			return violations, nil
 		}
 		declare := func(root *cli.CommandBuilder[struct{}]) { root.Rule.Validate("many", validate) }
@@ -518,8 +524,12 @@ func runPublicExpectationAttributionFailure(t *testing.T, evaluationCase string)
 		}
 		clitest.Schema(app).Require(t, locator.Exists())
 	case "repeated-subjects":
-		left := cli.Command[struct{}]{Name: "left"}
-		right := cli.Command[struct{}]{Name: "right"}
+		left := cli.Command[struct{}]{
+			Name: "left",
+		}
+		right := cli.Command[struct{}]{
+			Name: "right",
+		}
 		declare := func(root *cli.CommandBuilder[struct{}]) {
 			root.Subcommands.Command(left)
 			root.Subcommands.Command(right)
@@ -537,6 +547,7 @@ func runPublicExpectationAttributionFailure(t *testing.T, evaluationCase string)
 		clitest.Schema(app).Require(t, clitest.CommandByID(cli.CommandID(999)).Exists())
 	case "nested-subtest":
 		t.Run("consumer-subtest", func(t *testing.T) {
+			t.Parallel()
 			clitest.Schema(app).
 				Require(t, clitest.Command("subtest-missing").Exists())
 		})

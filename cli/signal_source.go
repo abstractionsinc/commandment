@@ -65,9 +65,10 @@ func acceptSignalSourceDescription(descriptors []signalDescriptor) (semanticSign
 			}
 		}
 	}
-	return semanticSignalSourceDescription{
+	description := semanticSignalSourceDescription{
 		descriptors: copied,
-	}, nil
+	}
+	return description, nil
 }
 
 func (description semanticSignalSourceDescription) Valid() bool {
@@ -298,7 +299,9 @@ type compiledSignalSource struct {
 }
 
 func registerSignalSource[K comparable](application *applicationDraft, session *declarationSession, definition signalSourceDefinition[K]) signalSourceScope[K] {
-	result := signalSourceScope[K]{session: session}
+	result := signalSourceScope[K]{
+		session: session,
+	}
 	if application == nil || len(definition.descriptors) == 0 || (definition.advanced && definition.subscribe == nil) ||
 		(!definition.advanced && definition.open == nil) {
 		if application != nil {
@@ -319,7 +322,9 @@ func registerSignalSource[K comparable](application *applicationDraft, session *
 			return result
 		}
 		application.nextSignalID++
-		semantic := Signal{id: application.nextSignalID}
+		semantic := Signal{
+			id: application.nextSignalID,
+		}
 		values[descriptor.Signal] = semantic
 		native[semantic] = descriptor.Signal
 		if descriptor.Capabilities&SignalSourceCapabilityReraise != 0 {
@@ -381,7 +386,7 @@ func ordinarySignalSourceOpen[K comparable](open SignalOpen[K], values map[K]Sig
 			}
 			return erasedOrdinarySignalStream{}, errInvalidSignalSourceDeclaration
 		}
-		return erasedOrdinarySignalStream{
+		erasedOrdinarySignalStream := erasedOrdinarySignalStream{
 			receive: func(ctx context.Context) (SignalNotification[Signal], error) {
 				notification, receiveErr := stream.Receive(ctx)
 				if receiveErr != nil {
@@ -400,7 +405,8 @@ func ordinarySignalSourceOpen[K comparable](open SignalOpen[K], values map[K]Sig
 				return signalNotification, nil
 			},
 			close: stream.Close,
-		}, nil
+		}
+		return erasedOrdinarySignalStream, nil
 	}
 }
 
@@ -523,7 +529,9 @@ type compiledSignalCatalog struct {
 }
 
 func freezeCompiledSignalCatalog(sources []compiledSignalSource) compiledSignalCatalog {
-	result := compiledSignalCatalog{sources: append([]compiledSignalSource(nil), sources...)}
+	result := compiledSignalCatalog{
+		sources: append([]compiledSignalSource(nil), sources...),
+	}
 	for i := range result.sources {
 		result.sources[i].descriptors = append([]signalDescriptor(nil), result.sources[i].descriptors...)
 	}
@@ -548,7 +556,10 @@ func signalSourceDescription(sources []compiledSignalSource) (semanticSignalSour
 	}
 	description, err := acceptSignalSourceDescription(descriptors)
 	if err != nil {
-		return semanticSignalSourceDescription{}, &signalSourceDescriptionError{cause: err}
+		failure := &signalSourceDescriptionError{
+			cause: err,
+		}
+		return semanticSignalSourceDescription{}, failure
 	}
 	return description, nil
 }

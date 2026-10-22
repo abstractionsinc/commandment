@@ -14,7 +14,9 @@ func TestQuietSuppressesTheRecklessAdvisory(t *testing.T) {
 	app := clitest.Compile(t, definition)
 	command := clitest.Command("approach")
 	notice := clitest.Notice(cli.NoticeAdvisory).Advisory("reckless-approach")
-	recklessRequest := cli.InspectionRequest{Args: []string{"approach", "--reckless", "earth"}}
+	recklessRequest := cli.InspectionRequest{
+		Args: []string{"approach", "--reckless", "earth"},
+	}
 	clitest.Inspect(t.Context(), app, recklessRequest).Require(t,
 		clitest.InspectionReady(),
 		command.Advisory("reckless-approach").Outcome(cli.AdvisoryOutcomeMatched),
@@ -25,7 +27,10 @@ func TestQuietSuppressesTheRecklessAdvisory(t *testing.T) {
 		delivered = append(delivered, notice.Message)
 		return nil
 	}
-	runRequest := cli.RunRequest{Args: []string{"approach", "--reckless", "earth"}, Notify: notify}
+	runRequest := cli.RunRequest{
+		Args:   []string{"approach", "--reckless", "earth"},
+		Notify: notify,
+	}
 	if err := app.Run(t.Context(), runRequest); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -33,7 +38,9 @@ func TestQuietSuppressesTheRecklessAdvisory(t *testing.T) {
 		t.Fatalf("delivered notices = %v", delivered)
 	}
 
-	quietRequest := cli.InspectionRequest{Args: []string{"approach", "--reckless", "--quiet", "earth"}}
+	quietRequest := cli.InspectionRequest{
+		Args: []string{"approach", "--reckless", "--quiet", "earth"},
+	}
 	clitest.Inspect(t.Context(), app, quietRequest).Require(t,
 		clitest.InspectionReady(),
 		notice.Suppression(cli.NoticeSuppressionSuppressed),

@@ -117,10 +117,11 @@ func (builder *reportBuilder) addPayload(payload payload) error {
 		}
 		for _, index := range diagnostic.RepairIndexes {
 			if index < 0 || index >= len(payload.Repairs) {
-				return diagnosticGraphReferenceError{
+				failure := diagnosticGraphReferenceError{
 					kind:  diagnosticGraphRepairIndexOutOfRange,
 					index: index,
 				}
+				return failure
 			}
 			neededRepairs[index] = struct{}{}
 		}
@@ -138,10 +139,11 @@ func (builder *reportBuilder) addPayload(payload payload) error {
 	for _, old := range sourceIDs {
 		source, ok := payload.Sources[old]
 		if !ok || source.ID != old || source.Kind == InputKindUnknown {
-			return diagnosticGraphReferenceError{
+			failure := diagnosticGraphReferenceError{
 				kind:   diagnosticGraphUnresolvedInputSource,
 				source: old,
 			}
+			return failure
 		}
 		newID := builder.nextSource
 		builder.nextSource++
@@ -173,10 +175,11 @@ func (builder *reportBuilder) addPayload(payload payload) error {
 		for i, parent := range origin.Parents {
 			mapped, ok := originMap[parent]
 			if !ok {
-				return diagnosticGraphReferenceError{
+				failure := diagnosticGraphReferenceError{
 					kind:   diagnosticGraphUnresolvedOriginParent,
 					origin: parent,
 				}
+				return failure
 			}
 			parents[i] = mapped
 		}
@@ -205,10 +208,11 @@ func (builder *reportBuilder) addPayload(payload payload) error {
 		if diagnosticCopy.Source != 0 {
 			mapped, ok := sourceMap[diagnosticCopy.Source]
 			if !ok {
-				return diagnosticGraphReferenceError{
+				failure := diagnosticGraphReferenceError{
 					kind:   diagnosticGraphUnresolvedDiagnosticSource,
 					source: diagnosticCopy.Source,
 				}
+				return failure
 			}
 			diagnosticCopy.Source = mapped
 		}
@@ -222,20 +226,22 @@ func (builder *reportBuilder) addPayload(payload payload) error {
 		for i, origin := range diagnosticCopy.Origins {
 			mapped, ok := originMap[origin]
 			if !ok {
-				return diagnosticGraphReferenceError{
+				failure := diagnosticGraphReferenceError{
 					kind:   diagnosticGraphUnresolvedDiagnosticOrigin,
 					origin: origin,
 				}
+				return failure
 			}
 			diagnosticCopy.Origins[i] = mapped
 		}
 		for i, index := range diagnosticCopy.RepairIndexes {
 			mapped, ok := repairMap[index]
 			if !ok {
-				return diagnosticGraphReferenceError{
+				failure := diagnosticGraphReferenceError{
 					kind:  diagnosticGraphUnresolvedDiagnosticRepair,
 					index: index,
 				}
+				return failure
 			}
 			diagnosticCopy.RepairIndexes[i] = mapped
 		}
@@ -264,19 +270,21 @@ func collectOriginClosure(payload payload, neededOrigins map[originID]struct{}, 
 		}
 		switch state[id] {
 		case originVisitActive:
-			return diagnosticGraphReferenceError{
+			failure := diagnosticGraphReferenceError{
 				kind:   diagnosticGraphOriginAncestryCycle,
 				origin: id,
 			}
+			return failure
 		case originVisitComplete:
 			return nil
 		}
 		origin, ok := payload.Origins[id]
 		if !ok || origin.ID != id {
-			return diagnosticGraphReferenceError{
+			failure := diagnosticGraphReferenceError{
 				kind:   diagnosticGraphUnresolvedInputOrigin,
 				origin: id,
 			}
+			return failure
 		}
 		state[id] = originVisitActive
 		neededOrigins[id] = struct{}{}
@@ -308,18 +316,20 @@ func collectRepairClosure(payload payload, repair repair, neededSources map[sour
 			return errDiagnosticGraphZeroRepairSource
 		}
 		if _, duplicate := seen[sourceRepair.Source]; duplicate {
-			return diagnosticGraphReferenceError{
+			failure := diagnosticGraphReferenceError{
 				kind:   diagnosticGraphDuplicateRepairSource,
 				source: sourceRepair.Source,
 			}
+			return failure
 		}
 		seen[sourceRepair.Source] = struct{}{}
 		source, ok := payload.Sources[sourceRepair.Source]
 		if !ok || source.ID != sourceRepair.Source || source.Revision == "" {
-			return diagnosticGraphReferenceError{
+			failure := diagnosticGraphReferenceError{
 				kind:   diagnosticGraphRepairSourceMissingRevision,
 				source: sourceRepair.Source,
 			}
+			return failure
 		}
 		neededSources[sourceRepair.Source] = struct{}{}
 		if err := validateRepairSource(sourceRepair, source); err != nil {
@@ -355,10 +365,11 @@ func collectReplacementSources(payload payload, replacement replacement, neededS
 			}
 			source := payload.Sources[part.Copy.Source]
 			if source.Revision == "" {
-				return diagnosticGraphReferenceError{
+				failure := diagnosticGraphReferenceError{
 					kind:   diagnosticGraphCopySourceMissingRevision,
 					source: part.Copy.Source,
 				}
+				return failure
 			}
 			neededSources[part.Copy.Source] = struct{}{}
 		}
@@ -422,10 +433,11 @@ func validateRepairSource(repair repairSource, repairTarget source) error {
 func validateSpan(span span, sources map[sourceID]source) error {
 	source, ok := sources[span.Source]
 	if !ok || source.ID != span.Source {
-		return diagnosticGraphReferenceError{
+		failure := diagnosticGraphReferenceError{
 			kind:   diagnosticGraphUnresolvedSpanSource,
 			source: span.Source,
 		}
+		return failure
 	}
 	if span.Start.Offset < 0 || span.End.Offset < span.Start.Offset {
 		return errDiagnosticGraphInvalidSourceSpan
@@ -452,10 +464,11 @@ func rebaseRepair(value repair, sourceMap map[sourceID]sourceID) (repair, error)
 	for _, sourceRepair := range value.Sources {
 		mapped, ok := sourceMap[sourceRepair.Source]
 		if !ok {
-			return repair{}, diagnosticGraphReferenceError{
+			failure := diagnosticGraphReferenceError{
 				kind:   diagnosticGraphUnresolvedRepairSource,
 				source: sourceRepair.Source,
 			}
+			return repair{}, failure
 		}
 		out := repairSource{
 			Source: mapped,
@@ -544,10 +557,11 @@ func rebaseReplacement(value replacement, sourceMap map[sourceID]sourceID) (repl
 func rebaseSpan(value span, sourceMap map[sourceID]sourceID) (span, error) {
 	mapped, ok := sourceMap[value.Source]
 	if !ok {
-		return span{}, diagnosticGraphReferenceError{
+		failure := diagnosticGraphReferenceError{
 			kind:   diagnosticGraphUnresolvedSpanSource,
 			source: value.Source,
 		}
+		return span{}, failure
 	}
 	value.Source = mapped
 	return value, nil
