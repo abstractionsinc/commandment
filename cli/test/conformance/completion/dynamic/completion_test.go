@@ -570,8 +570,11 @@ func TestCompleteEarlierResponseSelectsProviderChildPositionalDynamicDomainOnce(
 	type config = completionDynamicModeConfig
 	providerCalls := 0
 	domainCalls := 0
-	app, err := cli.Compile(cli.Definition[config]{
+	definition := cli.Definition[config]{
 		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[config]) {
 			root.Dialect.ResponseFiles(true)
 			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
@@ -595,7 +598,8 @@ func TestCompleteEarlierResponseSelectsProviderChildPositionalDynamicDomainOnce(
 				return nil
 			})
 		},
-	})
+	}
+	app, err := cli.Compile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,9 +6,9 @@ import (
 	"sync"
 )
 
-// HelpConfig configures the built-in Help action. Its zero value supplies standard Help entries, the
-// default renderer, and automatic structural Help; disabling it removes the CLI routes without
-// removing direct structured Help/rendering capability.
+// HelpConfig configures the built-in Help action. Its zero value supplies standard Help entries, with
+// --help and -h authored for subtree placement, the default renderer, and automatic structural Help;
+// disabling it removes the CLI routes without removing direct structured Help/rendering capability.
 type HelpConfig struct {
 	Disabled  bool
 	WhenEmpty bool
@@ -686,6 +686,7 @@ func captureHelpActionEntries(replace func(*HelpActionEntries)) ([]authoringActi
 		}
 		flag := actionFlag{
 			long:        "help",
+			placement:   FlagPlacementSubtree,
 			description: description,
 		}
 		returnedDescription := Description{
@@ -693,6 +694,7 @@ func captureHelpActionEntries(replace func(*HelpActionEntries)) ([]authoringActi
 		}
 		actionFlag := actionFlag{
 			short:       'h',
+			placement:   FlagPlacementSubtree,
 			description: returnedDescription,
 		}
 		description2 := Description{

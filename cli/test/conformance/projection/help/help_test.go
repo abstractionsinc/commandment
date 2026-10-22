@@ -232,6 +232,78 @@ func TestDefaultHelpAlienctlZeroConfigurationMatchesExplicitFactory(t *testing.T
 	}
 }
 
+func TestStandardHelpFlagsRemainAvailableAfterNestedCommandSelection(t *testing.T) {
+	t.Parallel()
+	var page cli.HelpPage
+	definition := cli.Definition[struct{}]{
+		Name: "alienctl",
+		Help: cli.HelpConfig{
+			Renderer: func(_ context.Context, observed cli.HelpPage) (string, error) {
+				page = observed
+				return "help", nil
+			},
+		},
+		Declare: func(root *cli.CommandBuilder[struct{}]) {
+			fleet := cli.Command[struct{}]{
+				Name: "fleet",
+				Declare: func(fleet *cli.CommandBuilder[struct{}]) {
+					launch := cli.Command[struct{}]{
+						Name: "launch",
+					}
+					fleet.Subcommands.Command(launch)
+				},
+			}
+			root.Subcommands.Command(fleet)
+		},
+	}
+	app := clitest.Compile(t, definition)
+
+	tests := []struct {
+		name string
+		args []string
+		path []string
+	}{
+		{
+			name: "long nested",
+			args: []string{"fleet", "--help"},
+			path: []string{"fleet"},
+		},
+		{
+			name: "short nested",
+			args: []string{"fleet", "-h"},
+			path: []string{"fleet"},
+		},
+		{
+			name: "long deep",
+			args: []string{"fleet", "launch", "--help"},
+			path: []string{"fleet", "launch"},
+		},
+		{
+			name: "short deep",
+			args: []string{"fleet", "launch", "-h"},
+			path: []string{"fleet", "launch"},
+		},
+	}
+	for _, test := range tests {
+		page = cli.HelpPage{}
+		var output strings.Builder
+		request := cli.RunRequest{
+			Args:   test.args,
+			Stdout: &output,
+		}
+		if err := app.Run(t.Context(), request); err != nil {
+			t.Fatalf("%s: Run(%v): %v", test.name, test.args, err)
+		}
+		clitest.RequireHelpPresentation(t, page, clitest.HelpSelectedPathExactly(test.path...))
+	}
+
+	help := clitest.RootCommand().ActionEntries(cli.InvocationActionHelp)
+	clitest.Schema(app).Require(t,
+		help.Long("--help").Placement(cli.FlagPlacementSubtree),
+		help.Short('h').Placement(cli.FlagPlacementSubtree),
+	)
+}
+
 func TestDefaultHelpAlienctlRichCommandFormation(t *testing.T) {
 	t.Parallel()
 	app := clitest.Compile(t, alienctlHelpDefinition(false))
@@ -284,7 +356,11 @@ func TestDefaultHelpAlienctlRichCommandFormation(t *testing.T) {
 		"--tractor",
 		"Fixed value for --tractor: tractor",
 		"[required]",
-		"MODE: tractor - Use the tractor beam.",
+		"MODE:",
+		"tractor - Use the tractor beam.",
+		"teleport - Use the legacy transporter.",
+		"[deprecated 2: transporter extraction is being retired; use warp]",
+		"warp - Use a controlled warp corridor.",
 		"beam (alias for tractor)",
 		"--profile[=PROFILE]",
 		"Implicit value for --profile: standard",
@@ -297,17 +373,244 @@ func TestDefaultHelpAlienctlRichCommandFormation(t *testing.T) {
 			t.Fatalf("command Help missing %q:\n%s", want, text)
 		}
 	}
-	normalized := strings.Join(strings.Fields(text), " ")
-	if want := "teleport [deprecated 2: transporter extraction is being retired; use warp] - Use the legacy transporter."; !strings.Contains(
-		normalized,
-		want,
-	) {
-		t.Fatalf("command Help missing wrapped semantic detail %q:\n%s", want, text)
-	}
 	for _, forbidden := range []string{"classified", "Fixed value for --verbose: true"} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("command Help leaked/noised %q:\n%s", forbidden, text)
 		}
+	}
+}
+
+func TestDefaultHelpAlienctlUsesCompactAndExpandedFiniteDomainLayouts(t *testing.T) {
+	t.Parallel()
+	const (
+		orbit cli.ValueDomainEntryID = iota + 1
+		land
+		flyby
+		drift
+		station
+		modeSpelling cli.FlagSpellingID = 1
+	)
+	page := cli.HelpPage{
+		ApplicationName: "alienctl",
+		Usage:           []string{"alienctl [flags]"},
+		FlagGroups: []cli.HelpFlagGroup{{
+			Flags: []cli.HelpFlag{{
+				FlagSpellings: []cli.FlagSpellingID{modeSpelling},
+				ValueName:     "MODE",
+				ValueDomainUses: []cli.HelpValueDomainUse{{
+					Kind:    cli.ValueDomainUseDestination,
+					Entries: []cli.ValueDomainEntryID{orbit, land, flyby},
+				}},
+			}},
+		}},
+		FlagSpellings: map[cli.FlagSpellingID]cli.HelpFlagSpelling{
+			modeSpelling: {
+				ID: modeSpelling,
+				Spelling: cli.FlagSpelling{
+					Kind:      cli.FlagSpellingLong,
+					Text:      "--mode",
+					ValueMode: cli.FlagValueModeRequired,
+				},
+			},
+		},
+		ValueDomainEntries: map[cli.ValueDomainEntryID]cli.HelpValueDomainEntry{
+			orbit: {
+				ID:   orbit,
+				Kind: cli.ValueDomainEntryCanonical,
+				Name: "orbit",
+			},
+			land: {
+				ID:   land,
+				Kind: cli.ValueDomainEntryCanonical,
+				Name: "land",
+			},
+			flyby: {
+				ID:   flyby,
+				Kind: cli.ValueDomainEntryCanonical,
+				Name: "flyby",
+			},
+			drift: {
+				ID:   drift,
+				Kind: cli.ValueDomainEntryCanonical,
+				Name: "drift",
+			},
+			station: {
+				ID:   station,
+				Kind: cli.ValueDomainEntryCanonical,
+				Name: "station",
+			},
+		},
+	}
+	text, err := cli.DefaultHelp(cli.DefaultHelpConfig{})(t.Context(), page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(text, "MODE: orbit, land, flyby") {
+		t.Fatalf("simple finite domain did not remain compact:\n%s", text)
+	}
+
+	page.FlagGroups[0].Flags[0].ValueDomainUses[0].Entries = []cli.ValueDomainEntryID{
+		orbit, land, flyby, drift, station,
+	}
+	text, err = cli.DefaultHelp(cli.DefaultHelpConfig{})(t.Context(), page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(text, "MODE:\n") {
+		t.Fatalf("large finite domain did not expand:\n%s", text)
+	}
+	if strings.Contains(text, "MODE: orbit, land, flyby, drift, station") {
+		t.Fatalf("large finite domain remained inline:\n%s", text)
+	}
+}
+
+func TestDefaultHelpAlienctlShortcutLookupResolvesCanonicalTarget(t *testing.T) {
+	t.Parallel()
+	app := clitest.Compile(t, alienctlHelpDefinition(false))
+
+	var canonical strings.Builder
+	canonicalRequest := cli.RunRequest{
+		Args:   []string{"help", "abduct"},
+		Stdout: &canonical,
+	}
+	if err := app.Run(t.Context(), canonicalRequest); err != nil {
+		t.Fatalf("Run(help abduct) error = %v", err)
+	}
+
+	for _, args := range [][]string{
+		{"help", "extract"},
+		{"help", "sample"},
+		{"extract", "--help"},
+		{"sample", "--help"},
+	} {
+		var output strings.Builder
+		request := cli.RunRequest{
+			Args:   args,
+			Stdout: &output,
+		}
+		if err := app.Run(t.Context(), request); err != nil {
+			t.Fatalf("Run(%s) error = %v", strings.Join(args, " "), err)
+		}
+		if output.String() != canonical.String() {
+			t.Fatalf("%s did not resolve canonical target Help:\n%s", strings.Join(args, " "), output.String())
+		}
+	}
+}
+
+func TestRunHelpProviderShortcutResolvesCanonicalTargetWithoutShortcutInput(t *testing.T) {
+	t.Parallel()
+	type config struct{}
+
+	providerCalls := 0
+	var page cli.HelpPage
+	definition := cli.Definition[config]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Renderer: func(_ context.Context, observed cli.HelpPage) (string, error) {
+				page = observed
+				return "provider help\n", nil
+			},
+		},
+		Declare: func(root *cli.CommandBuilder[config]) {
+			root.Subcommands.CommandsFrom(func(_ context.Context, batch *cli.CommandBatch[config]) error {
+				providerCalls++
+				command := cli.Command[config]{
+					Name: "remote",
+				}
+				target := batch.Command(command)
+				shortcut := cli.CommandShortcut{
+					Name: "quick",
+					Args: []string{"unexpected"},
+				}
+				batch.Shortcut(target, shortcut)
+				return nil
+			})
+		},
+	}
+	app := clitest.Compile(t, definition)
+
+	for _, args := range [][]string{
+		{"help", "quick"},
+		{"quick", "--help"},
+	} {
+		page = cli.HelpPage{}
+		var output strings.Builder
+		request := cli.RunRequest{
+			Args:   args,
+			Stdout: &output,
+		}
+		if err := app.Run(t.Context(), request); err != nil {
+			t.Fatalf("Run(%s) error = %v", strings.Join(args, " "), err)
+		}
+		if output.String() != "provider help\n" {
+			t.Fatalf("Run(%s) output = %q, want %q", strings.Join(args, " "), output.String(), "provider help\n")
+		}
+		if got := strings.Join(page.SelectedPath, "/"); got != "remote" {
+			t.Fatalf("selected path = %q, want %q", got, "remote")
+		}
+		if got := strings.Join(page.RequestedPath, "/"); got != "quick" {
+			t.Fatalf("requested path = %q, want %q", got, "quick")
+		}
+	}
+	if providerCalls != 2 {
+		t.Fatalf("provider calls = %d, want 2", providerCalls)
+	}
+}
+
+func TestShortcutHelpProbePreservesHelpSpellingAfterEndOfOptions(t *testing.T) {
+	t.Parallel()
+	type rootConfig struct{}
+	type targetConfig struct {
+		First  string
+		Second string
+	}
+
+	helpRendered := false
+	var observed targetConfig
+	definition := cli.Definition[rootConfig]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Renderer: func(context.Context, cli.HelpPage) (string, error) {
+				helpRendered = true
+				return "help\n", nil
+			},
+		},
+		Declare: func(root *cli.CommandBuilder[rootConfig]) {
+			command := cli.Command[targetConfig]{
+				Name: "remote",
+				Declare: func(command *cli.CommandBuilder[targetConfig]) {
+					command.Arguments.String(&command.Config.First, "first")
+					command.Arguments.String(&command.Config.Second, "second")
+					shortcut := cli.CommandShortcut{
+						Name: "quick",
+						Args: []string{"fixed"},
+					}
+					command.Shortcut(shortcut)
+				},
+				Run: func(_ context.Context, config *targetConfig) error {
+					observed = *config
+					return nil
+				},
+			}
+			root.Subcommands.Command(command)
+		},
+	}
+	app := clitest.Compile(t, definition)
+	request := cli.RunRequest{
+		Args: []string{"quick", "--", "--help"},
+	}
+	if err := app.Run(t.Context(), request); err != nil {
+		t.Fatalf("Run(quick -- --help) error = %v", err)
+	}
+	if helpRendered {
+		t.Fatal("Run(quick -- --help) rendered Help")
+	}
+	want := targetConfig{
+		First:  "fixed",
+		Second: "--help",
+	}
+	if observed != want {
+		t.Fatalf("shortcut target values = %+v, want %+v", observed, want)
 	}
 }
 
@@ -506,7 +809,9 @@ func TestDefaultHelpAlienctlPreservesFormBoundariesAndSafeClosure(t *testing.T) 
 		"--mode=MODE",
 		"-mMODE",
 		"-m MODE",
-		"MODE: tractor - Tractor scan., beam (alias for tractor)",
+		"MODE:",
+		"tractor - Tractor scan.",
+		"beam (alias for tractor)",
 		"  alienctl scan A-17 --note='two  spaces'",
 	} {
 		if !strings.Contains(plain, want) {
@@ -518,12 +823,12 @@ func TestDefaultHelpAlienctlPreservesFormBoundariesAndSafeClosure(t *testing.T) 
 			t.Fatalf("closure/sensitivity leak %q:\n%s", forbidden, plain)
 		}
 	}
-	firstUsage := strings.Index(plain, "alienctl scan [flags] <SECTOR>")
-	firstTerm := strings.Index(plain, "<SECTOR>")
-	secondUsage := strings.Index(plain, "alienctl scan [flags] object <OBJECT...>")
-	secondTerm := strings.LastIndex(plain, "<OBJECT...>")
-	if firstUsage < 0 || firstTerm <= firstUsage || secondUsage <= firstTerm || secondTerm <= secondUsage {
-		t.Fatalf("argument form boundary/order lost:\n%s", plain)
+	if strings.Count(plain, "alienctl scan [flags] <SECTOR>") != 1 ||
+		strings.Count(plain, "alienctl scan [flags] object <OBJECT...>") != 1 {
+		t.Fatalf("Arguments repeated full command usage:\n%s", plain)
+	}
+	if !strings.Contains(plain, "Arguments:\n  <SECTOR>  Sector coordinate.\n\n  object <OBJECT...>\n") {
+		t.Fatalf("argument forms lost local grouping:\n%s", plain)
 	}
 }
 
@@ -542,6 +847,11 @@ func TestDefaultHelpAlienctlCancellation(t *testing.T) {
 
 func TestDefaultHelpAlienctlEscapesPresentationControls(t *testing.T) {
 	t.Parallel()
+	const (
+		modeSpelling cli.FlagSpellingID     = 1
+		orbit        cli.ValueDomainEntryID = 1
+		warp         cli.ValueDomainEntryID = 2
+	)
 	page := cli.HelpPage{
 		ApplicationName: "alienctl",
 		Description: cli.Description{
@@ -551,6 +861,40 @@ func TestDefaultHelpAlienctlEscapesPresentationControls(t *testing.T) {
 		Examples: []cli.Example{{
 			CommandLine: "alienctl scan A-17\t\x1b[2J",
 		}},
+		FlagGroups: []cli.HelpFlagGroup{{
+			Flags: []cli.HelpFlag{{
+				FlagSpellings: []cli.FlagSpellingID{modeSpelling},
+				ValueName:     "MODE\x1b[32m",
+				ValueDomainUses: []cli.HelpValueDomainUse{{
+					Kind:    cli.ValueDomainUseDestination,
+					Entries: []cli.ValueDomainEntryID{orbit, warp},
+				}},
+			}},
+		}},
+		FlagSpellings: map[cli.FlagSpellingID]cli.HelpFlagSpelling{
+			modeSpelling: {
+				ID: modeSpelling,
+				Spelling: cli.FlagSpelling{
+					Kind:      cli.FlagSpellingLong,
+					Text:      "--mode",
+					ValueMode: cli.FlagValueModeRequired,
+				},
+			},
+		},
+		ValueDomainEntries: map[cli.ValueDomainEntryID]cli.HelpValueDomainEntry{
+			orbit: {
+				ID:          orbit,
+				Kind:        cli.ValueDomainEntryCanonical,
+				Name:        "orbit",
+				Description: "safe\x1b[35m route",
+			},
+			warp: {
+				ID:          warp,
+				Kind:        cli.ValueDomainEntryCanonical,
+				Name:        "warp",
+				Description: "controlled route",
+			},
+		},
 	}
 	text, err := cli.DefaultHelp(cli.DefaultHelpConfig{})(t.Context(), page)
 	if err != nil {
@@ -558,7 +902,9 @@ func TestDefaultHelpAlienctlEscapesPresentationControls(t *testing.T) {
 	}
 	if strings.Contains(text, "\x1b") || !strings.Contains(text, `safe\x1b[31m description`) ||
 		!strings.Contains(text, `alienctl scan\x09<TARGET>`) ||
-		!strings.Contains(text, `alienctl scan A-17\x09\x1b[2J`) {
+		!strings.Contains(text, `alienctl scan A-17\x09\x1b[2J`) ||
+		!strings.Contains(text, `MODE\x1b[32m:`) ||
+		!strings.Contains(text, `orbit - safe\x1b[35m route`) {
 		t.Fatalf("Help control-character escaping = %q", text)
 	}
 }

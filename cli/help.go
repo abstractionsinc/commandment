@@ -148,11 +148,13 @@ type HelpPage struct {
 	Kind      HelpPageKind
 	Selection CommandSelection
 
-	ApplicationName  string
-	Name             string
-	Description      Description
-	Version          string
-	SelectedPath     []string
+	ApplicationName string
+	Name            string
+	Description     Description
+	Version         string
+	SelectedPath    []string
+	// RequestedPath preserves the exact command-entry spellings used to reach this Help subject,
+	// including lexical aliases and command shortcuts.
 	RequestedPath    []string
 	EvaluatedRelease string
 	Release          ReleaseLifecycle

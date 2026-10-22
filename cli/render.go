@@ -101,9 +101,11 @@ func renderEntries(out *strings.Builder, entries []presentationEntry, profile pr
 		description := escapeTerminalControls(entry.Description)
 		if !column || description == "" {
 			writeWrapped(out, label, max(1, profile.Width-blockIndentWidth), "  ", "  ")
+			listPrefix := strings.Repeat(" ", entryDescriptionIndentWidth)
 			if description != "" {
-				writeWrapped(out, description, max(1, profile.Width-entryDescriptionIndentWidth), "    ", "    ")
+				writeWrapped(out, description, max(1, profile.Width-entryDescriptionIndentWidth), listPrefix, listPrefix)
 			}
+			renderEntryLists(out, entry.Lists, profile, listPrefix)
 			continue
 		}
 		padding := maxLabel - displayWidth(plainLabel)
@@ -113,6 +115,30 @@ func renderEntries(out *strings.Builder, entries []presentationEntry, profile pr
 		writeWrapped(out, paragraphs[0], max(1, profile.Width-maxLabel-entryDescriptionIndentWidth), prefix, continuation)
 		for _, paragraph := range paragraphs[1:] {
 			writeWrapped(out, paragraph, max(1, profile.Width-maxLabel-entryDescriptionIndentWidth), continuation, continuation)
+		}
+		renderEntryLists(out, entry.Lists, profile, continuation)
+	}
+}
+
+func renderEntryLists(out *strings.Builder, lists []presentationList, profile profile, prefix string) {
+	if len(lists) == 0 {
+		return
+	}
+	width := max(1, profile.Width-displayWidth(prefix))
+	itemPrefix := prefix + strings.Repeat(" ", blockIndentWidth)
+	itemWidth := max(1, profile.Width-displayWidth(itemPrefix))
+	for _, list := range lists {
+		if list.Label != "" {
+			writeWrapped(out, escapeTerminalControls(list.Label)+":", width, prefix, prefix)
+		}
+		for _, item := range list.Items {
+			paragraphs := strings.Split(escapeTerminalControls(item), "\n")
+			writeWrapped(out, paragraphs[0], itemWidth, itemPrefix, itemPrefix)
+			metadataPrefix := itemPrefix + strings.Repeat(" ", blockIndentWidth)
+			metadataWidth := max(1, profile.Width-displayWidth(metadataPrefix))
+			for _, paragraph := range paragraphs[1:] {
+				writeWrapped(out, paragraph, metadataWidth, metadataPrefix, metadataPrefix)
+			}
 		}
 	}
 }

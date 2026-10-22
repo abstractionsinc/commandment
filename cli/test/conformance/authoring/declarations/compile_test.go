@@ -325,6 +325,8 @@ func TestHelpEntriesDeclareFlagSpellings(t *testing.T) {
 	clitest.Schema(app).Require(t,
 		help.Exactly(long, short, literal),
 		long.Kind(cli.ActionEntryFlag), short.Kind(cli.ActionEntryFlag), literal.Kind(cli.ActionEntryFlag),
+		long.Placement(cli.FlagPlacementCommand), short.Placement(cli.FlagPlacementCommand),
+		literal.Placement(cli.FlagPlacementCommand),
 	)
 }
 

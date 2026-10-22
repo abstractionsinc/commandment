@@ -5,7 +5,10 @@ import (
 	"strings"
 )
 
-const helpFlagDetailCapacity = 4
+const (
+	helpFlagDetailCapacity      = 4
+	helpCompactValueDomainLimit = 4
+)
 
 func buildHelpUsage(page HelpPage) []string {
 	base := page.ApplicationName
@@ -227,13 +230,12 @@ func appendHelpFlagBlocks(document *document, page HelpPage) {
 			details := make([]string, 0, helpFlagDetailCapacity)
 			details = append(details, flag.Description, helpAnnotation(annotations))
 			details = append(details, helpFlagStaticValueDetails(page, flag)...)
-			details = append(
-				details,
-				helpValueDomainDetails(page, flag.ValueDomainUses, flag.ValueName, flag.Sensitive)...,
-			)
+			domain := buildHelpValueDomainPresentation(page, flag.ValueDomainUses, flag.ValueName, flag.Sensitive)
+			details = append(details, domain.descriptions...)
 			entries = append(entries, presentationEntry{
 				Label:       label,
 				Description: helpDescription(details...),
+				Lists:       domain.lists,
 			})
 		}
 		if len(entries) == 0 {
@@ -267,14 +269,14 @@ func appendHelpArgumentBlocks(document *document, page HelpPage) {
 		Title: page.Labels.Arguments,
 	})
 	formIndex := 0
-	for usageIndex, form := range page.ArgumentForms {
+	for _, form := range page.ArgumentForms {
 		if len(form.Terms) == 0 {
 			continue
 		}
-		if nonemptyForms > 1 && usageIndex < len(page.Usage) {
+		if nonemptyForms > 1 && len(form.Terms) > 1 {
 			document.Blocks = append(document.Blocks, block{
 				Kind:  blockUsageLines,
-				Lines: []string{page.Usage[usageIndex]},
+				Lines: []string{helpArgumentFormUsage(form)},
 			})
 		}
 		entries := make([]presentationEntry, 0, len(form.Terms))
@@ -288,16 +290,15 @@ func appendHelpArgumentBlocks(document *document, page HelpPage) {
 				annotations = append(annotations, lifecycle)
 			}
 			details := []string{term.Description, helpAnnotation(annotations)}
-			details = append(
-				details,
-				helpValueDomainDetails(page, term.ValueDomainUses, term.Name, term.Sensitive)...,
-			)
+			domain := buildHelpValueDomainPresentation(page, term.ValueDomainUses, term.Name, term.Sensitive)
+			details = append(details, domain.descriptions...)
 			if term.TokenLanguage != nil && len(term.TokenLanguage.Fragments) != 0 {
 				details = append(details, page.Labels.Syntax+": "+strings.Join(term.TokenLanguage.Fragments, " "))
 			}
 			entries = append(entries, presentationEntry{
 				Label:       renderHelpUsageTerm(term),
 				Description: helpDescription(details...),
+				Lists:       domain.lists,
 			})
 		}
 		document.Blocks = append(document.Blocks, block{
@@ -311,6 +312,17 @@ func appendHelpArgumentBlocks(document *document, page HelpPage) {
 			})
 		}
 	}
+}
+
+func helpArgumentFormUsage(form HelpArgumentForm) string {
+	var line strings.Builder
+	for index, term := range form.Terms {
+		if index != 0 {
+			line.WriteByte(' ')
+		}
+		line.WriteString(renderHelpUsageTerm(term))
+	}
+	return line.String()
 }
 
 func helpFlagLabel(page HelpPage, flag HelpFlag) string {
@@ -427,11 +439,16 @@ func helpFlagStaticValueDetails(page HelpPage, flag HelpFlag) []string {
 	return details
 }
 
-func helpValueDomainDetails(page HelpPage, uses []HelpValueDomainUse, valueName string, sensitive bool) []string {
+type helpValueDomainPresentation struct {
+	descriptions []string
+	lists        []presentationList
+}
+
+func buildHelpValueDomainPresentation(page HelpPage, uses []HelpValueDomainUse, valueName string, sensitive bool) helpValueDomainPresentation {
 	if sensitive {
-		return nil
+		return helpValueDomainPresentation{}
 	}
-	var result []string
+	var result helpValueDomainPresentation
 	for _, use := range uses {
 		if len(use.Entries) == 0 {
 			continue
@@ -441,6 +458,8 @@ func helpValueDomainDetails(page HelpPage, uses []HelpValueDomainUse, valueName 
 			visible[id] = struct{}{}
 		}
 		entries := make([]string, 0, len(use.Entries))
+		listItems := make([]string, 0, len(use.Entries))
+		hasMemberDetails := false
 		for _, id := range use.Entries {
 			entry, ok := page.ValueDomainEntries[id]
 			if !ok {
@@ -451,6 +470,7 @@ func helpValueDomainDetails(page HelpPage, uses []HelpValueDomainUse, valueName 
 				if _, shown := visible[entry.Canonical]; shown {
 					if canonical, exists := page.ValueDomainEntries[entry.Canonical]; exists {
 						text += " (" + page.Labels.AliasFor + " " + canonical.Name + ")"
+						hasMemberDetails = true
 					}
 				}
 			}
@@ -461,27 +481,45 @@ func helpValueDomainDetails(page HelpPage, uses []HelpValueDomainUse, valueName 
 				entry.LifecycleState,
 			); lifecycle != "" {
 				annotations = append(annotations, lifecycle)
+				hasMemberDetails = true
 			}
 			if entry.Replacement != 0 {
 				if _, shown := visible[entry.Replacement]; shown {
 					if replacement, exists := page.ValueDomainEntries[entry.Replacement]; exists {
 						annotations = append(annotations, page.Labels.Use+" "+replacement.Name)
+						hasMemberDetails = true
 					}
 				}
 			}
-			if annotation := helpAnnotation(annotations); annotation != "" {
+			annotation := helpAnnotation(annotations)
+			expanded := text
+			if entry.Kind == ValueDomainEntryCanonical && entry.Description != "" {
+				expanded += " - " + entry.Description
+				hasMemberDetails = true
+			}
+			if annotation != "" {
+				expanded += "\n" + annotation
 				text += " " + annotation
 			}
 			if entry.Kind == ValueDomainEntryCanonical && entry.Description != "" {
 				text += " - " + entry.Description
 			}
 			entries = append(entries, text)
+			listItems = append(listItems, expanded)
 		}
 		if len(entries) == 0 {
 			continue
 		}
 		label := helpValueDomainLabel(use.Kind, valueName, page.Labels)
-		result = append(result, label+": "+strings.Join(entries, ", "))
+		if len(entries) > helpCompactValueDomainLimit || len(entries) > 1 && hasMemberDetails {
+			list := presentationList{
+				Label: label,
+				Items: listItems,
+			}
+			result.lists = append(result.lists, list)
+			continue
+		}
+		result.descriptions = append(result.descriptions, label+": "+strings.Join(entries, ", "))
 	}
 	return result
 }

@@ -22,7 +22,7 @@ func TestLocalizedDefaultHelp(t *testing.T) {
 	if err := app.Run(t.Context(), request); err != nil {
 		t.Fatalf("Run(help) error = %v", err)
 	}
-	want := "analyser les mondes proches\n\nUsage:\n  alienctl scan\n"
+	want := "analyser les mondes proches\n\nUsage:\n  alienctl scan [flags]\n\nGlobal flags:\n  --help  Show help.\n  -h      Show help.\n"
 	if got := output.String(); got != want {
 		t.Fatalf("localized help = %q, want %q", got, want)
 	}

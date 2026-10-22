@@ -790,6 +790,38 @@ func TestInheritedStaticFlagCompletionRetainsOwningClassification(t *testing.T) 
 	}
 }
 
+func TestStandardHelpFlagCompletionRemainsAvailableInDescendants(t *testing.T) {
+	t.Parallel()
+	definition := cli.Definition[struct{}]{
+		Name: "alienctl",
+		Declare: func(root *cli.CommandBuilder[struct{}]) {
+			root.Subcommands.Command(cli.Command[struct{}]{
+				Name: "fleet",
+			})
+		},
+	}
+	app := clitest.Compile(t, definition)
+	request := cli.CompletionRequest{
+		Args: []string{"fleet", ""},
+		Cursor: cli.CompletionCursor{
+			Argument: 1,
+		},
+		Client: cli.CompletionClient{
+			Capabilities: cli.CompletionClientCapabilities{
+				CandidateKinds: true,
+			},
+		},
+	}
+
+	long := clitest.CompletionItem("--help")
+	short := clitest.CompletionItem("-h")
+	clitest.Complete(t.Context(), app, request).Require(t,
+		clitest.CompletionItemsExactly(long, short),
+		long.Kind(cli.CompletionCandidateAction),
+		short.Kind(cli.CompletionCandidateAction),
+	)
+}
+
 type completionVerboseRootConfig struct{ Verbose bool }
 
 type completionChildConfig struct{}

@@ -18,5 +18,9 @@ Request French help:
 analyser les mondes proches
 
 Usage:
-  alienctl scan
+  alienctl scan [flags]
+
+Global flags:
+  --help  Show help.
+  -h      Show help.
 ```

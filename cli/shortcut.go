@@ -41,6 +41,11 @@ func selectedShortcutFromPrefix(operation *invocation, prefix grammarPrefixResul
 	if operation == nil || operation.analysis == nil {
 		return selectedShortcut{}, false
 	}
+	// Help-path shortcut selection identifies a presentation subject; shortcut input remains
+	// ordinary invocation input and is not expanded for Help lookup.
+	if prefix.Grammar.Selection.ActionKind == intrinsicActionHelp {
+		return selectedShortcut{}, false
+	}
 	for _, step := range prefix.Grammar.Selection.Steps {
 		if !step.Entry.present() || !step.Input.present() {
 			continue
@@ -120,6 +125,9 @@ func settleNextCommittedShortcut(ctx context.Context, operation *invocation, exp
 		if !ok {
 			continue
 		}
+		if shortcutResidualSelectsHelp(ctx, operation, prefix, selection.selectorIndex+1, residualEnd) {
+			return false, trailingAppend, nil
+		}
 		prepend := selection.definition.Args()
 		appendArgs := selection.definition.AppendArgs()
 		_, err := operation.ApplyShortcut(
@@ -167,6 +175,76 @@ func settleNextCommittedShortcut(ctx context.Context, operation *invocation, exp
 		return true, trailingAppend + settledAppendStop - appendStart, nil
 	}
 	return false, trailingAppend, nil
+}
+
+// shortcutResidualSelectsHelp lets terminal Help selection observe a shortcut's target identity
+// before ordinary shortcut partial application mutates invocation input.
+func shortcutResidualSelectsHelp(ctx context.Context, operation *invocation, prefix grammarPrefixResult, start, stop int) bool {
+	if !shortcutResidualMayContainHelpFlag(operation, prefix, start, stop) {
+		return false
+	}
+	priorCode, priorErr := operation.supplyFailure()
+	defer func() {
+		operation.analysis.supplyCode = priorCode
+		operation.analysis.supplyErr = priorErr
+	}()
+	args := operation.Args()
+	resolved := analyzeGrammarArgumentsPrefixSkipping(
+		ctx,
+		operation,
+		args[:stop],
+		-1,
+		operation.namespaceFor(ctx),
+		operation.conditionFor(ctx),
+		operation.defaultCommandFor(ctx),
+	)
+	return resolved.Grammar.Selection.ActionKind == intrinsicActionHelp
+}
+
+func shortcutResidualMayContainHelpFlag(operation *invocation, prefix grammarPrefixResult, start, stop int) bool {
+	if start >= stop {
+		return false
+	}
+	helpActions, dialect, ok := shortcutHelpActionFlags(operation, prefix)
+	if !ok {
+		return false
+	}
+	args := operation.Args()
+	if start < 0 || stop > len(args) {
+		panic("cli: shortcut Help residual range out of bounds")
+	}
+	for _, token := range args[start:stop] {
+		if match := matchActionFlags(helpActions, dialect, token); match.found {
+			return true
+		}
+	}
+	return false
+}
+
+func shortcutHelpActionFlags(operation *invocation, prefix grammarPrefixResult) ([]semanticActionFlagGrammar, dialect, bool) {
+	if operation == nil || operation.analysis == nil {
+		return nil, dialect{}, false
+	}
+	base, ok := operation.analysis.effectiveModel.EffectiveGrammar()
+	if !ok {
+		return nil, dialect{}, false
+	}
+	view := grammarOperationSource{
+		operation: operation,
+		analysis:  operation.analysis,
+	}.effectiveScope(base, prefix.Grammar.SelectedProfiles)
+	selectedDialect, ok := view.Dialect(prefix.Current)
+	if !ok {
+		return nil, dialect{}, false
+	}
+	actions := activeActionFlags(view, prefix.Grammar.Selection.Path)
+	helpActions := make([]semanticActionFlagGrammar, 0, len(actions))
+	for _, action := range actions {
+		if action.action == intrinsicActionHelp && action.enabled {
+			helpActions = append(helpActions, action)
+		}
+	}
+	return helpActions, selectedDialect, len(helpActions) != 0
 }
 
 func argumentIndexForOrigin(operation *invocation, origin InputOriginID) int {

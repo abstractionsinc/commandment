@@ -342,8 +342,11 @@ func TestCompleteShortcutAppendArgsResponseReferenceExpandsAfterResidualCursor(t
 	t.Parallel()
 	type rootConfig = completionShortcutRootConfig
 	type childConfig = completionShortcutModeNameChildConfig
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			root.Subcommands.Command(cli.Command[childConfig]{
 				Name: "serve",
@@ -376,7 +379,8 @@ func TestCompleteShortcutAppendArgsResponseReferenceExpandsAfterResidualCursor(t
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	t.Run("expands exactly once and affects residual value completion", func(t *testing.T) {
 		t.Parallel()
@@ -455,8 +459,11 @@ func TestCompleteShortcutAppendArgsRemainAfterResidualCursorForPositionalOwnersh
 	t.Parallel()
 	type rootConfig = completionShortcutRootConfig
 	type childConfig = completionShortcutFirstSecondChildConfig
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			root.Subcommands.Command(cli.Command[childConfig]{
 				Name: "serve",
@@ -502,7 +509,8 @@ func TestCompleteShortcutAppendArgsRemainAfterResidualCursorForPositionalOwnersh
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 
 	completionRequest := cli.CompletionRequest{
 		Args: []string{"quick", ""},
@@ -813,8 +821,11 @@ func TestCompleteCanonicalCommandRemainsShortcutIndependent(t *testing.T) {
 	t.Parallel()
 	type rootConfig = completionShortcutRootConfig
 	type childConfig = completionShortcutNameChildConfig
-	app := clitest.Compile(t, cli.Definition[rootConfig]{
+	definition := cli.Definition[rootConfig]{
 		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
 		Declare: func(root *cli.CommandBuilder[rootConfig]) {
 			root.Subcommands.Command(cli.Command[childConfig]{
 				Name: "serve",
@@ -844,7 +855,8 @@ func TestCompleteCanonicalCommandRemainsShortcutIndependent(t *testing.T) {
 				},
 			})
 		},
-	})
+	}
+	app := clitest.Compile(t, definition)
 	completionRequest := cli.CompletionRequest{
 		Args: []string{"serve", ""},
 		Cursor: cli.CompletionCursor{

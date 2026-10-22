@@ -88,6 +88,12 @@ const (
 type presentationEntry struct {
 	Label       string
 	Description string
+	Lists       []presentationList
+}
+
+type presentationList struct {
+	Label string
+	Items []string
 }
 
 type block struct {
