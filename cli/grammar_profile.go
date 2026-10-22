@@ -233,40 +233,21 @@ func (draft *declarationCandidate) GrammarProfileCase(profile grammarProfileRef,
 		draft.reject(position)
 		return
 	}
-	var profileCommand CommandID
-	for _, record := range draft.input.GrammarProfiles {
-		if record.meta.id == profile.ID() {
-			profileCommand = record.command
-			break
-		}
-	}
-	var selectorCommand CommandID
-	for _, record := range draft.input.Destinations {
-		if record.meta.id == selector.ID() {
-			selectorCommand = record.command
-			break
-		}
-	}
-	if !profileCommand.present() || profileCommand != selectorCommand {
+	profileIndex, profileRecord, profileOK := draft.grammarProfileRecordForRef(profile)
+	_, selectorRecord, selectorOK := draft.destinationRecordForRef(selector)
+	if !profileOK || !selectorOK || profileRecord.command != selectorRecord.command {
 		draft.reject(position)
 		return
 	}
-	semanticDialect := acceptDialect(dialect)
-	for index, record := range draft.input.GrammarProfiles {
-		if record.meta.id == profile.ID() {
-			if equal == nil {
-				panic("semantic: invalid grammar-profile case")
-			}
-			record.selector = selector.ID()
-			record.value = value
-			record.equal = equal
-			record.defaultCase = defaultCase
-			record.dialect = semanticDialect
-			draft.input.GrammarProfiles[index] = record
-			return
-		}
+	if equal == nil {
+		panic("semantic: invalid grammar-profile case")
 	}
-	draft.reject(position)
+	profileRecord.selector = selector.ID()
+	profileRecord.value = value
+	profileRecord.equal = equal
+	profileRecord.defaultCase = defaultCase
+	profileRecord.dialect = acceptDialect(dialect)
+	draft.input.GrammarProfiles[profileIndex] = profileRecord
 }
 
 func (draft *declarationCandidate) DestinationProfile(destination acceptanceDestinationRef, profile grammarProfileRef, position declarationPosition) {
@@ -275,18 +256,13 @@ func (draft *declarationCandidate) DestinationProfile(destination acceptanceDest
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Destinations {
-		if record.meta.id == destination.ID() {
-			if record.command != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.Destinations[i] = record
-			return
-		}
+	index, record, ok := draft.destinationRecordForRef(destination)
+	if !ok || record.command != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.Destinations[index] = record
 }
 
 func (draft *declarationCandidate) FlagProfile(flag acceptanceFlagRef, profile grammarProfileRef, position declarationPosition) {
@@ -295,18 +271,13 @@ func (draft *declarationCandidate) FlagProfile(flag acceptanceFlagRef, profile g
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Flags {
-		if record.meta.id == flag.ID() {
-			if record.command != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.Flags[i] = record
-			return
-		}
+	index, record, ok := draft.flagRecordForRef(flag)
+	if !ok || record.command != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.Flags[index] = record
 }
 
 func (draft *declarationCandidate) ArgumentFormProfile(form argumentFormRef, profile grammarProfileRef, position declarationPosition) {
@@ -315,18 +286,13 @@ func (draft *declarationCandidate) ArgumentFormProfile(form argumentFormRef, pro
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.ArgumentForms {
-		if record.meta.id == form.ID() {
-			if record.command != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.ArgumentForms[i] = record
-			return
-		}
+	index, record, ok := draft.argumentFormRecordForRef(form)
+	if !ok || record.command != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.ArgumentForms[index] = record
 }
 
 func (draft *declarationCandidate) CommandEntryProfile(entry commandEntryRef, profile grammarProfileRef, position declarationPosition) {
@@ -335,18 +301,13 @@ func (draft *declarationCandidate) CommandEntryProfile(entry commandEntryRef, pr
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.CommandEntries {
-		if record.meta.id == entry.ID() {
-			if record.parent != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.CommandEntries[i] = record
-			return
-		}
+	index, record, ok := draft.commandEntryRecordForRef(entry)
+	if !ok || record.parent != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.CommandEntries[index] = record
 }
 
 func (draft *declarationCandidate) DefaultProfile(def defaultRef, profile grammarProfileRef, position declarationPosition) {
@@ -355,18 +316,13 @@ func (draft *declarationCandidate) DefaultProfile(def defaultRef, profile gramma
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Defaults {
-		if record.meta.id == def.ID() {
-			if record.parent != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.Defaults[i] = record
-			return
-		}
+	index, record, ok := draft.defaultRecordForRef(def)
+	if !ok || record.parent != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.Defaults[index] = record
 }
 
 func (draft *declarationCandidate) EnvironmentInputProfile(input environmentInputRef, profile grammarProfileRef, position declarationPosition) {
@@ -375,27 +331,21 @@ func (draft *declarationCandidate) EnvironmentInputProfile(input environmentInpu
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.EnvironmentInputs {
-		if record.meta.id == input.ID() {
-			if record.command != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.EnvironmentInputs[i] = record
-			return
-		}
+	index, record, ok := draft.environmentInputRecordForRef(input)
+	if !ok || record.command != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.EnvironmentInputs[index] = record
 }
 
 func (draft *declarationCandidate) grammarProfileCommand(profile grammarProfileRef) CommandID {
-	for _, record := range draft.input.GrammarProfiles {
-		if record.meta.id == profile.ID() {
-			return record.command
-		}
+	_, record, ok := draft.grammarProfileRecordForRef(profile)
+	if !ok {
+		return CommandID(0)
 	}
-	return CommandID(0)
+	return record.command
 }
 
 func (draft *declarationCandidate) ConditionPolicyCount() int {
@@ -409,18 +359,13 @@ func (draft *declarationCandidate) ProviderProfile(provider providerRef, profile
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Providers {
-		if record.meta.id == provider.ID() {
-			if record.parent != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.Providers[i] = record
-			return
-		}
+	index, record, ok := draft.providerRecordForRef(provider)
+	if !ok || record.parent != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.Providers[index] = record
 }
 
 func (draft *declarationCandidate) RuleProfile(rule ruleRef, profile grammarProfileRef, position declarationPosition) {
@@ -429,18 +374,13 @@ func (draft *declarationCandidate) RuleProfile(rule ruleRef, profile grammarProf
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Rules {
-		if record.meta.id == rule.ID() {
-			if record.command != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.Rules[i] = record
-			return
-		}
+	index, record, ok := draft.ruleRecordForRef(rule)
+	if !ok || record.command != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.Rules[index] = record
 }
 
 func (draft *declarationCandidate) AdvisoryProfile(advisory advisoryRef, profile grammarProfileRef, position declarationPosition) {
@@ -449,18 +389,13 @@ func (draft *declarationCandidate) AdvisoryProfile(advisory advisoryRef, profile
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Advisories {
-		if record.meta.id == advisory.ID() {
-			if record.command != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.Advisories[i] = record
-			return
-		}
+	index, record, ok := draft.advisoryRecordForRef(advisory)
+	if !ok || record.command != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.Advisories[index] = record
 }
 
 func (draft *declarationCandidate) SignalPolicyProfile(policy signalPolicyRef, profile grammarProfileRef, position declarationPosition) {
@@ -469,18 +404,13 @@ func (draft *declarationCandidate) SignalPolicyProfile(policy signalPolicyRef, p
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.SignalPolicies {
-		if record.meta.id == policy.ID() {
-			if record.command != draft.grammarProfileCommand(profile) {
-				draft.reject(position)
-				return
-			}
-			record.meta.profile = profile.ID()
-			draft.input.SignalPolicies[i] = record
-			return
-		}
+	index, record, ok := draft.signalPolicyRecordForRef(policy)
+	if !ok || record.command != draft.grammarProfileCommand(profile) {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.meta.profile = profile.ID()
+	draft.input.SignalPolicies[index] = record
 }
 
 // replacementSubject is a bounded declaration-validation view over declaration

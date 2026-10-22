@@ -71,69 +71,69 @@ func freezeStaticProgram(records staticRecords, baseline staticIdentityBaseline,
 		baseline:    baseline,
 		grammar:     grammar,
 		commands: indexRecords(
-			records.Commands(),
+			records.commands,
 			func(record commandRecord) CommandID { return record.meta.id },
 		),
 		destinations: indexRecords(
-			records.Destinations(),
+			records.destinations,
 			func(record destinationRecord) ValueID { return record.meta.id },
 		),
-		flags: indexRecords(records.Flags(), func(record flagRecord) FlagID { return record.meta.id }),
+		flags: indexRecords(records.flags, func(record flagRecord) FlagID { return record.meta.id }),
 		flagSpellings: indexRecords(
-			records.FlagSpellings(),
+			records.flagSpellings,
 			func(record flagSpellingRecord) FlagSpellingID { return record.meta.id },
 		),
 		argumentForms: indexRecords(
-			records.ArgumentForms(),
+			records.argumentForms,
 			func(record argumentFormRecord) ArgumentFormID { return record.meta.id },
 		),
 		argumentTerms: indexRecords(
-			records.ArgumentTerms(),
+			records.argumentTerms,
 			func(record argumentTermRecord) ArgumentTermID { return record.meta.id },
 		),
 		commandEntries: indexRecords(
-			records.CommandEntries(),
+			records.commandEntries,
 			func(record commandEntryRecord) CommandEntryID { return record.meta.id },
 		),
 		actionEntries: indexRecords(
-			records.ActionEntries(),
+			records.actionEntries,
 			func(record actionEntryRecord) ActionEntryID { return record.meta.id },
 		),
 		defaults: indexRecords(
-			records.Defaults(),
+			records.defaults,
 			func(record defaultRecord) CommandDefaultID { return record.meta.id },
 		),
 		providers: indexRecords(
-			records.Providers(),
+			records.providers,
 			func(record providerRecord) CommandProviderID { return record.meta.id },
 		),
-		rules: indexRecords(records.Rules(), func(record ruleRecord) RuleID { return record.meta.id }),
+		rules: indexRecords(records.rules, func(record ruleRecord) RuleID { return record.meta.id }),
 		advisories: indexRecords(
-			records.Advisories(),
+			records.advisories,
 			func(record advisoryRecord) advisoryID { return record.meta.id },
 		),
 		signalPolicies: indexRecords(
-			records.SignalPolicies(),
+			records.signalPolicies,
 			func(record signalPolicyRecord) SignalPolicyID { return record.meta.id },
 		),
 		domainEntries: indexRecords(
-			records.DomainEntries(),
+			records.domainEntries,
 			func(record domainEntryRecord) ValueDomainEntryID { return record.meta.id },
 		),
 		environmentInputs: indexRecords(
-			records.EnvironmentInputs(),
+			records.environmentInputs,
 			func(record environmentInputRecord) EnvironmentInputID { return record.meta.id },
 		),
 		grammarProfiles: indexRecords(
-			records.GrammarProfiles(),
+			records.grammarProfiles,
 			func(record grammarProfileRecord) GrammarProfileID { return record.meta.id },
 		),
 		signalEndpoints: indexRecords(
-			records.SignalEndpoints(),
+			records.signalEndpoints,
 			func(record signalEndpointRecord) SignalEndpointID { return record.meta.id },
 		),
 		signalCounters: indexRecords(
-			records.SignalCounters(),
+			records.signalCounters,
 			func(record signalCounterRecord) SignalCounterID { return record.meta.id },
 		),
 	}
@@ -877,60 +877,60 @@ func buildDeclarationScopeIndexes(model *staticProgram) {
 	model.domainsByDestination = make(map[ValueID][]int)
 	model.replacementsByCommand = make(map[CommandID][]declarationReplacementRecord)
 
-	for _, r := range model.records.Commands() {
+	for _, r := range model.records.commands {
 		if p, ok := r.Parent(); ok {
 			model.childrenByCommand[p] = append(model.childrenByCommand[p], r.meta.id)
 		}
 	}
-	for _, r := range model.records.Destinations() {
+	for _, r := range model.records.destinations {
 		model.destinationsByCommand[r.command] = append(model.destinationsByCommand[r.command], r)
 	}
-	for _, r := range model.records.Flags() {
+	for _, r := range model.records.flags {
 		model.flagsByCommand[r.command] = append(model.flagsByCommand[r.command], r)
 	}
-	for _, r := range model.records.FlagSpellings() {
+	for _, r := range model.records.flagSpellings {
 		model.flagSpellingsByFlag[r.flag] = append(model.flagSpellingsByFlag[r.flag], r)
 	}
-	for _, r := range model.records.ArgumentForms() {
+	for _, r := range model.records.argumentForms {
 		model.formsByCommand[r.command] = append(model.formsByCommand[r.command], r)
 	}
-	for _, r := range model.records.ArgumentTerms() {
+	for _, r := range model.records.argumentTerms {
 		model.termsByForm[r.form] = append(model.termsByForm[r.form], r)
 	}
-	for _, r := range model.records.CommandEntries() {
+	for _, r := range model.records.commandEntries {
 		model.entriesByParent[r.parent] = append(model.entriesByParent[r.parent], r)
 	}
-	for _, r := range model.records.ActionEntries() {
+	for _, r := range model.records.actionEntries {
 		model.actionsByParent[r.parent] = append(model.actionsByParent[r.parent], r)
 	}
-	for _, r := range model.records.Defaults() {
+	for _, r := range model.records.defaults {
 		model.defaultsByParent[r.parent] = append(model.defaultsByParent[r.parent], r)
 	}
-	for _, r := range model.records.Providers() {
+	for _, r := range model.records.providers {
 		model.providersByParent[r.parent] = append(model.providersByParent[r.parent], r)
 	}
-	for _, r := range model.records.Rules() {
+	for _, r := range model.records.rules {
 		model.rulesByCommand[r.command] = append(model.rulesByCommand[r.command], r)
 	}
-	for _, r := range model.records.Advisories() {
+	for _, r := range model.records.advisories {
 		model.advisoriesByCommand[r.command] = append(model.advisoriesByCommand[r.command], r)
 	}
-	for _, r := range model.records.SignalPolicies() {
+	for _, r := range model.records.signalPolicies {
 		model.signalPoliciesByCommand[r.command] = append(model.signalPoliciesByCommand[r.command], r)
 	}
-	for _, r := range model.records.EnvironmentInputs() {
+	for _, r := range model.records.environmentInputs {
 		model.environmentByCommand[r.command] = append(model.environmentByCommand[r.command], r)
 	}
-	for _, r := range model.records.GrammarProfiles() {
+	for _, r := range model.records.grammarProfiles {
 		model.profilesByCommand[r.command] = append(model.profilesByCommand[r.command], r)
 	}
-	for _, r := range model.records.SignalEndpoints() {
+	for _, r := range model.records.signalEndpoints {
 		model.endpointsByCommand[r.command] = append(model.endpointsByCommand[r.command], r)
 	}
-	for _, r := range model.records.SignalCounters() {
+	for _, r := range model.records.signalCounters {
 		model.countersByPolicy[r.policy] = append(model.countersByPolicy[r.policy], r)
 	}
-	for ordinal, r := range model.records.ConditionPolicies() {
+	for ordinal, r := range model.records.conditionPolicies {
 		if c, ok := model.conditionTargetCommand(r.target); ok {
 			model.conditionsByCommand[c] = append(model.conditionsByCommand[c], staticConditionPolicyRecord{
 				record:  r,
@@ -938,13 +938,13 @@ func buildDeclarationScopeIndexes(model *staticProgram) {
 			})
 		}
 	}
-	for _, r := range model.records.NoticeSuppressions() {
+	for _, r := range model.records.noticeSuppressions {
 		model.noticeByCommand[r.command] = append(model.noticeByCommand[r.command], r)
 	}
-	for _, r := range model.records.SignalPolicyScopes() {
+	for _, r := range model.records.signalPolicyScopes {
 		model.signalScopesByCommand[r.Command()] = append(model.signalScopesByCommand[r.Command()], r)
 	}
-	for _, r := range model.records.HelpGroups() {
+	for _, r := range model.records.helpGroups {
 		model.helpGroupsByCommand[r.command] = append(model.helpGroupsByCommand[r.command], r)
 	}
 	for i, domain := range model.records.ValueDomains() {
@@ -952,7 +952,7 @@ func buildDeclarationScopeIndexes(model *staticProgram) {
 			model.domainsByDestination[use.destination] = append(model.domainsByDestination[use.destination], i)
 		}
 	}
-	for _, r := range model.records.Replacements() {
+	for _, r := range model.records.replacements {
 		seen := make(map[CommandID]struct{}, replacementCommandCapacity)
 		for _, id := range []declarationReplacementIdentity{r.source, r.target} {
 			if c, ok := model.replacementIdentityCommand(id); ok {

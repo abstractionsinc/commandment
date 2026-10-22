@@ -276,9 +276,9 @@ func (draft *declarationCandidate) CommandByID(id CommandID) acceptanceCommandRe
 		draft.reject(0)
 		return issueStagingRef(draft.owner, id)
 	}
-	for _, record := range draft.input.Commands {
+	for index, record := range draft.input.Commands {
 		if record.meta.id == id {
-			return issueStagingRef(draft.owner, id)
+			return issueIndexedStagingRef(draft.owner, id, index)
 		}
 	}
 	draft.reject(0)
@@ -293,9 +293,9 @@ func (draft *declarationCandidate) DestinationByID(id ValueID) acceptanceDestina
 		draft.reject(0)
 		return issueStagingRef(draft.owner, id)
 	}
-	for _, record := range draft.input.Destinations {
+	for index, record := range draft.input.Destinations {
 		if record.meta.id == id {
-			return issueStagingRef(draft.owner, id)
+			return issueIndexedStagingRef(draft.owner, id, index)
 		}
 	}
 	draft.reject(0)
@@ -317,10 +317,273 @@ func (draft *declarationCandidate) ExistingDestinationDefinition(id ValueID) (de
 	return destinationDefinition{}, false
 }
 
+func (draft *declarationCandidate) commandRecordForRef(command acceptanceCommandRef) (int, commandRecord, bool) {
+	if index, ok := command.RecordIndex(); ok && index < len(draft.input.Commands) {
+		record := draft.input.Commands[index]
+		if record.meta.id == command.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.Commands {
+		if record.meta.id == command.ID() {
+			return index, record, true
+		}
+	}
+	return 0, commandRecord{}, false
+}
+
+func (draft *declarationCandidate) destinationRecordForRef(destination acceptanceDestinationRef) (int, destinationRecord, bool) {
+	if index, ok := destination.RecordIndex(); ok && index < len(draft.input.Destinations) {
+		record := draft.input.Destinations[index]
+		if record.meta.id == destination.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.Destinations {
+		if record.meta.id == destination.ID() {
+			return index, record, true
+		}
+	}
+	return 0, destinationRecord{}, false
+}
+
+func (draft *declarationCandidate) flagRecordForRef(flag acceptanceFlagRef) (int, flagRecord, bool) {
+	if index, ok := flag.RecordIndex(); ok && index < len(draft.input.Flags) {
+		record := draft.input.Flags[index]
+		if record.meta.id == flag.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.Flags {
+		if record.meta.id == flag.ID() {
+			return index, record, true
+		}
+	}
+	return 0, flagRecord{}, false
+}
+
+func (draft *declarationCandidate) flagSpellingRecordForRef(spelling acceptanceFlagSpellingRef) (int, flagSpellingRecord, bool) {
+	if index, ok := spelling.RecordIndex(); ok && index < len(draft.input.FlagSpellings) {
+		record := draft.input.FlagSpellings[index]
+		if record.meta.id == spelling.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.FlagSpellings {
+		if record.meta.id == spelling.ID() {
+			return index, record, true
+		}
+	}
+	return 0, flagSpellingRecord{}, false
+}
+
+func (draft *declarationCandidate) argumentFormRecordForRef(form argumentFormRef) (int, argumentFormRecord, bool) {
+	if index, ok := form.RecordIndex(); ok && index < len(draft.input.ArgumentForms) {
+		record := draft.input.ArgumentForms[index]
+		if record.meta.id == form.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.ArgumentForms {
+		if record.meta.id == form.ID() {
+			return index, record, true
+		}
+	}
+	return 0, argumentFormRecord{}, false
+}
+
+func (draft *declarationCandidate) argumentTermRecordForRef(term argumentTermRef) (int, argumentTermRecord, bool) {
+	if index, ok := term.RecordIndex(); ok && index < len(draft.input.ArgumentTerms) {
+		record := draft.input.ArgumentTerms[index]
+		if record.meta.id == term.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.ArgumentTerms {
+		if record.meta.id == term.ID() {
+			return index, record, true
+		}
+	}
+	return 0, argumentTermRecord{}, false
+}
+
+func (draft *declarationCandidate) commandEntryRecordForRef(entry commandEntryRef) (int, commandEntryRecord, bool) {
+	if index, ok := entry.RecordIndex(); ok && index < len(draft.input.CommandEntries) {
+		record := draft.input.CommandEntries[index]
+		if record.meta.id == entry.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.CommandEntries {
+		if record.meta.id == entry.ID() {
+			return index, record, true
+		}
+	}
+	return 0, commandEntryRecord{}, false
+}
+
+func (draft *declarationCandidate) actionEntryRecordForRef(entry actionEntryRef) (int, actionEntryRecord, bool) {
+	if index, ok := entry.RecordIndex(); ok && index < len(draft.input.ActionEntries) {
+		record := draft.input.ActionEntries[index]
+		if record.meta.id == entry.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.ActionEntries {
+		if record.meta.id == entry.ID() {
+			return index, record, true
+		}
+	}
+	return 0, actionEntryRecord{}, false
+}
+
+func (draft *declarationCandidate) defaultRecordForRef(defaultRef defaultRef) (int, defaultRecord, bool) {
+	if index, ok := defaultRef.RecordIndex(); ok && index < len(draft.input.Defaults) {
+		record := draft.input.Defaults[index]
+		if record.meta.id == defaultRef.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.Defaults {
+		if record.meta.id == defaultRef.ID() {
+			return index, record, true
+		}
+	}
+	return 0, defaultRecord{}, false
+}
+
+func (draft *declarationCandidate) providerRecordForRef(provider providerRef) (int, providerRecord, bool) {
+	if index, ok := provider.RecordIndex(); ok && index < len(draft.input.Providers) {
+		record := draft.input.Providers[index]
+		if record.meta.id == provider.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.Providers {
+		if record.meta.id == provider.ID() {
+			return index, record, true
+		}
+	}
+	return 0, providerRecord{}, false
+}
+
+func (draft *declarationCandidate) ruleRecordForRef(rule ruleRef) (int, ruleRecord, bool) {
+	if index, ok := rule.RecordIndex(); ok && index < len(draft.input.Rules) {
+		record := draft.input.Rules[index]
+		if record.meta.id == rule.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.Rules {
+		if record.meta.id == rule.ID() {
+			return index, record, true
+		}
+	}
+	return 0, ruleRecord{}, false
+}
+
+func (draft *declarationCandidate) advisoryRecordForRef(advisory advisoryRef) (int, advisoryRecord, bool) {
+	if index, ok := advisory.RecordIndex(); ok && index < len(draft.input.Advisories) {
+		record := draft.input.Advisories[index]
+		if record.meta.id == advisory.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.Advisories {
+		if record.meta.id == advisory.ID() {
+			return index, record, true
+		}
+	}
+	return 0, advisoryRecord{}, false
+}
+
+func (draft *declarationCandidate) signalPolicyRecordForRef(policy signalPolicyRef) (int, signalPolicyRecord, bool) {
+	if index, ok := policy.RecordIndex(); ok && index < len(draft.input.SignalPolicies) {
+		record := draft.input.SignalPolicies[index]
+		if record.meta.id == policy.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.SignalPolicies {
+		if record.meta.id == policy.ID() {
+			return index, record, true
+		}
+	}
+	return 0, signalPolicyRecord{}, false
+}
+
+func (draft *declarationCandidate) domainEntryRecordForRef(entry domainEntryRef) (int, domainEntryRecord, bool) {
+	if index, ok := entry.RecordIndex(); ok && index < len(draft.input.DomainEntries) {
+		record := draft.input.DomainEntries[index]
+		if record.meta.id == entry.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.DomainEntries {
+		if record.meta.id == entry.ID() {
+			return index, record, true
+		}
+	}
+	return 0, domainEntryRecord{}, false
+}
+
+func (draft *declarationCandidate) environmentInputRecordForRef(input environmentInputRef) (int, environmentInputRecord, bool) {
+	if index, ok := input.RecordIndex(); ok && index < len(draft.input.EnvironmentInputs) {
+		record := draft.input.EnvironmentInputs[index]
+		if record.meta.id == input.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.EnvironmentInputs {
+		if record.meta.id == input.ID() {
+			return index, record, true
+		}
+	}
+	return 0, environmentInputRecord{}, false
+}
+
+func (draft *declarationCandidate) grammarProfileRecordForRef(profile grammarProfileRef) (int, grammarProfileRecord, bool) {
+	if index, ok := profile.RecordIndex(); ok && index < len(draft.input.GrammarProfiles) {
+		record := draft.input.GrammarProfiles[index]
+		if record.meta.id == profile.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.GrammarProfiles {
+		if record.meta.id == profile.ID() {
+			return index, record, true
+		}
+	}
+	return 0, grammarProfileRecord{}, false
+}
+
+func (draft *declarationCandidate) signalEndpointRecordForRef(endpoint signalEndpointRef) (int, signalEndpointRecord, bool) {
+	if index, ok := endpoint.RecordIndex(); ok && index < len(draft.input.SignalEndpoints) {
+		record := draft.input.SignalEndpoints[index]
+		if record.meta.id == endpoint.ID() {
+			return index, record, true
+		}
+	}
+	for index, record := range draft.input.SignalEndpoints {
+		if record.meta.id == endpoint.ID() {
+			return index, record, true
+		}
+	}
+	return 0, signalEndpointRecord{}, false
+}
+
+func (draft *declarationCandidate) existingDestinationDefinitionForRef(destination acceptanceDestinationRef) (destinationDefinition, bool) {
+	_, record, ok := draft.destinationRecordForRef(destination)
+	if !ok {
+		return destinationDefinition{}, false
+	}
+	return record.Definition()
+}
+
 func (draft *declarationCandidate) RootCommand(position declarationPosition, configuration semanticCommandConfiguration) acceptanceCommandRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateCommandID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Commands))
 	if !configuration.Valid() {
 		draft.reject(position)
 		return result
@@ -332,7 +595,7 @@ func (draft *declarationCandidate) RootCommand(position declarationPosition, con
 func (draft *declarationCandidate) Command(parent acceptanceCommandRef, position declarationPosition, configuration semanticCommandConfiguration) acceptanceCommandRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateCommandID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Commands))
 	if !parent.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -347,7 +610,7 @@ func (draft *declarationCandidate) Command(parent acceptanceCommandRef, position
 func (draft *declarationCandidate) Destination(command acceptanceCommandRef, position declarationPosition, definition destinationDefinition, binding configurationBinding) acceptanceDestinationRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateDestinationID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Destinations))
 	if !command.OwnedBy(draft.owner) || !definition.Valid() {
 		draft.reject(position)
 		return result
@@ -365,26 +628,24 @@ func (draft *declarationCandidate) DestinationProducer(destination acceptanceDes
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Destinations {
-		if record.meta.id != destination.ID() {
-			continue
-		}
-		if draft.callbacks != nil && callback != nil {
-			producerIndex := len(record.producers)
-			key := valueProducerKey{
-				destination: destination.ID(),
-				index:       producerIndex,
-			}
-			if _, exists := draft.callbacks.valueProducers[key]; exists {
-				panic("cli: duplicate static value producer callback custody")
-			}
-			draft.callbacks.valueProducers[key] = callback
-		}
-		record.producers = append(append([]valueProducerRecord(nil), record.producers...), producer)
-		draft.input.Destinations[index] = record
+	index, record, ok := draft.destinationRecordForRef(destination)
+	if !ok {
+		draft.reject(position)
 		return
 	}
-	draft.reject(position)
+	if draft.callbacks != nil && callback != nil {
+		producerIndex := len(record.producers)
+		key := valueProducerKey{
+			destination: destination.ID(),
+			index:       producerIndex,
+		}
+		if _, exists := draft.callbacks.valueProducers[key]; exists {
+			panic("cli: duplicate static value producer callback custody")
+		}
+		draft.callbacks.valueProducers[key] = callback
+	}
+	record.producers = append(append([]valueProducerRecord(nil), record.producers...), producer)
+	draft.input.Destinations[index] = record
 }
 
 func (draft *declarationCandidate) DestinationDefinition(destination acceptanceDestinationRef, definition destinationDefinition, position declarationPosition) {
@@ -393,14 +654,13 @@ func (draft *declarationCandidate) DestinationDefinition(destination acceptanceD
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Destinations {
-		if record.meta.id == destination.ID() {
-			record.definition = definition
-			draft.input.Destinations[index] = record
-			return
-		}
+	index, record, ok := draft.destinationRecordForRef(destination)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.definition = definition
+	draft.input.Destinations[index] = record
 }
 
 func (draft *declarationCandidate) DestinationResolution(destination acceptanceDestinationRef, addition semanticResolutionPolicy, position declarationPosition) {
@@ -409,35 +669,34 @@ func (draft *declarationCandidate) DestinationResolution(destination acceptanceD
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Destinations {
-		if record.meta.id != destination.ID() {
-			continue
-		}
-		definition, ok := record.Definition()
-		if !ok {
-			draft.reject(position)
-			return
-		}
-		merged, ok := mergeResolutionPolicies(definition.Resolution(), addition)
-		if !ok {
-			draft.preflight = append(draft.preflight, rejection{
-				Kind:  rejectionStructuralInvalidity,
-				Order: uint64(position),
-			})
-			return
-		}
-		definition.resolution = merged
-		record.definition = definition
-		draft.input.Destinations[index] = record
+	index, record, ok := draft.destinationRecordForRef(destination)
+	if !ok {
+		draft.reject(position)
 		return
 	}
-	draft.reject(position)
+	definition, ok := record.Definition()
+	if !ok {
+		draft.reject(position)
+		return
+	}
+	merged, ok := mergeResolutionPolicies(definition.Resolution(), addition)
+	if !ok {
+		rejection := rejection{
+			Kind:  rejectionStructuralInvalidity,
+			Order: uint64(position),
+		}
+		draft.preflight = append(draft.preflight, rejection)
+		return
+	}
+	definition.resolution = merged
+	record.definition = definition
+	draft.input.Destinations[index] = record
 }
 
 func (draft *declarationCandidate) Flag(command acceptanceCommandRef, destination acceptanceDestinationRef, position declarationPosition) acceptanceFlagRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateFlagID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Flags))
 	if !command.OwnedBy(draft.owner) || !destination.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -452,14 +711,13 @@ func (draft *declarationCandidate) CommandAccess(command acceptanceCommandRef, a
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Commands {
-		if record.meta.id == command.ID() {
-			record.access = access
-			draft.input.Commands[index] = record
-			return
-		}
+	index, record, ok := draft.commandRecordForRef(command)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.access = access
+	draft.input.Commands[index] = record
 }
 
 func (draft *declarationCandidate) CommandExecution(command acceptanceCommandRef, execution commandExecution, position declarationPosition) {
@@ -468,14 +726,13 @@ func (draft *declarationCandidate) CommandExecution(command acceptanceCommandRef
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Commands {
-		if record.meta.id == command.ID() {
-			record.execution = execution
-			draft.input.Commands[index] = record
-			return
-		}
+	index, record, ok := draft.commandRecordForRef(command)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.execution = execution
+	draft.input.Commands[index] = record
 }
 
 func (draft *declarationCandidate) CommandPresentation(command acceptanceCommandRef, presentation presentation, position declarationPosition) {
@@ -484,14 +741,13 @@ func (draft *declarationCandidate) CommandPresentation(command acceptanceCommand
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Commands {
-		if record.meta.id == command.ID() {
-			record.presentation = presentation
-			draft.input.Commands[index] = record
-			return
-		}
+	index, record, ok := draft.commandRecordForRef(command)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.presentation = presentation
+	draft.input.Commands[index] = record
 }
 
 func (draft *declarationCandidate) CommandEntryPresentation(entry commandEntryRef, presentation presentation, position declarationPosition) {
@@ -500,14 +756,13 @@ func (draft *declarationCandidate) CommandEntryPresentation(entry commandEntryRe
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.CommandEntries {
-		if record.meta.id == entry.ID() {
-			record.presentation = presentation
-			draft.input.CommandEntries[index] = record
-			return
-		}
+	index, record, ok := draft.commandEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.presentation = presentation
+	draft.input.CommandEntries[index] = record
 }
 
 func (draft *declarationCandidate) ActionEntryPresentation(entry actionEntryRef, presentation presentation, position declarationPosition) {
@@ -516,14 +771,13 @@ func (draft *declarationCandidate) ActionEntryPresentation(entry actionEntryRef,
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.ActionEntries {
-		if record.meta.id == entry.ID() {
-			record.presentation = presentation
-			draft.input.ActionEntries[index] = record
-			return
-		}
+	index, record, ok := draft.actionEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.presentation = presentation
+	draft.input.ActionEntries[index] = record
 }
 
 func (draft *declarationCandidate) DestinationSensitive(destination acceptanceDestinationRef, sensitive bool, position declarationPosition) {
@@ -532,14 +786,13 @@ func (draft *declarationCandidate) DestinationSensitive(destination acceptanceDe
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Destinations {
-		if record.meta.id == destination.ID() {
-			record.sensitive = sensitive
-			draft.input.Destinations[index] = record
-			return
-		}
+	index, record, ok := draft.destinationRecordForRef(destination)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.sensitive = sensitive
+	draft.input.Destinations[index] = record
 }
 
 func (draft *declarationCandidate) FlagPresentation(flag acceptanceFlagRef, presentation presentation, valueName string, required, localeSelector bool, position declarationPosition) {
@@ -548,73 +801,66 @@ func (draft *declarationCandidate) FlagPresentation(flag acceptanceFlagRef, pres
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Flags {
-		if record.meta.id == flag.ID() {
-			record.presentation = presentation
-			record.valueName = valueName
-			record.required = required
-			record.localeSelector = localeSelector
-			draft.input.Flags[index] = record
-			return
-		}
+	index, record, ok := draft.flagRecordForRef(flag)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.presentation = presentation
+	record.valueName = valueName
+	record.required = required
+	record.localeSelector = localeSelector
+	draft.input.Flags[index] = record
 }
 
-//nolint:dupl // Flag and argument completion custody intentionally remain typed by distinct semantic identity families.
 func (draft *declarationCandidate) FlagCompletion(flag acceptanceFlagRef, completion completionDeclaration, callback completionCallback, position declarationPosition) {
 	draft.mustOpen()
 	if !flag.OwnedBy(draft.owner) || !completion.Valid() {
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Flags {
-		if record.meta.id != flag.ID() {
-			continue
-		}
-		if _, exists := record.Completion(); exists {
-			draft.reject(position)
-			return
-		}
-		if draft.callbacks != nil && callback.present() {
-			if _, exists := draft.callbacks.completions.flags[flag.ID()]; exists {
-				panic("cli: duplicate static flag completion callback custody")
-			}
-			draft.callbacks.completions.flags[flag.ID()] = callback
-		}
-		record.completion = completion
-		draft.input.Flags[index] = record
+	index, record, ok := draft.flagRecordForRef(flag)
+	if !ok {
+		draft.reject(position)
 		return
 	}
-	draft.reject(position)
+	if _, exists := record.Completion(); exists {
+		draft.reject(position)
+		return
+	}
+	if draft.callbacks != nil && callback.present() {
+		if _, exists := draft.callbacks.completions.flags[flag.ID()]; exists {
+			panic("cli: duplicate static flag completion callback custody")
+		}
+		draft.callbacks.completions.flags[flag.ID()] = callback
+	}
+	record.completion = completion
+	draft.input.Flags[index] = record
 }
 
-//nolint:dupl // Flag and argument completion custody intentionally remain typed by distinct semantic identity families.
 func (draft *declarationCandidate) ArgumentTermCompletion(term argumentTermRef, completion completionDeclaration, callback completionCallback, position declarationPosition) {
 	draft.mustOpen()
 	if !term.OwnedBy(draft.owner) || !completion.Valid() {
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.ArgumentTerms {
-		if record.meta.id != term.ID() {
-			continue
-		}
-		if _, exists := record.Completion(); exists {
-			draft.reject(position)
-			return
-		}
-		if draft.callbacks != nil && callback.present() {
-			if _, exists := draft.callbacks.completions.arguments[term.ID()]; exists {
-				panic("cli: duplicate static argument completion callback custody")
-			}
-			draft.callbacks.completions.arguments[term.ID()] = callback
-		}
-		record.completion = completion
-		draft.input.ArgumentTerms[index] = record
+	index, record, ok := draft.argumentTermRecordForRef(term)
+	if !ok {
+		draft.reject(position)
 		return
 	}
-	draft.reject(position)
+	if _, exists := record.Completion(); exists {
+		draft.reject(position)
+		return
+	}
+	if draft.callbacks != nil && callback.present() {
+		if _, exists := draft.callbacks.completions.arguments[term.ID()]; exists {
+			panic("cli: duplicate static argument completion callback custody")
+		}
+		draft.callbacks.completions.arguments[term.ID()] = callback
+	}
+	record.completion = completion
+	draft.input.ArgumentTerms[index] = record
 }
 
 func (draft *declarationCandidate) ArgumentTermPresentation(term argumentTermRef, presentation presentation, name string, sourceSensitive bool, position declarationPosition) {
@@ -623,16 +869,15 @@ func (draft *declarationCandidate) ArgumentTermPresentation(term argumentTermRef
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.ArgumentTerms {
-		if record.meta.id == term.ID() {
-			record.presentation = presentation
-			record.name = name
-			record.sourceSensitive = sourceSensitive
-			draft.input.ArgumentTerms[index] = record
-			return
-		}
+	index, record, ok := draft.argumentTermRecordForRef(term)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.presentation = presentation
+	record.name = name
+	record.sourceSensitive = sourceSensitive
+	draft.input.ArgumentTerms[index] = record
 }
 
 func (draft *declarationCandidate) FlagLifecycle(flag acceptanceFlagRef, lifecycle ReleaseLifecycle, position declarationPosition) {
@@ -641,20 +886,19 @@ func (draft *declarationCandidate) FlagLifecycle(flag acceptanceFlagRef, lifecyc
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Flags {
-		if record.meta.id == flag.ID() {
-			record.lifecycle = lifecycle
-			draft.input.Flags[index] = record
-			return
-		}
+	index, record, ok := draft.flagRecordForRef(flag)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.lifecycle = lifecycle
+	draft.input.Flags[index] = record
 }
 
 func (draft *declarationCandidate) FlagSpelling(flag acceptanceFlagRef, position declarationPosition) acceptanceFlagSpellingRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateFlagSpellingID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.FlagSpellings))
 	if !flag.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -669,14 +913,13 @@ func (draft *declarationCandidate) FlagSpellingHidden(spelling acceptanceFlagSpe
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.FlagSpellings {
-		if record.meta.id == spelling.ID() {
-			record.hidden = true
-			draft.input.FlagSpellings[index] = record
-			return
-		}
+	index, record, ok := draft.flagSpellingRecordForRef(spelling)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.hidden = true
+	draft.input.FlagSpellings[index] = record
 }
 
 func (draft *declarationCandidate) FlagSpellingLifecycle(spelling acceptanceFlagSpellingRef, lifecycle ReleaseLifecycle, position declarationPosition) {
@@ -685,20 +928,19 @@ func (draft *declarationCandidate) FlagSpellingLifecycle(spelling acceptanceFlag
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.FlagSpellings {
-		if record.meta.id == spelling.ID() {
-			record.lifecycle = lifecycle
-			draft.input.FlagSpellings[index] = record
-			return
-		}
+	index, record, ok := draft.flagSpellingRecordForRef(spelling)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.lifecycle = lifecycle
+	draft.input.FlagSpellings[index] = record
 }
 
 func (draft *declarationCandidate) ArgumentForm(command acceptanceCommandRef, position declarationPosition) argumentFormRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateArgumentFormID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.ArgumentForms))
 	if !command.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -713,39 +955,32 @@ func (draft *declarationCandidate) ArgumentFormSelection(form argumentFormRef, d
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.ArgumentForms {
-		if record.meta.id != form.ID() {
-			continue
-		}
-		var destinationRecord destinationRecord
-		found := false
-		for _, candidate := range draft.input.Destinations {
-			if candidate.meta.id == destination.ID() {
-				destinationRecord, found = candidate, true
-				break
-			}
-		}
-		if !found || destinationRecord.command != record.command {
-			draft.reject(position)
-			return
-		}
-		for _, selection := range record.Selections() {
-			if selection.destination == destination.ID() {
-				draft.preflight = append(draft.preflight, rejection{
-					Kind:  rejectionStructuralInvalidity,
-					Order: uint64(position),
-				})
-				return
-			}
-		}
-		record.selections = append(
-			append([]argumentFormSelection(nil), record.selections...),
-			acceptArgumentFormSelection(destination.ID(), value),
-		)
-		draft.input.ArgumentForms[index] = record
+	formIndex, formRecord, ok := draft.argumentFormRecordForRef(form)
+	if !ok {
+		draft.reject(position)
 		return
 	}
-	draft.reject(position)
+	_, destinationRecord, ok := draft.destinationRecordForRef(destination)
+	if !ok || destinationRecord.command != formRecord.command {
+		draft.reject(position)
+		return
+	}
+	for _, selection := range formRecord.Selections() {
+		if selection.destination != destination.ID() {
+			continue
+		}
+		rejection := rejection{
+			Kind:  rejectionStructuralInvalidity,
+			Order: uint64(position),
+		}
+		draft.preflight = append(draft.preflight, rejection)
+		return
+	}
+	formRecord.selections = append(
+		append([]argumentFormSelection(nil), formRecord.selections...),
+		acceptArgumentFormSelection(destination.ID(), value),
+	)
+	draft.input.ArgumentForms[formIndex] = formRecord
 }
 
 func (draft *declarationCandidate) ArgumentFormLifecycle(form argumentFormRef, lifecycle ReleaseLifecycle, position declarationPosition) {
@@ -757,20 +992,19 @@ func (draft *declarationCandidate) ArgumentFormLifecycle(form argumentFormRef, l
 	if !draft.claimLifecycle(lifecycleFamilyArgumentForm, form.ID().uint32(), position) {
 		return
 	}
-	for index, record := range draft.input.ArgumentForms {
-		if record.meta.id == form.ID() {
-			record.lifecycle = lifecycle
-			draft.input.ArgumentForms[index] = record
-			return
-		}
+	index, record, ok := draft.argumentFormRecordForRef(form)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.lifecycle = lifecycle
+	draft.input.ArgumentForms[index] = record
 }
 
 func (draft *declarationCandidate) ArgumentTerm(form argumentFormRef, position declarationPosition) argumentTermRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateArgumentTermID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.ArgumentTerms))
 	if !form.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -794,20 +1028,19 @@ func (draft *declarationCandidate) ArgumentTermLifecycle(term argumentTermRef, l
 	if !draft.claimLifecycle(lifecycleFamilyArgumentTerm, term.ID().uint32(), position) {
 		return
 	}
-	for index, record := range draft.input.ArgumentTerms {
-		if record.meta.id == term.ID() {
-			record.lifecycle = lifecycle
-			draft.input.ArgumentTerms[index] = record
-			return
-		}
+	index, record, ok := draft.argumentTermRecordForRef(term)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.lifecycle = lifecycle
+	draft.input.ArgumentTerms[index] = record
 }
 
 func (draft *declarationCandidate) ArgumentValueTerm(form argumentFormRef, destination acceptanceDestinationRef, position declarationPosition) argumentTermRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateArgumentTermID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.ArgumentTerms))
 	if !form.OwnedBy(draft.owner) || !destination.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -822,7 +1055,7 @@ func (draft *declarationCandidate) ArgumentValueTerm(form argumentFormRef, desti
 func (draft *declarationCandidate) CommandEntry(parent, target acceptanceCommandRef, position declarationPosition) commandEntryRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateCommandEntryID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.CommandEntries))
 	if !parent.OwnedBy(draft.owner) || !target.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -840,20 +1073,19 @@ func (draft *declarationCandidate) CommandEntryShortcut(entry commandEntryRef, d
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.CommandEntries {
-		if record.meta.id == entry.ID() {
-			shortcut := acceptShortcutDefinition(
-				definition.Args(),
-				definition.AppendArgs(),
-				definition.Defaults(),
-				definition.Source(),
-			)
-			record.shortcut = &shortcut
-			draft.input.CommandEntries[index] = record
-			return
-		}
+	index, record, ok := draft.commandEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	shortcut := acceptShortcutDefinition(
+		definition.Args(),
+		definition.AppendArgs(),
+		definition.Defaults(),
+		definition.Source(),
+	)
+	record.shortcut = &shortcut
+	draft.input.CommandEntries[index] = record
 }
 
 func (draft *declarationCandidate) CommandEntryReplacement(entry, replacement commandEntryRef, position declarationPosition) {
@@ -862,14 +1094,13 @@ func (draft *declarationCandidate) CommandEntryReplacement(entry, replacement co
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.CommandEntries {
-		if record.meta.id == entry.ID() {
-			record.replacement = replacement.ID()
-			draft.input.CommandEntries[index] = record
-			return
-		}
+	index, record, ok := draft.commandEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.replacement = replacement.ID()
+	draft.input.CommandEntries[index] = record
 }
 
 func (draft *declarationCandidate) CommandEntryLifecycle(entry commandEntryRef, lifecycle ReleaseLifecycle, position declarationPosition) {
@@ -878,20 +1109,19 @@ func (draft *declarationCandidate) CommandEntryLifecycle(entry commandEntryRef, 
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.CommandEntries {
-		if record.meta.id == entry.ID() {
-			record.lifecycle = lifecycle
-			draft.input.CommandEntries[index] = record
-			return
-		}
+	index, record, ok := draft.commandEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.lifecycle = lifecycle
+	draft.input.CommandEntries[index] = record
 }
 
 func (draft *declarationCandidate) ActionEntry(parent acceptanceCommandRef, position declarationPosition) actionEntryRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateActionEntryID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.ActionEntries))
 	if !parent.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -906,14 +1136,13 @@ func (draft *declarationCandidate) ActionEntryOrigin(entry actionEntryRef, origi
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.ActionEntries {
-		if record.meta.id == entry.ID() {
-			record.origin = origin
-			draft.input.ActionEntries[index] = record
-			return
-		}
+	index, record, ok := draft.actionEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.origin = origin
+	draft.input.ActionEntries[index] = record
 }
 
 func (draft *declarationCandidate) ActionEntryLifecycle(entry actionEntryRef, lifecycle ReleaseLifecycle, position declarationPosition) {
@@ -922,14 +1151,13 @@ func (draft *declarationCandidate) ActionEntryLifecycle(entry actionEntryRef, li
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.ActionEntries {
-		if record.meta.id == entry.ID() {
-			record.lifecycle = lifecycle
-			draft.input.ActionEntries[index] = record
-			return
-		}
+	index, record, ok := draft.actionEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.lifecycle = lifecycle
+	draft.input.ActionEntries[index] = record
 }
 
 func (draft *declarationCandidate) ActionEntryReplacement(entry, replacement actionEntryRef, position declarationPosition) {
@@ -938,20 +1166,19 @@ func (draft *declarationCandidate) ActionEntryReplacement(entry, replacement act
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.ActionEntries {
-		if record.meta.id == entry.ID() {
-			record.replacement = replacement.ID()
-			draft.input.ActionEntries[index] = record
-			return
-		}
+	index, record, ok := draft.actionEntryRecordForRef(entry)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.replacement = replacement.ID()
+	draft.input.ActionEntries[index] = record
 }
 
 func (draft *declarationCandidate) Default(parent, target acceptanceCommandRef, position declarationPosition) defaultRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateDefaultID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Defaults))
 	if !parent.OwnedBy(draft.owner) || !target.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -966,14 +1193,13 @@ func (draft *declarationCandidate) DefaultCondition(defaultRef defaultRef, condi
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.Defaults {
-		if record.meta.id == defaultRef.ID() {
-			record.condition = condition
-			draft.input.Defaults[index] = record
-			return
-		}
+	index, record, ok := draft.defaultRecordForRef(defaultRef)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.condition = condition
+	draft.input.Defaults[index] = record
 }
 
 func (draft *declarationCandidate) CommandCondition(command acceptanceCommandRef, effect ConditionEffect, condition condition, position declarationPosition) {
@@ -1072,7 +1298,7 @@ func (draft *declarationCandidate) conditionTargetBelongsToCommand(target condit
 func (draft *declarationCandidate) Provider(parent acceptanceCommandRef, position declarationPosition) providerRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateProviderID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Providers))
 	if !parent.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1087,27 +1313,25 @@ func (draft *declarationCandidate) ProviderDefinition(provider providerRef, defi
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Providers {
-		if record.meta.id != provider.ID() {
-			continue
-		}
-		if draft.callbacks != nil && callback != nil {
-			if _, exists := draft.callbacks.commandProviders[provider.ID()]; exists {
-				panic("cli: duplicate static command provider callback custody")
-			}
-			draft.callbacks.commandProviders[provider.ID()] = callback
-		}
-		record.definition = definition
-		draft.input.Providers[i] = record
+	index, record, ok := draft.providerRecordForRef(provider)
+	if !ok {
+		draft.reject(position)
 		return
 	}
-	draft.reject(position)
+	if draft.callbacks != nil && callback != nil {
+		if _, exists := draft.callbacks.commandProviders[provider.ID()]; exists {
+			panic("cli: duplicate static command provider callback custody")
+		}
+		draft.callbacks.commandProviders[provider.ID()] = callback
+	}
+	record.definition = definition
+	draft.input.Providers[index] = record
 }
 
 func (draft *declarationCandidate) Rule(command acceptanceCommandRef, position declarationPosition) ruleRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateRuleID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Rules))
 	if !command.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1122,14 +1346,13 @@ func (draft *declarationCandidate) RuleDefinition(rule ruleRef, definition ruleD
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Rules {
-		if record.meta.id == rule.ID() {
-			record.definition = definition
-			draft.input.Rules[i] = record
-			return
-		}
+	index, record, ok := draft.ruleRecordForRef(rule)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.definition = definition
+	draft.input.Rules[index] = record
 }
 
 func (draft *declarationCandidate) AdvisoryDefinition(advisory advisoryRef, definition advisoryDefinition, position declarationPosition) {
@@ -1138,14 +1361,13 @@ func (draft *declarationCandidate) AdvisoryDefinition(advisory advisoryRef, defi
 		draft.reject(position)
 		return
 	}
-	for i, record := range draft.input.Advisories {
-		if record.meta.id == advisory.ID() {
-			record.definition = definition
-			draft.input.Advisories[i] = record
-			return
-		}
+	index, record, ok := draft.advisoryRecordForRef(advisory)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.definition = definition
+	draft.input.Advisories[index] = record
 }
 
 func (draft *declarationCandidate) NoticeSuppression(command acceptanceCommandRef, match noticeMatch, condition condition, position declarationPosition) int {
@@ -1179,7 +1401,7 @@ func (draft *declarationCandidate) NoticeSuppressionProfile(index int, profile g
 func (draft *declarationCandidate) Advisory(command acceptanceCommandRef, position declarationPosition) advisoryRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateAdvisoryID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Advisories))
 	if !command.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1191,7 +1413,7 @@ func (draft *declarationCandidate) Advisory(command acceptanceCommandRef, positi
 func (draft *declarationCandidate) SignalPolicy(command acceptanceCommandRef, position declarationPosition) signalPolicyRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateSignalPolicyID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.SignalPolicies))
 	if !command.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1206,21 +1428,21 @@ func (draft *declarationCandidate) SignalPolicyDefinition(policy signalPolicyRef
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.SignalPolicies {
-		if record.meta.id == policy.ID() {
-			if _, exists := record.Definition(); exists {
-				draft.preflight = append(draft.preflight, rejection{
-					Kind:  rejectionStructuralInvalidity,
-					Order: uint64(position),
-				})
-				return
-			}
-			record.definition = definition
-			draft.input.SignalPolicies[index] = record
-			return
-		}
+	index, record, ok := draft.signalPolicyRecordForRef(policy)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	if _, exists := record.Definition(); exists {
+		rejection := rejection{
+			Kind:  rejectionStructuralInvalidity,
+			Order: uint64(position),
+		}
+		draft.preflight = append(draft.preflight, rejection)
+		return
+	}
+	record.definition = definition
+	draft.input.SignalPolicies[index] = record
 }
 
 func (draft *declarationCandidate) HelpGroup(record helpGroupRecord) {
@@ -1251,13 +1473,15 @@ func (draft *declarationCandidate) SignalPolicyScope(command acceptanceCommandRe
 func (draft *declarationCandidate) DomainEntry(position declarationPosition) domainEntryRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateDomainEntryID()
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.DomainEntries))
 	draft.input.DomainEntries = append(draft.input.DomainEntries, acceptDomainEntryRecord(id, position))
-	return issueStagingRef(draft.owner, id)
+	return result
 }
 
 func (draft *declarationCandidate) DomainValue(position declarationPosition, name string, value any, description string, hidden bool, lifecycle ReleaseLifecycle) domainEntryRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateDomainEntryID()
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.DomainEntries))
 	input2 := domainValueInput{
 		ID:          id,
 		Position:    position,
@@ -1271,13 +1495,13 @@ func (draft *declarationCandidate) DomainValue(position declarationPosition, nam
 		draft.input.DomainEntries,
 		acceptDomainValueRecord(input2),
 	)
-	return issueStagingRef(draft.owner, id)
+	return result
 }
 
 func (draft *declarationCandidate) DomainAlias(position declarationPosition, name string, canonical domainEntryRef, hidden bool, lifecycle ReleaseLifecycle) domainEntryRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateDomainEntryID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.DomainEntries))
 	if !canonical.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1303,14 +1527,13 @@ func (draft *declarationCandidate) DomainReplacement(source, target domainEntryR
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.DomainEntries {
-		if record.meta.id == source.ID() {
-			record.replacement = target.ID()
-			draft.input.DomainEntries[index] = record
-			return
-		}
+	index, record, ok := draft.domainEntryRecordForRef(source)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.replacement = target.ID()
+	draft.input.DomainEntries[index] = record
 }
 
 func (draft *declarationCandidate) ValueDomain(entries []domainEntryRef) valueDomainRef {
@@ -1388,7 +1611,7 @@ func (draft *declarationCandidate) ValueDomainUse(domain valueDomainRef, destina
 func (draft *declarationCandidate) EnvironmentInputWithSyntax(command acceptanceCommandRef, destination acceptanceDestinationRef, position declarationPosition, selector string, prefix bool, contribution environmentContribution, delimiter string, sensitive bool) environmentInputRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateEnvironmentInputID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.EnvironmentInputs))
 	if !command.OwnedBy(draft.owner) || !destination.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1420,14 +1643,13 @@ func (draft *declarationCandidate) EnvironmentInputLifecycle(input environmentIn
 	if !draft.claimLifecycle(lifecycleFamilyEnvironmentInput, input.ID().uint32(), position) {
 		return
 	}
-	for index, record := range draft.input.EnvironmentInputs {
-		if record.meta.id == input.ID() {
-			record.lifecycle = lifecycle
-			draft.input.EnvironmentInputs[index] = record
-			return
-		}
+	index, record, ok := draft.environmentInputRecordForRef(input)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	record.lifecycle = lifecycle
+	draft.input.EnvironmentInputs[index] = record
 }
 
 func (draft *declarationCandidate) claimLifecycle(family uint8, id uint32, position declarationPosition) bool {
@@ -1456,7 +1678,7 @@ func (draft *declarationCandidate) validLifecycle(lifecycle ReleaseLifecycle) bo
 func (draft *declarationCandidate) GrammarProfile(command acceptanceCommandRef, position declarationPosition) grammarProfileRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateGrammarProfileID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.GrammarProfiles))
 	if !command.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1471,7 +1693,7 @@ func (draft *declarationCandidate) GrammarProfile(command acceptanceCommandRef, 
 func (draft *declarationCandidate) SignalEndpoint(command acceptanceCommandRef, position declarationPosition) signalEndpointRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateSignalEndpointID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.SignalEndpoints))
 	if !command.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1489,28 +1711,28 @@ func (draft *declarationCandidate) SignalEndpointBinding(endpoint signalEndpoint
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.SignalEndpoints {
-		if record.meta.id == endpoint.ID() {
-			if _, exists := record.Binding(); exists {
-				draft.preflight = append(draft.preflight, rejection{
-					Kind:  rejectionStructuralInvalidity,
-					Order: uint64(position),
-				})
-				return
-			}
-			record.binding = binding
-			record.adapt = adapt
-			draft.input.SignalEndpoints[index] = record
-			return
-		}
+	index, record, ok := draft.signalEndpointRecordForRef(endpoint)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	if _, exists := record.Binding(); exists {
+		rejection := rejection{
+			Kind:  rejectionStructuralInvalidity,
+			Order: uint64(position),
+		}
+		draft.preflight = append(draft.preflight, rejection)
+		return
+	}
+	record.binding = binding
+	record.adapt = adapt
+	draft.input.SignalEndpoints[index] = record
 }
 
 func (draft *declarationCandidate) SignalCounter(policy signalPolicyRef, position declarationPosition) signalCounterRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateSignalCounterID()
-	result := issueStagingRef(draft.owner, id)
+	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.SignalCounters))
 	if !policy.OwnedBy(draft.owner) {
 		draft.reject(position)
 		return result
@@ -1526,21 +1748,21 @@ func (draft *declarationCandidate) SignalPolicyCounter(policy signalPolicyRef, c
 		draft.reject(position)
 		return
 	}
-	for index, record := range draft.input.SignalPolicies {
-		if record.meta.id == policy.ID() {
-			if _, exists := record.Counter(); exists {
-				draft.preflight = append(draft.preflight, rejection{
-					Kind:  rejectionStructuralInvalidity,
-					Order: uint64(position),
-				})
-				return
-			}
-			record.counter = counter.ID()
-			draft.input.SignalPolicies[index] = record
-			return
-		}
+	index, record, ok := draft.signalPolicyRecordForRef(policy)
+	if !ok {
+		draft.reject(position)
+		return
 	}
-	draft.reject(position)
+	if _, exists := record.Counter(); exists {
+		rejection := rejection{
+			Kind:  rejectionStructuralInvalidity,
+			Order: uint64(position),
+		}
+		draft.preflight = append(draft.preflight, rejection)
+		return
+	}
+	record.counter = counter.ID()
+	draft.input.SignalPolicies[index] = record
 }
 
 func (draft *declarationCandidate) DeclarationReplacement(source, target replacementRef, position declarationPosition) {
@@ -1571,19 +1793,48 @@ func (owner stagingOwner) Valid() bool { return owner.token != nil }
 // stagingRef is a transaction-local typed relationship reference. The semantic
 // ID is application/operation scoped; the owner token prevents foreign or stale
 // staging references from being accepted merely because numeric IDs coincide.
+// recordCoordinate is an optional one-based transaction-local record coordinate.
+// Zero means that no coordinate is known. Candidate record families are append-only
+// while references are live, so the coordinate remains stable. Record lookup validates
+// it against the semantic ID and falls back to ID lookup for reconstructed references.
 type stagingRef[I interface{ present() bool }] struct {
-	owner stagingOwner
-	id    I
+	owner            stagingOwner
+	id               I
+	recordCoordinate uint32
 }
 
 func issueStagingRef[I interface{ present() bool }](owner stagingOwner, id I) stagingRef[I] {
-	return stagingRef[I]{
+	ref := stagingRef[I]{
 		owner: owner,
 		id:    id,
 	}
+	return ref
+}
+
+func issueIndexedStagingRef[I interface{ present() bool }](owner stagingOwner, id I, recordIndex int) stagingRef[I] {
+	if recordIndex < 0 {
+		panic("cli: staging record coordinate out of range")
+	}
+	coordinate := uint64(recordIndex) + 1
+	if coordinate > uint64(^uint32(0)) {
+		panic("cli: staging record coordinate out of range")
+	}
+	ref := stagingRef[I]{
+		owner:            owner,
+		id:               id,
+		recordCoordinate: uint32(coordinate),
+	}
+	return ref
 }
 
 func (ref stagingRef[I]) ID() I { return ref.id }
+
+func (ref stagingRef[I]) RecordIndex() (int, bool) {
+	if !ref.owner.Valid() || !ref.id.present() || ref.recordCoordinate == 0 {
+		return 0, false
+	}
+	return int(ref.recordCoordinate - 1), true
+}
 
 func (ref stagingRef[I]) OwnedBy(owner stagingOwner) bool {
 	return owner.Valid() && ref.owner.token == owner.token && ref.id.present()

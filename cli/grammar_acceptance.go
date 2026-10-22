@@ -594,7 +594,7 @@ func (draft *declarationCandidate) CommandEntryGrammar(entry commandEntryRef, ki
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.commandEntryRecord(entry.ID())
+	_, record, ok := draft.commandEntryRecordForRef(entry)
 	if !ok {
 		draft.reject(0)
 		return
@@ -621,7 +621,7 @@ func (draft *declarationCandidate) ActionCommandGrammar(entry actionEntryRef, ac
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.actionEntryRecord(entry.ID())
+	_, record, ok := draft.actionEntryRecordForRef(entry)
 	if !ok {
 		draft.reject(0)
 		return
@@ -647,7 +647,7 @@ func (draft *declarationCandidate) ActionFlagGrammar(entry actionEntryRef, actio
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.actionEntryRecord(entry.ID())
+	_, record, ok := draft.actionEntryRecordForRef(entry)
 	if !ok {
 		draft.reject(0)
 		return
@@ -675,7 +675,7 @@ func (draft *declarationCandidate) ActionFlagGrammarDefaulted(entry actionEntryR
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.actionEntryRecord(entry.ID())
+	_, record, ok := draft.actionEntryRecordForRef(entry)
 	if !ok {
 		draft.reject(0)
 		return
@@ -703,7 +703,7 @@ func (draft *declarationCandidate) FlagGrammar(flag acceptanceFlagRef, grammar f
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.flagRecord(flag.ID())
+	_, record, ok := draft.flagRecordForRef(flag)
 	if !ok {
 		draft.reject(0)
 		return
@@ -736,7 +736,7 @@ func (draft *declarationCandidate) FlagSpellingGrammarWithKind(spelling acceptan
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.flagSpellingRecord(spelling.ID())
+	_, record, ok := draft.flagSpellingRecordForRef(spelling)
 	if !ok {
 		draft.reject(0)
 		return
@@ -772,7 +772,7 @@ func (draft *declarationCandidate) flagSpellingValue(spelling acceptanceFlagSpel
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.flagSpellingRecord(spelling.ID())
+	_, record, ok := draft.flagSpellingRecordForRef(spelling)
 	if !ok {
 		draft.reject(0)
 		return
@@ -843,7 +843,7 @@ func (draft *declarationCandidate) ArgumentFormGrammar(form argumentFormRef) {
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.argumentFormRecord(form.ID())
+	_, record, ok := draft.argumentFormRecordForRef(form)
 	if !ok {
 		draft.reject(0)
 		return
@@ -865,7 +865,7 @@ func (draft *declarationCandidate) ArgumentTermGrammar(term argumentTermRef, inp
 		draft.reject(0)
 		return
 	}
-	record, ok := draft.argumentTermRecord(term.ID())
+	_, record, ok := draft.argumentTermRecordForRef(term)
 	if !ok {
 		draft.reject(0)
 		return
@@ -998,24 +998,6 @@ func (draft *declarationCandidate) rootCommand() (CommandID, bool) {
 	return root, root.present()
 }
 
-func (draft *declarationCandidate) commandEntryRecord(id CommandEntryID) (commandEntryRecord, bool) {
-	for _, record := range draft.input.CommandEntries {
-		if record.meta.id == id {
-			return record, true
-		}
-	}
-	return commandEntryRecord{}, false
-}
-
-func (draft *declarationCandidate) actionEntryRecord(id ActionEntryID) (actionEntryRecord, bool) {
-	for _, record := range draft.input.ActionEntries {
-		if record.meta.id == id {
-			return record, true
-		}
-	}
-	return actionEntryRecord{}, false
-}
-
 func (draft *declarationCandidate) flagRecord(id FlagID) (flagRecord, bool) {
 	for _, record := range draft.input.Flags {
 		if record.meta.id == id {
@@ -1023,33 +1005,6 @@ func (draft *declarationCandidate) flagRecord(id FlagID) (flagRecord, bool) {
 		}
 	}
 	return flagRecord{}, false
-}
-
-func (draft *declarationCandidate) flagSpellingRecord(id FlagSpellingID) (flagSpellingRecord, bool) {
-	for _, record := range draft.input.FlagSpellings {
-		if record.meta.id == id {
-			return record, true
-		}
-	}
-	return flagSpellingRecord{}, false
-}
-
-func (draft *declarationCandidate) argumentFormRecord(id ArgumentFormID) (argumentFormRecord, bool) {
-	for _, record := range draft.input.ArgumentForms {
-		if record.meta.id == id {
-			return record, true
-		}
-	}
-	return argumentFormRecord{}, false
-}
-
-func (draft *declarationCandidate) argumentTermRecord(id ArgumentTermID) (argumentTermRecord, bool) {
-	for _, record := range draft.input.ArgumentTerms {
-		if record.meta.id == id {
-			return record, true
-		}
-	}
-	return argumentTermRecord{}, false
 }
 
 func grammarDraftFromModel(draft *declarationCandidate, model grammarModel) *grammarDraft {

@@ -337,7 +337,7 @@ func stageProviderDeclarations(declarations *batchDeclarations, metadata applica
 				sensitive,
 			)
 			definitionRef := state.mustDestination(flagValue.destinationIndex)
-			definition, definitionOK := draft.ExistingDestinationDefinition(definitionRef.ID())
+			definition, definitionOK := draft.existingDestinationDefinitionForRef(definitionRef)
 			if !definitionOK || !definition.Valid() {
 				panic("cli: validated provider destination definition is unavailable")
 			}
@@ -435,7 +435,7 @@ func stageProviderDeclarations(declarations *batchDeclarations, metadata applica
 			if !exists || !destination.ID().present() {
 				panic("cli: validated provider batch cannot be published")
 			}
-			destinationDefinition, defined := draft.ExistingDestinationDefinition(destination.ID())
+			destinationDefinition, defined := draft.existingDestinationDefinitionForRef(destination)
 			if !defined || !destinationDefinition.Valid() {
 				panic("cli: validated provider batch cannot be published")
 			}
@@ -473,7 +473,7 @@ func stageProviderDeclarations(declarations *batchDeclarations, metadata applica
 				}
 				draft.DestinationResolution(destination, policy, position)
 			case valueDirectiveDefault:
-				definition, ok := draft.ExistingDestinationDefinition(destination.ID())
+				definition, ok := draft.existingDestinationDefinitionForRef(destination)
 				if !ok {
 					panic("cli: validated provider destination has no definition")
 				}
@@ -591,7 +591,7 @@ func stageProviderDeclarations(declarations *batchDeclarations, metadata applica
 		if !ok || !destination.ID().present() {
 			panic("cli: validated provider batch cannot be published")
 		}
-		definition, ok := draft.ExistingDestinationDefinition(destination.ID())
+		definition, ok := draft.existingDestinationDefinitionForRef(destination)
 		if !ok {
 			panic("cli: validated provider form-selection destination has no definition")
 		}

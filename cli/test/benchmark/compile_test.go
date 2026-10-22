@@ -114,6 +114,52 @@ func BenchmarkCompile(b *testing.B) {
 		})
 	}
 
+	const denseFlagCommands = 64
+	commandNames := make([]string, denseFlagCommands)
+	for index := range commandNames {
+		commandNames[index] = fmt.Sprintf("dense-%03d", index)
+	}
+	for _, flagsPerCommand := range [...]int{1, 4, 10} {
+		flagNames := make([]string, flagsPerCommand)
+		for index := range flagNames {
+			flagNames[index] = fmt.Sprintf("flag-%02d", index)
+		}
+		definition := cli.Definition[stringConfig]{
+			Name:            "tool",
+			Help:            cli.HelpConfig{Disabled: true},
+			ShellCompletion: cli.ShellCompletion{Disabled: true},
+			Declare: func(root *cli.CommandBuilder[stringConfig]) {
+				for _, commandName := range commandNames {
+					root.Subcommands.Command(cli.Command[stringConfig]{
+						Name: commandName,
+						Declare: func(command *cli.CommandBuilder[stringConfig]) {
+							for flagIndex, flagName := range flagNames {
+								command.Flags.String(&command.Config.Values[flagIndex]).Long(flagName)
+							}
+						},
+					})
+				}
+			},
+		}
+		app, err := cli.Compile(definition)
+		if err != nil {
+			b.Fatalf("Compile dense flags preflight: %v", err)
+		}
+		schema := app.Schema()
+		wantFlags := denseFlagCommands * flagsPerCommand
+		if len(schema.Commands) != denseFlagCommands+1 || len(schema.Flags) != wantFlags {
+			b.Fatalf(
+				"Compile dense flags preflight: commands=%d flags=%d",
+				len(schema.Commands),
+				len(schema.Flags),
+			)
+		}
+		b.Run(fmt.Sprintf("FlagDensity/Commands=%d/FlagsPerCommand=%d", denseFlagCommands, flagsPerCommand), func(b *testing.B) {
+			b.ReportAllocs()
+			clibench.Compile(b, definition)
+		})
+	}
+
 	for _, values := range [...]int{16, 64, 256} {
 		definition := cli.Definition[stringConfig]{
 			Name:            "tool",

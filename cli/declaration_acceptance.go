@@ -325,7 +325,7 @@ func stageStaticDeclarations(input declarationPlan, source *declarationDraft, me
 				sensitive,
 			)
 			definitionRef := state.mustDestination(flagValue.destinationIndex)
-			definition, definitionOK := draft.ExistingDestinationDefinition(definitionRef.ID())
+			definition, definitionOK := draft.existingDestinationDefinitionForRef(definitionRef)
 			if !definitionOK || !definition.Valid() {
 				panic("cli: accepted static destination definition is unavailable")
 			}
@@ -433,7 +433,7 @@ func stageStaticDeclarations(input declarationPlan, source *declarationDraft, me
 		case declarationRecordValueDirective:
 			directive := source.valueDirectives.entries[record.familyIndex].value
 			destination := state.mustAcceptanceDestinationRef(draft, directive.destination)
-			destinationDefinition, defined := draft.ExistingDestinationDefinition(destination.ID())
+			destinationDefinition, defined := draft.existingDestinationDefinitionForRef(destination)
 			if !defined || !destinationDefinition.Valid() {
 				panic("cli: accepted static destination definition is unavailable")
 			}
@@ -468,7 +468,7 @@ func stageStaticDeclarations(input declarationPlan, source *declarationDraft, me
 				}
 				draft.DestinationResolution(destination, policy, position)
 			case valueDirectiveDefault:
-				definition, ok := draft.ExistingDestinationDefinition(destination.ID())
+				definition, ok := draft.existingDestinationDefinitionForRef(destination)
 				if !ok {
 					panic("cli: accepted static destination definition is unavailable")
 				}
@@ -586,7 +586,7 @@ func stageStaticDeclarations(input declarationPlan, source *declarationDraft, me
 			panic("cli: accepted argument form identity is unavailable")
 		}
 		destination := state.mustAcceptanceDestinationRef(draft, selection.destination)
-		definition, ok := draft.ExistingDestinationDefinition(destination.ID())
+		definition, ok := draft.existingDestinationDefinitionForRef(destination)
 		if !ok {
 			panic("cli: accepted static destination definition is unavailable")
 		}
