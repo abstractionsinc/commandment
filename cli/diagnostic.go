@@ -16,9 +16,6 @@ const (
 	// `completion-protocol-mismatch`.
 	DiagnosticCompletionProtocolMismatch DiagnosticCode = "completion-protocol-mismatch"
 
-	// DiagnosticMissingCommand identifies the stable Commandment diagnostic class
-	// `missing-command`.
-	DiagnosticMissingCommand DiagnosticCode = "missing-command"
 	// DiagnosticUnknownCommand identifies the stable Commandment diagnostic class
 	// `unknown-command`.
 	DiagnosticUnknownCommand DiagnosticCode = "unknown-command"
@@ -36,9 +33,6 @@ const (
 	DiagnosticRepeatedFlag DiagnosticCode = "repeated-flag"
 	// DiagnosticMissingValue identifies the stable Commandment diagnostic class `missing-value`.
 	DiagnosticMissingValue DiagnosticCode = "missing-value"
-	// DiagnosticUnexpectedValue identifies the stable Commandment diagnostic class
-	// `unexpected-value`.
-	DiagnosticUnexpectedValue DiagnosticCode = "unexpected-value"
 	// DiagnosticInvalidValue identifies the stable Commandment diagnostic class `invalid-value`.
 	DiagnosticInvalidValue DiagnosticCode = "invalid-value"
 
@@ -80,24 +74,12 @@ const (
 	// DiagnosticInvalidCommandBatch identifies the stable Commandment diagnostic class
 	// `invalid-command-batch`.
 	DiagnosticInvalidCommandBatch DiagnosticCode = "invalid-command-batch"
-	// DiagnosticCommandBatchCollision identifies the stable Commandment diagnostic class
-	// `command-batch-collision`.
-	DiagnosticCommandBatchCollision DiagnosticCode = "command-batch-collision"
-	// DiagnosticCommandTargetMissing identifies the stable Commandment diagnostic class
-	// `command-target-missing`.
-	DiagnosticCommandTargetMissing DiagnosticCode = "command-target-missing"
 	// DiagnosticCommandTargetBlocked identifies the stable Commandment diagnostic class
 	// `command-target-blocked`.
 	DiagnosticCommandTargetBlocked DiagnosticCode = "command-target-blocked"
-	// DiagnosticCommandMaterializationCycle identifies the stable Commandment diagnostic class
-	// `command-materialization-cycle`.
-	DiagnosticCommandMaterializationCycle DiagnosticCode = "command-materialization-cycle"
 	// DiagnosticCommandProviderCancellation identifies the stable Commandment diagnostic class
 	// `command-provider-cancellation`.
 	DiagnosticCommandProviderCancellation DiagnosticCode = "command-provider-cancellation"
-	// DiagnosticCommandBatchMisuse identifies the stable Commandment diagnostic class
-	// `command-batch-misuse`.
-	DiagnosticCommandBatchMisuse DiagnosticCode = "command-batch-misuse"
 
 	// DiagnosticValueDomainProvisionFailure identifies the stable Commandment diagnostic class
 	// `value-domain-provision-failure`.
@@ -198,9 +180,6 @@ const (
 	// DiagnosticUnsupportedCompletionDelegation identifies the stable Commandment diagnostic class
 	// `unsupported-completion-delegation`.
 	DiagnosticUnsupportedCompletionDelegation DiagnosticCode = "unsupported-completion-delegation"
-	// DiagnosticUnsupportedNativeCompletion identifies the stable Commandment diagnostic class
-	// `unsupported-native-completion`.
-	DiagnosticUnsupportedNativeCompletion DiagnosticCode = "unsupported-native-completion"
 	// DiagnosticHelpRenderingFailure identifies the stable Commandment diagnostic class
 	// `help-rendering-failure`.
 	DiagnosticHelpRenderingFailure DiagnosticCode = "help-rendering-failure"
@@ -223,21 +202,12 @@ const (
 	// `notice-delivery-failure`.
 	DiagnosticNoticeDeliveryFailure DiagnosticCode = "notice-delivery-failure"
 
-	// DiagnosticInvalidSignalPolicy identifies the stable Commandment diagnostic class
-	// `invalid-signal-policy`.
-	DiagnosticInvalidSignalPolicy DiagnosticCode = "invalid-signal-policy"
-	// DiagnosticUnsupportedSignal identifies the stable Commandment diagnostic class
-	// `unsupported-signal`.
-	DiagnosticUnsupportedSignal DiagnosticCode = "unsupported-signal"
 	// DiagnosticIncompatibleSignalSource identifies the stable Commandment diagnostic class
 	// `incompatible-signal-source`.
 	DiagnosticIncompatibleSignalSource DiagnosticCode = "incompatible-signal-source"
 	// DiagnosticSignalSourceFailure identifies the stable Commandment diagnostic class
 	// `signal-source-failure`.
 	DiagnosticSignalSourceFailure DiagnosticCode = "signal-source-failure"
-	// DiagnosticSignalSenderMatchFailure identifies the stable Commandment diagnostic class
-	// `signal-sender-match-failure`.
-	DiagnosticSignalSenderMatchFailure DiagnosticCode = "signal-sender-match-failure"
 	// DiagnosticSignalActionFailure identifies the stable Commandment diagnostic class
 	// `signal-action-failure`.
 	DiagnosticSignalActionFailure DiagnosticCode = "signal-action-failure"
@@ -288,6 +258,15 @@ type RuleFailure struct {
 	Count   CountRange
 }
 
+// InputRejectionDiagnostic is the normalized parser-rejection structure retained by a
+// Diagnostic. Code is the parser-local semantic classification, Expected preserves parser
+// order, and Spans is the complete globalized parser range when one was supplied.
+type InputRejectionDiagnostic struct {
+	Code     InputRejectionCode
+	Expected []string
+	Spans    []InputSpan
+}
+
 // Diagnostic is one structured Commandment failure or analysis finding. Code classifies the
 // failure while typed identity/provenance fields identify its exact subject. InputRedacted and
 // Sensitive distinguish protected presentation from safe structured facts; Message, Reason,
@@ -296,6 +275,7 @@ type Diagnostic struct {
 	Code DiagnosticCode
 
 	Rule         *RuleFailure
+	Rejection    *InputRejectionDiagnostic
 	AdvisoryCode AdvisoryCode
 
 	Message string
@@ -340,9 +320,10 @@ type Diagnostic struct {
 // Diagnostics are in deterministic order; Sources, Origins, and Repairs contain the complete
 // report-local relationships they reference. The zero value is an empty report. Truncated is
 // true only when the analysis bound actually omitted eligible diagnostic or recoverable work.
-// Commandment-owned diagnostic error values expose the canonical human projection through
-// fmt's %+v formatting while ordinary Error and %v output remain concise composition/logging
-// surfaces. The caller retains destination and process-policy ownership.
+// Human publication is a separate writer-aware concern owned by WriteError. Error() / %v remain
+// concise ordinary Go identity; %+v on exact Commandment Diagnostic owners is a bounded
+// deterministic developer/debug projection. The caller retains destination and process-policy
+// ownership.
 type DiagnosticReport struct {
 	Diagnostics []Diagnostic
 

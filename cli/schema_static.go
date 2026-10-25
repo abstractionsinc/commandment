@@ -78,6 +78,14 @@ type schemaProjector struct {
 	*staticArtifactSource
 }
 
+func (p *staticArtifactSource) declarationOrigin(command CommandID) DeclarationOrigin {
+	record, ok := p.command(command)
+	if !ok {
+		panic("cli: declaration owner command is unavailable")
+	}
+	return record.origin
+}
+
 func prepareStaticTopology(records staticRecords, grammar grammarView) (*staticTopology, error) {
 	if grammar == nil || len(records.commands) == 0 {
 		return nil, errInvalidModelTopology
@@ -902,7 +910,7 @@ func (p *schemaProjector) projectCommand(result *Schema, id CommandID, flags []F
 		CanonicalEntry:   canonicalEntry,
 		Parent:           record.parent.id,
 		Children:         slices.Clone(p.childrenByCommand[id]),
-		Origin:           DeclarationOriginApplication,
+		Origin:           p.declarationOrigin(id),
 		Name:             name,
 		Path:             path,
 		Description:      presentation.description,
@@ -936,7 +944,7 @@ func (p *schemaProjector) projectCommandEntries(result *Schema) error {
 			ID:               record.meta.id,
 			Parent:           record.parent,
 			Kind:             grammar.kind,
-			Origin:           DeclarationOriginApplication,
+			Origin:           p.declarationOrigin(record.target),
 			DeclarationIndex: int(record.meta.position),
 			Profile:          record.meta.profile,
 			Name:             grammar.name,
@@ -1247,7 +1255,7 @@ func (p *schemaProjector) projectActionsAndGrammar(result *Schema) error {
 		result.Flags[record.meta.id] = FlagSchema{
 			ID:                  record.meta.id,
 			Command:             record.command,
-			Origin:              DeclarationOriginApplication,
+			Origin:              p.declarationOrigin(record.command),
 			Profile:             record.meta.profile,
 			Destination:         record.destination,
 			Spellings:           slices.Clone(p.spellingsByFlag[record.meta.id]),
@@ -1296,10 +1304,14 @@ func (p *schemaProjector) projectActionsAndGrammar(result *Schema) error {
 			}
 			publicSpelling.ImplicitValue = &literal
 		}
+		flag, ok := p.flag(record.flag)
+		if !ok {
+			return errInvalidModelTopology
+		}
 		result.FlagSpellings[record.meta.id] = FlagSpellingSchema{
 			ID:             record.meta.id,
 			Flag:           record.flag,
-			Origin:         DeclarationOriginApplication,
+			Origin:         p.declarationOrigin(flag.command),
 			Spelling:       publicSpelling,
 			Hidden:         record.hidden,
 			Release:        releaseLifecycle(record.lifecycle),
@@ -1315,7 +1327,7 @@ func (p *schemaProjector) projectActionsAndGrammar(result *Schema) error {
 		result.ArgumentForms[record.meta.id] = ArgumentFormSchema{
 			ID:             record.meta.id,
 			Command:        record.command,
-			Origin:         DeclarationOriginApplication,
+			Origin:         p.declarationOrigin(record.command),
 			Profile:        record.meta.profile,
 			Terms:          slices.Clone(p.termsByForm[record.meta.id]),
 			Release:        releaseLifecycle(record.lifecycle),
@@ -1329,10 +1341,14 @@ func (p *schemaProjector) projectActionsAndGrammar(result *Schema) error {
 			return err
 		}
 		grammar := p.termGrammar[record.meta.id]
+		form, ok := p.argumentForm(record.form)
+		if !ok {
+			return errInvalidModelTopology
+		}
 		public := ArgumentTermSchema{
 			ID:              record.meta.id,
 			Form:            record.form,
-			Origin:          DeclarationOriginApplication,
+			Origin:          p.declarationOrigin(form.command),
 			Kind:            grammar.kind,
 			Name:            record.name,
 			Literal:         grammar.literal,
@@ -1377,7 +1393,7 @@ func (p *schemaProjector) projectActionsAndGrammar(result *Schema) error {
 	return nil
 }
 
-func projectDestinationSchemaRecord(record destinationRecord, environmentInputs []EnvironmentInputID) (ValueSchema, FactSchema, bool, error) {
+func projectDestinationSchemaRecord(record destinationRecord, environmentInputs []EnvironmentInputID, origin DeclarationOrigin) (ValueSchema, FactSchema, bool, error) {
 	definition, ok := record.Definition()
 	if !ok {
 		return ValueSchema{}, FactSchema{}, false, errInvalidModelTopology
@@ -1403,7 +1419,7 @@ func projectDestinationSchemaRecord(record destinationRecord, environmentInputs 
 	value := ValueSchema{
 		ID:                record.meta.id,
 		Command:           record.command,
-		Origin:            DeclarationOriginApplication,
+		Origin:            origin,
 		Profile:           record.meta.profile,
 		Kind:              publicKind,
 		HasType:           hasValueType,
@@ -1455,7 +1471,7 @@ func projectDestinationSchemaRecord(record destinationRecord, environmentInputs 
 
 func (p *schemaProjector) projectValuesAndDomains(result *Schema) error {
 	for _, record := range p.records.destinations {
-		value, fact, isFact, err := projectDestinationSchemaRecord(record, p.environmentByDestination[record.meta.id])
+		value, fact, isFact, err := projectDestinationSchemaRecord(record, p.environmentByDestination[record.meta.id], p.declarationOrigin(record.command))
 		if err != nil {
 			return err
 		}
@@ -1494,15 +1510,35 @@ func (p *schemaProjector) projectValuesAndDomains(result *Schema) error {
 			LifecycleState: state,
 		}
 	}
+	domainEntryCommands := make(map[ValueDomainEntryID]CommandID)
 	for _, record := range p.records.valueDomains {
 		public := ValueDomainSchema{
 			Entries: record.Entries(),
 		}
-		for _, use := range record.Uses() {
+		uses := record.Uses()
+		for _, use := range uses {
 			public.Uses = append(public.Uses, ValueDomainUse{
 				Destination: use.destination,
 				Kind:        use.kind,
 			})
+		}
+		var owner CommandID
+		for _, use := range uses {
+			destination, ok := p.destination(use.destination)
+			if !ok {
+				continue
+			}
+			if owner == 0 {
+				owner = destination.command
+			} else if owner != destination.command {
+				owner = 0
+				break
+			}
+		}
+		if owner != 0 {
+			for _, entryID := range record.Entries() {
+				domainEntryCommands[entryID] = owner
+			}
 		}
 		result.ValueDomains = append(result.ValueDomains, public)
 	}
@@ -1511,10 +1547,14 @@ func (p *schemaProjector) projectValuesAndDomains(result *Schema) error {
 		if err != nil {
 			return err
 		}
+		origin := DeclarationOriginApplication
+		if owner, ok := domainEntryCommands[record.meta.id]; ok {
+			origin = p.declarationOrigin(owner)
+		}
 		result.ValueDomainEntries[record.meta.id] = ValueDomainEntrySchema{
 			ID:        record.meta.id,
 			Kind:      valueDomainEntryKind(record.kind),
-			Origin:    DeclarationOriginApplication,
+			Origin:    origin,
 			Name:      record.name,
 			Canonical: record.canonical,
 			Description: Description{

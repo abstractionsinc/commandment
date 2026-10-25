@@ -115,12 +115,13 @@ func executeShellCompletionExport(snapshot *runState, model *effectiveModel, gra
 	}
 	text, err := generateCompiledShellCompletionScript(model.Application().name, provider, version)
 	if err != nil {
-		return operationDiagnosticFailure(
-			snapshot.invocation,
-			DiagnosticInvalidValue,
-			"shell completion generation failed",
-			err,
-		)
+		code := DiagnosticCompletionScriptGenerationFailure
+		message := "shell completion generation failed"
+		if provider.family != "" {
+			code = DiagnosticInvalidValue
+			message = "invalid shell completion generation target"
+		}
+		return operationDiagnosticFailure(snapshot.invocation, code, message, err)
 	}
 	return writeFrameworkOutput(snapshot.invocation, snapshot.stdout, text, "shell completion")
 }
@@ -247,7 +248,9 @@ func runApplication(ctx context.Context, model staticProgram, callbacks declarat
 	// application Facts, defaults, command providers, dynamic domains, or Signal
 	// runtime are not demanded merely to generate an adapter artifact.
 	staticGrammar := analyzeGrammar(ctx, run.invocation)
+	_, shellDestinationPresent := frontendDestinationToken(staticGrammar, shellCompletion.ShellDestination())
 	if shellCompletion.Selected(staticGrammar.Selection.Selected) &&
+		!staticGrammar.Selection.ActionSelected() && shellDestinationPresent &&
 		len(staticGrammar.Issues) == 0 && len(staticGrammar.IncompleteNamespaces) == 0 {
 		return executeShellCompletionExport(
 			run, run.invocation.analysis.effectiveModel, staticGrammar, shellCompletion,
@@ -267,8 +270,15 @@ func runApplication(ctx context.Context, model staticProgram, callbacks declarat
 	}
 	if len(grammar.IncompleteNamespaces) != 0 {
 		dependencyValues := operationDependencySeed(run.invocation.analysis)
-		if diagnostics := runValueDiagnostics(run.invocation.analysis.effectiveModel, dependencyValues); len(diagnostics) != 0 {
-			return valueDiagnosticFailure(run.invocation, run.invocation.analysis.effectiveModel, dependencyValues, diagnostics, grammar.Truncated)
+		diagnostics, valueTruncated := runValueDiagnostics(run.invocation, run.invocation.analysis.effectiveModel, dependencyValues)
+		if len(diagnostics) != 0 {
+			return valueDiagnosticFailure(
+				run.invocation,
+				run.invocation.analysis.effectiveModel,
+				dependencyValues,
+				diagnostics,
+				grammar.Truncated || valueTruncated,
+			)
 		}
 		return runProviderNamespaceBlockedFailure(
 			run.invocation,
@@ -282,11 +292,11 @@ func runApplication(ctx context.Context, model staticProgram, callbacks declarat
 		return runGrammarDiagnosticFailure(run.invocation, grammar)
 	}
 	effectiveModel := run.invocation.analysis.effectiveModel
-	if shellCompletion.Selected(grammar.Selection.Selected) {
-		return executeShellCompletionExport(run, effectiveModel, grammar, shellCompletion)
-	}
 	if grammar.Selection.ActionSelected() {
 		return executeSelectedFrontendAction(ctx, run, run.invocation, effectiveModel, grammar)
+	}
+	if shellCompletion.Selected(grammar.Selection.Selected) {
+		return executeShellCompletionExport(run, effectiveModel, grammar, shellCompletion)
 	}
 	if code, err := run.invocation.finalizeSupplies(ctx, grammar.Selection); err != nil {
 		return operationDiagnosticFailure(run.invocation, code, "invocation value supply failed", err)
@@ -300,8 +310,15 @@ func runApplication(ctx context.Context, model staticProgram, callbacks declarat
 	}
 	if !dynamicDomainOutcomesComplete(domainOutcomes, demandedDomains) {
 		dependencyValues := operationDependencySeed(run.invocation.analysis)
-		if diagnostics := runValueDiagnostics(run.invocation.analysis.effectiveModel, dependencyValues); len(diagnostics) != 0 {
-			return valueDiagnosticFailure(run.invocation, run.invocation.analysis.effectiveModel, dependencyValues, diagnostics, grammar.Truncated)
+		diagnostics, valueTruncated := runValueDiagnostics(run.invocation, run.invocation.analysis.effectiveModel, dependencyValues)
+		if len(diagnostics) != 0 {
+			return valueDiagnosticFailure(
+				run.invocation,
+				run.invocation.analysis.effectiveModel,
+				dependencyValues,
+				diagnostics,
+				grammar.Truncated || valueTruncated,
+			)
 		}
 		return runDynamicDomainBlockedFailure(
 			run.invocation,
@@ -314,8 +331,9 @@ func runApplication(ctx context.Context, model staticProgram, callbacks declarat
 	effectiveModel = run.invocation.analysis.effectiveModel
 	values := analyzeValues(ctx, run.invocation, grammar)
 	enforceEffectiveDomainMembership(effectiveModel, &values)
-	if diagnostics := runValueDiagnostics(effectiveModel, values); len(diagnostics) != 0 {
-		return valueDiagnosticFailure(run.invocation, effectiveModel, values, diagnostics, grammar.Truncated)
+	diagnostics, valueTruncated := runValueDiagnostics(run.invocation, effectiveModel, values)
+	if len(diagnostics) != 0 {
+		return valueDiagnosticFailure(run.invocation, effectiveModel, values, diagnostics, grammar.Truncated || valueTruncated)
 	}
 	if values.Unsupported {
 		panic("cli: finalized Run value analysis is unsupported")
@@ -643,16 +661,20 @@ func finalizeRunFailures(ctx context.Context, signals *runSignals, operation *in
 	return set.Error()
 }
 
-func runValueDiagnostics(model *effectiveModel, analysis valueAnalysis) []Diagnostic {
-	diagnostics := make([]Diagnostic, 0, len(analysis.Issues))
+func runValueDiagnostics(operation *invocation, model *effectiveModel, analysis valueAnalysis) ([]Diagnostic, bool) {
+	diagnostics := make([]Diagnostic, 0, min(len(analysis.Issues), operation.DiagnosticLimit()))
 	for _, issue := range analysis.Issues {
 		if issue.Kind == valueIssueUnsupported || issue.Kind == valueIssueProducerBlocked {
 			continue
 		}
-		diagnostic, _ := publicValueIssueDiagnostic(model, analysis, issue)
-		diagnostics = append(diagnostics, diagnostic)
+		projected, _ := publicValueIssueDiagnostics(operation, model, analysis, issue)
+		retained, truncated := diagnosticRetention(operation.DiagnosticLimit(), len(diagnostics), len(projected))
+		diagnostics = append(diagnostics, projected[:retained]...)
+		if truncated {
+			return diagnostics, true
+		}
 	}
-	return diagnostics
+	return diagnostics, false
 }
 
 func notRunnableCommandDiagnosticFailure(operation *invocation, command CommandID) error {
@@ -669,8 +691,8 @@ func notRunnableCommandDiagnosticFailure(operation *invocation, command CommandI
 }
 
 func runGrammarDiagnosticFailure(operation *invocation, grammar grammarResult) error {
-	diagnostics := grammarDiagnostics(operation, grammar, nil)
-	return grammarDiagnosticFailure(operation, grammar, diagnostics, grammar.Truncated)
+	diagnostics, projectionTruncated := grammarDiagnostics(operation, grammar, nil)
+	return grammarDiagnosticFailure(operation, grammar, diagnostics, grammar.Truncated || projectionTruncated)
 }
 
 // runFailures records already-settled returned failures in canonical
@@ -709,22 +731,15 @@ func (err *orderedError) Error() string {
 	return err.errors[0].Error()
 }
 
-// Format keeps the aggregate's ordinary string form on its highest-precedence
-// branch. %+v becomes Diagnostic presentation only when that leading branch is
-// itself Commandment-owned; ordinary application/protocol primaries are never
-// reclassified merely because a later branch carries Diagnostics.
+// Format preserves the highest-precedence ordinary error owner. %+v uses the
+// bounded Commandment developer/debug projection only when the leading branch
+// is itself the exact private Diagnostic owner.
 func (err *orderedError) Format(state fmt.State, verb rune) {
 	if verb == 'v' && state.Flag('+') && err != nil && len(err.errors) != 0 &&
-		ownsDiagnosticPresentation(err.errors[0]) {
-		if writeDiagnosticPresentation(state, err) {
-			return
-		}
+		ownsDiagnosticPresentation(err.errors[0]) && writeDiagnosticDebug(state, err) {
+		return
 	}
-	formatOrderedErrorString(state, verb, err.Error())
-}
-
-func formatOrderedErrorString(state fmt.State, verb rune, text string) {
-	_, _ = fmt.Fprintf(state, fmt.FormatString(state, verb), text)
+	formatErrorString(state, verb, err.Error())
 }
 
 func (err *orderedError) Unwrap() []error {

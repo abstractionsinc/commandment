@@ -972,6 +972,7 @@ func (analysis *analysisState) commitResponseExpansionProvenance(operation *invo
 			source.revision,
 			source.snapshot.Location,
 			source.snapshot.IncludeBase,
+			source.snapshot.Content,
 			source.snapshot.Sensitive,
 		)
 	}

@@ -1,6 +1,9 @@
 package cli
 
-import "context"
+import (
+	"context"
+	"slices"
+)
 
 type formMatch struct {
 	form       argumentFormGrammar
@@ -196,11 +199,67 @@ func noArgumentFormMatchIssue(forms []argumentFormGrammar, args []string, indice
 
 		return result
 	}
+	if term, ok := uniquelyMissingArgumentTerm(forms, args, indices); ok {
+		issue := grammarIssue{
+			Kind:         grammarIssueNoArgumentForm,
+			TokenIndex:   -1,
+			ArgumentTerm: term,
+		}
+		return issue
+	}
 	issue := grammarIssue{
 		Kind:       grammarIssueNoArgumentForm,
-		TokenIndex: firstIndex(indices),
+		TokenIndex: firstExcessArgumentIndex(forms, args, indices),
 	}
 	return issue
+}
+
+func uniquelyMissingArgumentTerm(forms []argumentFormGrammar, args []string, indices []int) (ArgumentTermID, bool) {
+	var candidate ArgumentTermID
+	bestLiteralMatches := -1
+	for _, form := range forms {
+		if !form.enabled || !allArgumentTermsEnabled(form) {
+			continue
+		}
+		for _, term := range form.Terms() {
+			if !term.Enabled() || term.count.Minimum() == 0 {
+				continue
+			}
+			_, matched, _ := matchFormWithTermDeficit(form, term.id, args, indices)
+			if !matched {
+				continue
+			}
+			literalMatches := 0
+			for _, candidateTerm := range form.Terms() {
+				if candidateTerm.Enabled() && candidateTerm.kind == ArgumentTermLiteral && candidateTerm.id != term.id {
+					literalMatches++
+				}
+			}
+			switch {
+			case literalMatches > bestLiteralMatches:
+				candidate = term.id
+				bestLiteralMatches = literalMatches
+			case literalMatches == bestLiteralMatches && candidate != term.id:
+				candidate = ArgumentTermID(0)
+			}
+		}
+	}
+	return candidate, candidate.present()
+}
+
+func firstExcessArgumentIndex(forms []argumentFormGrammar, args []string, indices []int) int {
+	for prefix := range slices.Backward(indices) {
+		for _, form := range forms {
+			if !form.enabled || !allArgumentTermsEnabled(form) {
+				continue
+			}
+			_, matched, ambiguous := matchForm(form, args, indices[:prefix])
+			if matched && !ambiguous {
+				return indices[prefix]
+			}
+		}
+	}
+	return firstIndex(indices)
 }
 
 func evaluateArgumentForm(ctx context.Context, operation *invocation, analysis *analysisState, grammar grammarResult, valueLanguages grammarValueLanguageDemandFunc, form argumentFormGrammar, allocation []termAllocation, args []string) (argumentFormEvaluationStatus, ArgumentTermID, error) {
@@ -365,6 +424,10 @@ type countedAllocation struct {
 }
 
 func matchForm(form argumentFormGrammar, args []string, indices []int) ([]termAllocation, bool, bool) {
+	return matchFormWithTermDeficit(form, ArgumentTermID(0), args, indices)
+}
+
+func matchFormWithTermDeficit(form argumentFormGrammar, deficient ArgumentTermID, args []string, indices []int) ([]termAllocation, bool, bool) {
 	declared := form.Terms()
 	terms := make([]argumentTermGrammar, 0, len(declared))
 	for _, term := range declared {
@@ -391,6 +454,16 @@ func matchForm(form argumentFormGrammar, args []string, indices []int) ([]termAl
 		}
 
 		term := terms[termIndex]
+		if term.kind == ArgumentTermLiteral && term.id == deficient {
+			next := visit(termIndex+1, tokenIndex)
+			if !next.matched {
+				memo[key] = allocationState{}
+				return allocationState{}
+			}
+			state := prependAllocation(term, nil, next)
+			memo[key] = state
+			return state
+		}
 		if term.kind == ArgumentTermLiteral {
 			if tokenIndex >= len(indices) || args[indices[tokenIndex]] != term.literal {
 				memo[key] = allocationState{}
@@ -408,6 +481,11 @@ func matchForm(form argumentFormGrammar, args []string, indices []int) ([]termAl
 
 		minimum := term.count.Minimum()
 		maximum, bounded := term.count.Maximum()
+		if term.id == deficient {
+			maximum = minimum - 1
+			minimum = 0
+			bounded = true
+		}
 		remaining := len(indices) - tokenIndex
 		if !bounded || maximum > remaining {
 			maximum = remaining

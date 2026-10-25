@@ -837,7 +837,7 @@ func (p *referenceProjectionState) projectCommand(localizationForCommand func(Co
 		ID:                 id,
 		CanonicalEntry:     canonicalEntry,
 		Parent:             record.parent.id,
-		Origin:             DeclarationOriginApplication,
+		Origin:             p.source.declarationOrigin(id),
 		Name:               name,
 		Path:               path,
 		Description:        referenceDescription(localization, p.locale, presentation.description),
@@ -1000,7 +1000,7 @@ func (p *referenceProjectionState) projectDeclarations(projectCommandEntry func(
 			ID:               id,
 			Parent:           record.parent,
 			Kind:             grammar.kind,
-			Origin:           DeclarationOriginApplication,
+			Origin:           p.source.declarationOrigin(record.target),
 			DeclarationIndex: int(record.meta.position),
 			Profile:          record.meta.profile,
 			Name:             grammar.name,
@@ -1141,7 +1141,7 @@ func (p *referenceProjectionState) projectDeclarations(projectCommandEntry func(
 		p.result.Flags[id] = FlagReference{
 			ID:                  id,
 			Command:             record.command,
-			Origin:              DeclarationOriginApplication,
+			Origin:              p.source.declarationOrigin(record.command),
 			Profile:             record.meta.profile,
 			Destination:         record.destination,
 			Spellings:           filterFlagSpellingIDs(p.source.spellingsByFlag[id], p.flagSpellingVisible),
@@ -1212,7 +1212,7 @@ func (p *referenceProjectionState) projectDeclarations(projectCommandEntry func(
 		p.result.FlagSpellings[id] = FlagSpellingReference{
 			ID:             id,
 			Flag:           record.flag,
-			Origin:         DeclarationOriginApplication,
+			Origin:         p.source.declarationOrigin(flag.command),
 			Spelling:       spelling,
 			Hidden:         record.hidden,
 			Available:      available,
@@ -1237,7 +1237,7 @@ func (p *referenceProjectionState) projectDeclarations(projectCommandEntry func(
 		p.result.ArgumentForms[id] = ArgumentFormReference{
 			ID:             id,
 			Command:        record.command,
-			Origin:         DeclarationOriginApplication,
+			Origin:         p.source.declarationOrigin(record.command),
 			Profile:        record.meta.profile,
 			Terms:          filterArgumentTermIDs(p.source.termsByForm[id], p.argumentTermVisible),
 			Available:      available,
@@ -1267,7 +1267,7 @@ func (p *referenceProjectionState) projectDeclarations(projectCommandEntry func(
 		item := ArgumentTermReference{
 			ID:              id,
 			Form:            record.form,
-			Origin:          DeclarationOriginApplication,
+			Origin:          p.source.declarationOrigin(form.command),
 			Kind:            grammar.kind,
 			Name:            record.name,
 			Literal:         grammar.literal,
@@ -1326,7 +1326,7 @@ func (p *referenceProjector) projectValuesAndSignals() error {
 
 func (p *referenceProjectionState) projectValuesAndSignals(localizationForCommand func(CommandID) localizationSnapshot) error {
 	for _, record := range p.source.records.destinations {
-		value, fact, isFact, err := projectDestinationSchemaRecord(record, p.source.environmentByDestination[record.meta.id])
+		value, fact, isFact, err := projectDestinationSchemaRecord(record, p.source.environmentByDestination[record.meta.id], p.source.declarationOrigin(record.command))
 		if err != nil {
 			return err
 		}
@@ -1423,14 +1423,16 @@ func (p *referenceProjectionState) projectValuesAndSignals(localizationForComman
 			replacement = nil
 		}
 		localization := p.applicationLocalization
+		origin := DeclarationOriginApplication
 		if owner, ok := domainEntryCommands[id]; ok {
 			localization = localizationForCommand(owner)
+			origin = p.source.declarationOrigin(owner)
 		}
 		available := referenceAvailable(state)
 		p.result.ValueDomainEntries[id] = ValueDomainEntryReference{
 			ID:        id,
 			Kind:      valueDomainEntryKind(record.kind),
-			Origin:    DeclarationOriginApplication,
+			Origin:    origin,
 			Name:      record.name,
 			Canonical: record.canonical,
 			Description: referenceDescription(localization, p.locale, Description{

@@ -619,6 +619,7 @@ func cloneDiagnostic(diagnostic diagnostic) diagnostic {
 	diagnosticCopy := diagnostic
 	diagnosticCopy.CommandPath = append([]string(nil), diagnostic.CommandPath...)
 	diagnosticCopy.Origins = append([]originID(nil), diagnostic.Origins...)
+	diagnosticCopy.Expected = slices.Clone(diagnostic.Expected)
 	diagnosticCopy.Suggestions = append([]string(nil), diagnostic.Suggestions...)
 	diagnosticCopy.Usage = append([]string(nil), diagnostic.Usage...)
 	diagnosticCopy.RepairIndexes = append([]int(nil), diagnostic.RepairIndexes...)
@@ -634,6 +635,12 @@ func cloneDiagnostic(diagnostic diagnostic) diagnostic {
 			}
 		}
 		diagnosticCopy.Rule = &rule
+	}
+	if diagnostic.Rejection != nil {
+		rejection := *diagnostic.Rejection
+		rejection.Expected = slices.Clone(diagnostic.Rejection.Expected)
+		rejection.Spans = slices.Clone(diagnostic.Rejection.Spans)
+		diagnosticCopy.Rejection = &rejection
 	}
 	if diagnostic.ProviderOutput != nil {
 		providerOutput := *diagnostic.ProviderOutput

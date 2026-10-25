@@ -50,7 +50,7 @@ var definition = cli.Definition[struct{}]{
 func main() {
 	app, err := cli.Compile(definition)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(1)
 	}
 	request := cli.RunRequest{
@@ -60,7 +60,7 @@ func main() {
 		},
 	}
 	if err := app.Run(context.Background(), request); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(cli.ExitCode(err))
 	}
 }

@@ -402,6 +402,71 @@ func publicCandidateDeclaration(declaration valueCandidateDeclaration) Declarati
 	}
 }
 
+func diagnosticDeclarationSubject(model *effectiveModel, identity DeclarationIdentity) string {
+	if model == nil {
+		return ""
+	}
+
+	var flagID FlagID
+	var spellingID FlagSpellingID
+	switch identity.Kind {
+	case DeclarationKindFlagSpelling:
+		spelling, ok := model.FlagSpelling(identity.FlagSpelling)
+		if !ok {
+			return ""
+		}
+		flagID = spelling.flag
+		spellingID = identity.FlagSpelling
+	case DeclarationKindFlag:
+		flagID = identity.Flag
+	case DeclarationKindArgumentTerm:
+		term, ok := model.ArgumentTerm(identity.ArgumentTerm)
+		if !ok || term.name == "" {
+			return ""
+		}
+		return "<" + term.name + ">"
+	case DeclarationKindEnvironmentInput:
+		input, ok := model.EnvironmentInput(identity.EnvironmentInput)
+		if !ok || input.selector == "" {
+			return ""
+		}
+		if input.prefix {
+			return input.selector + "*"
+		}
+		return input.selector
+	default:
+		return ""
+	}
+
+	flag, ok := model.Flag(flagID)
+	if !ok {
+		return ""
+	}
+	grammar, ok := model.EffectiveGrammar()
+	if !ok {
+		return ""
+	}
+	for _, grammarFlag := range grammar.Flags(flag.command) {
+		if grammarFlag.id != flagID {
+			continue
+		}
+		spellings := grammarFlag.Spellings()
+		if spellingID == 0 {
+			if len(spellings) == 0 {
+				return ""
+			}
+			return spellings[0].text
+		}
+		for _, spelling := range spellings {
+			if spelling.id == spellingID {
+				return spelling.text
+			}
+		}
+		return ""
+	}
+	return ""
+}
+
 func publicProducerOutcome(outcome producerOutcome) ValueProducerOutcome {
 	switch outcome {
 	case producerOutcomeInactive:
@@ -472,26 +537,42 @@ func publicOriginIDs(ids []InputOriginID) []InputOriginID {
 	return slices.Clone(ids)
 }
 
-func applyValueDiagnostics(result *Inspection, model *effectiveModel, analysis valueAnalysis) []Diagnostic {
+func applyValueDiagnostics(result *Inspection, operation *invocation, model *effectiveModel, analysis valueAnalysis) ([]Diagnostic, bool) {
 	projection := prepareInspectionCandidateProjection(analysis)
 	var diagnostics []Diagnostic
 	for _, issue := range analysis.Issues {
 		if issue.Kind == valueIssueUnsupported || issue.Kind == valueIssueProducerBlocked {
 			continue
 		}
-		diagnostic, candidateRef := publicValueIssueDiagnostic(model, analysis, issue)
-		index := len(result.Diagnostics) + len(diagnostics)
-		diagnostics = append(diagnostics, diagnostic)
+		issueDiagnostics, candidateRef := publicValueIssueDiagnostics(operation, model, analysis, issue)
+		retained, truncated := diagnosticRetention(
+			operation.DiagnosticLimit(),
+			len(result.Diagnostics)+len(diagnostics),
+			len(issueDiagnostics),
+		)
 		valueID := issue.Destination
-		if value, ok := result.Values[valueID]; ok {
-			value.DiagnosticIndexes = append(value.DiagnosticIndexes, index)
-			result.Values[valueID] = value
+		for _, diagnostic := range issueDiagnostics[:retained] {
+			index := len(result.Diagnostics) + len(diagnostics)
+			diagnostics = append(diagnostics, diagnostic)
+			if value, ok := result.Values[valueID]; ok {
+				value.DiagnosticIndexes = append(value.DiagnosticIndexes, index)
+				result.Values[valueID] = value
+			}
+			if candidateRef.valid() {
+				attachValueCandidateDiagnostic(result, valueID, projection.id(candidateRef), index)
+			}
 		}
-		if candidateRef.valid() {
-			attachValueCandidateDiagnostic(result, valueID, projection.id(candidateRef), index)
+		if truncated {
+			return diagnostics, true
 		}
 	}
-	return diagnostics
+	return diagnostics, false
+}
+
+func diagnosticRetention(limit, used, available int) (int, bool) {
+	remaining := max(limit-used, 0)
+	retained := min(available, remaining)
+	return retained, retained < available
 }
 
 func attachValueCandidateDiagnostic(result *Inspection, valueID ValueID, candidateID ValueCandidateID, index int) {
@@ -518,15 +599,101 @@ func attachValueCandidateDiagnostic(result *Inspection, valueID ValueID, candida
 	result.Values[valueID] = value
 }
 
+func publicValueIssueDiagnostics(operation *invocation, model *effectiveModel, analysis valueAnalysis, issue valueIssue) ([]Diagnostic, valueCandidateRef) {
+	base, candidateRef := publicValueIssueDiagnostic(model, analysis, issue)
+	if issue.Kind != valueIssueInvalidInput || base.Code != DiagnosticInvalidValue {
+		return []Diagnostic{base}, candidateRef
+	}
+	rejections, ok := normalizedInputRejections(issue.Err)
+	if !ok {
+		return []Diagnostic{base}, candidateRef
+	}
+	result := make([]Diagnostic, len(rejections))
+	for index, rejection := range rejections {
+		result[index] = base
+		applyNormalizedInputRejection(operation, &result[index], rejection, base.Sensitive)
+	}
+	return result, candidateRef
+}
+
+func applyNormalizedInputRejection(operation *invocation, diagnostic *Diagnostic, rejection normalizedInputRejection, contextSensitive bool) {
+	if diagnostic == nil {
+		return
+	}
+	sensitive := diagnostic.Sensitive || contextSensitive || rejection.sensitive
+	diagnostic.Sensitive = sensitive
+	diagnostic.InputSource = rejection.source
+	diagnostic.Origins = slices.Clone(rejection.origins)
+	if rejection.primarySet {
+		diagnostic.Span = &InputSpan{
+			Source: rejection.primarySpan.Source,
+			Entry:  rejection.primarySpan.Entry,
+			Start: InputPosition{
+				Offset: rejection.primarySpan.Start,
+			},
+			End: InputPosition{
+				Offset: rejection.primarySpan.End,
+			},
+		}
+	}
+	projected := &InputRejectionDiagnostic{
+		Code:  rejection.code,
+		Spans: make([]InputSpan, len(rejection.spans)),
+	}
+	for index, rejectionSpan := range rejection.spans {
+		projected.Spans[index] = InputSpan{
+			Source: rejectionSpan.Source,
+			Entry:  rejectionSpan.Entry,
+			Start: InputPosition{
+				Offset: rejectionSpan.Start,
+			},
+			End: InputPosition{
+				Offset: rejectionSpan.End,
+			},
+		}
+	}
+	diagnostic.Rejection = projected
+	if sensitive {
+		diagnostic.Input = ""
+		diagnostic.InputRedacted = true
+		diagnostic.Message = ""
+		diagnostic.Hint = ""
+		diagnostic.Suggestions = nil
+		return
+	}
+	diagnostic.Input = rejection.input
+	projected.Expected = slices.Clone(rejection.expected)
+	diagnostic.Message = resolveOperationDiagnosticText(operation, diagnostic.Command, rejection.message)
+	diagnostic.Hint = resolveOperationDiagnosticText(operation, diagnostic.Command, rejection.hint)
+	diagnostic.Suggestions = slices.Clone(rejection.suggestions)
+}
+
+func resolveOperationDiagnosticText(operation *invocation, command CommandID, source string) string {
+	if operation == nil || source == "" {
+		return source
+	}
+	locale, finalized := operation.FrameworkPresentation().Locale()
+	if !finalized {
+		return source
+	}
+	localization := operation.LocalizationForCommand(command)
+	resolved, _, err := localization.Resolve(locale, source)
+	if err != nil {
+		return source
+	}
+	return resolved
+}
+
 func publicValueIssueDiagnostic(model *effectiveModel, analysis valueAnalysis, issue valueIssue) (Diagnostic, valueCandidateRef) {
 	record, _ := model.Destination(issue.Destination)
 	diagnostic := Diagnostic{
 		Code:    DiagnosticInvalidValue,
+		Subject: destinationDiagnosticSubject(model, issue.Destination),
 		Command: record.command,
 		Origins: publicOriginIDs(issue.Origins),
 	}
 	candidate, candidateRef, found := rejectedValueCandidate(analysis, issue.Destination)
-	applyRejectedValueCandidateDiagnostic(&diagnostic, record, candidate, found)
+	applyRejectedValueCandidateDiagnostic(model, &diagnostic, record, candidate, found)
 
 	switch issue.Kind {
 	case valueIssueInvalidInput:
@@ -563,11 +730,12 @@ func publicValueIssueDiagnostic(model *effectiveModel, analysis valueAnalysis, i
 	return diagnostic, candidateRef
 }
 
-func applyRejectedValueCandidateDiagnostic(diagnostic *Diagnostic, record destinationRecord, candidate valueCandidateObservation, found bool) {
+func applyRejectedValueCandidateDiagnostic(model *effectiveModel, diagnostic *Diagnostic, record destinationRecord, candidate valueCandidateObservation, found bool) {
 	if !found {
 		return
 	}
 	diagnostic.Declaration = publicCandidateDeclaration(candidate.Declaration)
+	diagnostic.Subject = diagnosticDeclarationSubject(model, diagnostic.Declaration)
 	diagnostic.InputSource = candidate.InputSource
 	diagnostic.ProducerKind = candidate.Meta.ProducerKind
 	diagnostic.Tier = candidate.Meta.Tier
@@ -575,14 +743,13 @@ func applyRejectedValueCandidateDiagnostic(diagnostic *Diagnostic, record destin
 	if len(diagnostic.Origins) == 0 {
 		diagnostic.Origins = publicOriginIDs(candidate.Meta.Origins)
 	}
-	input, ok := primaryRejectedInput(candidate)
-	if !ok {
-		return
-	}
 	sensitive := record.sensitive || candidate.Meta.Sensitive
 	if sensitive {
 		diagnostic.InputRedacted = true
 		diagnostic.Sensitive = true
+	}
+	input, ok := primaryRejectedInput(candidate)
+	if !ok || sensitive {
 		return
 	}
 	diagnostic.Input = input
@@ -729,46 +896,155 @@ func valueAnalysisIncomplete(analysis valueAnalysis) bool {
 
 func valueDiagnosticFailure(operation *invocation, model *effectiveModel, analysis valueAnalysis, diagnostics []Diagnostic, truncated bool) error {
 	payload := operationDiagnosticPayload(operation, truncated)
-	payload.Diagnostics = make([]diagnostic, len(diagnostics))
+	payload.Diagnostics = make([]diagnostic, 0, len(diagnostics))
 	projectedIndex := 0
 	for _, issue := range analysis.Issues {
 		if issue.Kind == valueIssueUnsupported || issue.Kind == valueIssueProducerBlocked {
 			continue
 		}
-		if projectedIndex >= len(diagnostics) {
-			break
+		count := 1
+		var rejections []normalizedInputRejection
+		if issue.Kind == valueIssueInvalidInput {
+			if values, ok := normalizedInputRejections(issue.Err); ok {
+				rejections = values
+				count = len(values)
+			}
 		}
-		public := diagnostics[projectedIndex]
-		private := diagnostic{
-			Code:          string(public.Code),
-			Command:       privateDestinationCommand(model, issue.Destination),
-			Source:        sourceID(public.InputSource.value),
-			Origins:       projectOriginIDs(issue.Origins),
-			Input:         public.Input,
-			InputRedacted: public.InputRedacted,
-			Sensitive:     public.Sensitive,
-			ProducerKind:  projectDiagnosticProducerKind(public.ProducerKind),
-			Tier:          projectResolutionTier(public.Tier),
-			Disposition:   projectCandidateDisposition(public.Disposition),
-		}
-		if candidate, _, ok := rejectedValueCandidate(analysis, issue.Destination); ok {
-			private.Declaration = privateCandidateDiagnosticDeclaration(candidate.Declaration)
-			if entry, _, lifecycle := rejectedDomainLifecycleEntry(model, issue.Destination, candidate); lifecycle {
-				private.Declaration = analysisDiagnosticDeclarationIdentity{
-					Kind:             diagnosticDeclarationValueDomainEntry,
-					ValueDomainEntry: entry.meta.id,
+		for rejectionIndex := range count {
+			if projectedIndex >= len(diagnostics) {
+				break
+			}
+			public := diagnostics[projectedIndex]
+			private := diagnostic{
+				Code:          string(public.Code),
+				Message:       public.Message,
+				Reason:        public.Reason,
+				Hint:          public.Hint,
+				Subject:       public.Subject,
+				Command:       privateDestinationCommand(model, issue.Destination),
+				Source:        sourceID(public.InputSource.value),
+				Origins:       projectOriginIDs(public.Origins),
+				Input:         public.Input,
+				InputRedacted: public.InputRedacted,
+				Expected:      valueDiagnosticPresentationExpected(model, issue.Destination),
+				Suggestions:   slices.Clone(public.Suggestions),
+				Usage:         slices.Clone(public.Usage),
+				Sensitive:     public.Sensitive,
+				ProducerKind:  projectDiagnosticProducerKind(public.ProducerKind),
+				Tier:          projectResolutionTier(public.Tier),
+				Disposition:   projectCandidateDisposition(public.Disposition),
+				RepairIndexes: slices.Clone(public.RepairIndexes),
+			}
+			if public.Rejection != nil {
+				private.Rejection = privateInputRejectionDiagnostic(public.Rejection)
+			}
+			if candidate, _, ok := rejectedValueCandidate(analysis, issue.Destination); ok {
+				private.Declaration = privateCandidateDiagnosticDeclaration(candidate.Declaration)
+				if entry, _, lifecycle := rejectedDomainLifecycleEntry(model, issue.Destination, candidate); lifecycle {
+					private.Declaration = analysisDiagnosticDeclarationIdentity{
+						Kind:             diagnosticDeclarationValueDomainEntry,
+						ValueDomainEntry: entry.meta.id,
+					}
 				}
 			}
-		}
-		if len(private.Origins) == 0 {
-			if candidate, _, ok := rejectedValueCandidate(analysis, issue.Destination); ok {
-				private.Origins = projectOriginIDs(candidate.Meta.Origins)
+			if len(private.Origins) == 0 {
+				if candidate, _, ok := rejectedValueCandidate(analysis, issue.Destination); ok {
+					private.Origins = projectOriginIDs(candidate.Meta.Origins)
+				}
 			}
+			if rejectionIndex < len(rejections) {
+				attachNormalizedInputRejectionRepair(&payload, &private, rejections[rejectionIndex])
+			}
+			payload.Diagnostics = append(payload.Diagnostics, private)
+			projectedIndex++
 		}
-		payload.Diagnostics[projectedIndex] = private
-		projectedIndex++
 	}
 	return retainDiagnosticFailure(payload, firstValueIssueCause(analysis))
+}
+
+func valueDiagnosticPresentationExpected(model *effectiveModel, destination ValueID) []string {
+	const maximumExpectedValues = 6
+
+	if model == nil || !destination.present() {
+		return nil
+	}
+	var expected []string
+	for _, index := range model.ValueDomainIndexesForDestination(destination) {
+		domain, ok := model.ValueDomain(index)
+		if !ok {
+			continue
+		}
+		for _, id := range domain.Entries() {
+			entry, ok := model.DomainEntry(id)
+			if !ok || entry.kind != domainEntryKindCanonical || entry.hidden {
+				continue
+			}
+			state, err := evaluateLifecycle(model.Application().release, entry.lifecycle, "")
+			if err != nil || !referenceAvailable(state) || slices.Contains(expected, entry.name) {
+				continue
+			}
+			expected = append(expected, entry.name)
+			if len(expected) > maximumExpectedValues {
+				return nil
+			}
+		}
+	}
+	if len(expected) != 0 {
+		return expected
+	}
+
+	record, ok := model.Destination(destination)
+	if !ok {
+		return nil
+	}
+	definition, ok := record.Definition()
+	if !ok {
+		return nil
+	}
+	language, ok := definition.Language()
+	if !ok || language.Kind() != valueLanguageKindBuiltin {
+		return nil
+	}
+	switch language.Name() {
+	case builtinValueLanguageNameBool:
+		return []string{"a boolean"}
+	case builtinValueLanguageNameInt:
+		return []string{"an integer"}
+	case builtinValueLanguageNameUint:
+		return []string{"an unsigned integer"}
+	case builtinValueLanguageNameString:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func privateInputRejectionDiagnostic(value *InputRejectionDiagnostic) *inputRejectionDiagnostic {
+	if value == nil {
+		return nil
+	}
+	result := &inputRejectionDiagnostic{
+		Code:     value.Code,
+		Expected: slices.Clone(value.Expected),
+		Spans:    make([]span, len(value.Spans)),
+	}
+	for index, input := range value.Spans {
+		result.Spans[index] = span{
+			Source: sourceID(input.Source.value),
+			Entry:  input.Entry,
+			Start: analysisPosition{
+				Offset: input.Start.Offset,
+				Line:   input.Start.Line,
+				Column: input.Start.Column,
+			},
+			End: analysisPosition{
+				Offset: input.End.Offset,
+				Line:   input.End.Line,
+				Column: input.End.Column,
+			},
+		}
+	}
+	return result
 }
 
 func firstValueIssueCause(analysis valueAnalysis) error {

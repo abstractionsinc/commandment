@@ -61,7 +61,9 @@ Reference generators should consume `Reference` rather than scrape rendered help
 
 When Commandment owns a failure, `cli.Diagnostics(err)` extracts its structured diagnostic report. Prefer diagnostic code, subject, source/origin, repair, and other typed relationships over parsing human `Message`, `Reason`, or `Hint` text.
 
-Handler and middleware errors may have no Commandment diagnostic because the application owns those failures. A diagnostic can also point to an `InputRepair`, which is structured correction data rather than a hint string; Commandment does not apply repairs automatically.
+Handler and middleware errors may have no Commandment diagnostic because the application owns those failures. Input-language diagnostics can expose parser-owned rejection structure through `Diagnostic.Rejection`: the parser-local rejection code, nonsensitive exact expected fragments, and exact mapped source spans. A diagnostic can also point to an `InputRepair`, which is structured correction data rather than a hint string; Commandment does not apply repairs automatically.
+
+For user-facing publication, use `cli.WriteError`. It renders Commandment-owned failures for the actual destination writer and leaves application-owned errors on ordinary Go `%v` semantics. `%+v` on Commandment-owned diagnostic errors is a separate bounded developer/debug projection; tools should use `cli.Diagnostics` for stable structured meaning rather than parsing either human rendering.
 
 See the [diagnostics scenario](../examples/observations/diagnostics/) and [Troubleshooting](11-troubleshooting.md).
 

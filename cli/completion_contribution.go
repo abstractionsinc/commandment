@@ -38,9 +38,9 @@ func (operation *completionOperation) completionCallbackContext(ctx context.Cont
 }
 
 func completionDependencyFailure(operation *invocation, model *effectiveModel, values valueAnalysis, dependencies []dependencyRequirement) error {
-	diagnostics := runValueDiagnostics(model, values)
+	diagnostics, valueTruncated := runValueDiagnostics(operation, model, values)
 	if len(diagnostics) != 0 {
-		return valueDiagnosticFailure(operation, model, values, diagnostics, false)
+		return valueDiagnosticFailure(operation, model, values, diagnostics, valueTruncated)
 	}
 
 	blocked := blockedDependencyIDs(dependencies, values)

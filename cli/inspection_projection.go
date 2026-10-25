@@ -424,7 +424,19 @@ func projectGrammarSelection(selection commandSelection) CommandSelection {
 	return result
 }
 
+func grammarHasActionConflict(grammar grammarResult) bool {
+	for _, issue := range grammar.Issues {
+		if issue.Kind == grammarIssueActionConflict {
+			return true
+		}
+	}
+	return false
+}
+
 func projectGrammarActionSelection(grammar grammarResult, reference referenceProjection) InvocationActionSelection {
+	if grammarHasActionConflict(grammar) {
+		return InvocationActionSelection{}
+	}
 	if !grammar.Selection.ActionSelected() {
 		selection := InvocationActionSelection{
 			Selected: InvocationActionRun,
@@ -779,12 +791,14 @@ func applyArgumentFormSelection(result *Inspection, grammar grammarResult) {
 			grammarIssueAmbiguousFlag,
 			grammarIssueMisplacedFlag,
 			grammarIssueUnknownFlag,
+			grammarIssueUnknownCommand,
 			grammarIssueMissingFlagValue,
 			grammarIssuePrematureFlagTerminator,
 			grammarIssueTooManyFlagOccurrences,
 			grammarIssueMissingFlagOccurrence,
 			grammarIssueAmbiguousOwnership,
 			grammarIssueUnexpectedInput,
+			grammarIssueActionConflict,
 			grammarIssueProfileSelection,
 			grammarIssueUnavailableCommand,
 			grammarIssueUnavailableFlag,
@@ -1287,9 +1301,10 @@ func applySignalInspection(result *Inspection, operation *inspectionOperation, s
 		result.SignalSource.MissingSourceCapabilities = plan.requiredSource
 		result.SignalSource.MissingHostCapabilities = plan.requiredHost &^ availableHost
 		markActiveSignalPoliciesBlocked(result, activePolicies)
-		return []Diagnostic{{
+		diagnostic := Diagnostic{
 			Code: DiagnosticIncompatibleSignalSource,
-		}}, true, nil
+		}
+		return []Diagnostic{diagnostic}, true, nil
 	}
 
 	result.SignalSource.Supplied = true
@@ -1299,9 +1314,10 @@ func applySignalInspection(result *Inspection, operation *inspectionOperation, s
 	if err != nil {
 		result.SignalSource.Status = SignalIntegrationStatusFailed
 		markActiveSignalPoliciesBlocked(result, activePolicies)
-		return []Diagnostic{{
+		diagnostic := Diagnostic{
 			Code: DiagnosticSignalSourceFailure,
-		}}, true, err
+		}
+		return []Diagnostic{diagnostic}, true, err
 	}
 	result.SignalSource.ResolvedSignals = projectSemanticSignals(resolved.resolvedSignals)
 	result.SignalSource.MissingSignals = projectSemanticSignals(resolved.compatibility.missingSignals)
@@ -1312,9 +1328,10 @@ func applySignalInspection(result *Inspection, operation *inspectionOperation, s
 	if !resolved.compatibility.compatible() {
 		result.SignalSource.Status = SignalIntegrationStatusIncompatible
 		markActiveSignalPoliciesBlocked(result, activePolicies)
-		return []Diagnostic{{
+		diagnostic := Diagnostic{
 			Code: DiagnosticIncompatibleSignalSource,
-		}}, true, nil
+		}
+		return []Diagnostic{diagnostic}, true, nil
 	}
 	result.SignalSource.Status = SignalIntegrationStatusReady
 	return nil, true, nil

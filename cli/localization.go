@@ -12,15 +12,17 @@ import (
 // known. The compiled localization snapshot is detached before the operation
 // begins; FinalizeLocale may establish the operation locale exactly once.
 type frameworkPresentationState struct {
-	mu           sync.RWMutex
-	localization localizationSnapshot
-	locale       string
-	finalized    bool
+	mu              sync.RWMutex
+	localization    localizationSnapshot
+	applicationName string
+	locale          string
+	finalized       bool
 }
 
-func prepareFrameworkPresentationState(localization localizationSnapshot) *frameworkPresentationState {
+func prepareFrameworkPresentationState(localization localizationSnapshot, applicationName string) *frameworkPresentationState {
 	state := &frameworkPresentationState{
-		localization: localization,
+		localization:    localization,
+		applicationName: applicationName,
 	}
 	return state
 }
@@ -50,6 +52,17 @@ func (state *frameworkPresentationState) Locale() (string, bool) {
 	state.mu.RLock()
 	defer state.mu.RUnlock()
 	return state.locale, state.finalized
+}
+
+// ApplicationName returns the already-validated application name retained for
+// delayed human Diagnostic presentation.
+func (state *frameworkPresentationState) ApplicationName() string {
+	if state == nil {
+		return ""
+	}
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.applicationName
 }
 
 // Resolve resolves one finite Commandment-owned source phrase through the

@@ -54,7 +54,8 @@ func failureUXExternalCases() []string {
 		"compile", "compile-fails", "help-presentation", "resolve-declaration",
 		"scalar", "presence", "aggregate", "failed-prerequisite", "many-roots",
 		"ordered-collection", "ambiguous-diagnostic", "truncated-diagnostic", "nested-diagnostic", "diagnostic-producer-kind",
-		"sensitive-control", "huge-control", "deep-nesting", "repeated-subjects", "direct-id", "nested-subtest",
+		"sensitive-control", "sensitive-rejection-expected-empty", "sensitive-rejection-expected-secret", "rejection-spans", "huge-control", "deep-nesting", "repeated-subjects",
+		"direct-id", "nested-subtest",
 	}
 }
 
@@ -91,6 +92,10 @@ func TestPublicExpectationEntrypointsPreserveConsumerAttribution(t *testing.T) {
 				t.Fatalf("CompileFails success failure omitted expected boundary:\n%s", text)
 			}
 			switch evaluationCase {
+			case "schema":
+				if !strings.Contains(text, "item 0: command is absent") {
+					t.Fatalf("schema collection failure omitted separated item coordinate:\n%s", text)
+				}
 			case "help-presentation":
 				if !strings.Contains(text, "help usage") || !strings.Contains(text, "index 0=") {
 					t.Fatalf("help-presentation failure omitted structured collection delta:\n%s", text)
@@ -158,6 +163,19 @@ func TestPublicExpectationEntrypointsPreserveConsumerAttribution(t *testing.T) {
 				if !strings.Contains(text, "<redacted>") {
 					t.Fatalf("sensitive failure omitted redaction marker:\n%s", text)
 				}
+			case "sensitive-rejection-expected-empty":
+				assertSensitiveRejectionExpectedFailure(t, text)
+			case "sensitive-rejection-expected-secret":
+				assertSensitiveRejectionExpectedFailure(t, text, "caller-secret")
+			case "rejection-spans":
+				for _, want := range []string{"rejection span", "source=present", "start={offset="} {
+					if !strings.Contains(text, want) {
+						t.Fatalf("rejection-span failure omitted semantic detail %q:\n%s", want, text)
+					}
+				}
+				if strings.Contains(text, "InputSpan{") || strings.Contains(text, "value:") {
+					t.Fatalf("rejection-span failure exposed Go representation:\n%s", text)
+				}
 			case "huge-control":
 				if strings.ContainsRune(text, '\x1b') || !strings.Contains(text, `\n`) ||
 					!strings.Contains(text, "rendered bytes omitted") ||
@@ -189,6 +207,29 @@ func TestPublicExpectationEntrypointsPreserveConsumerAttribution(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func assertSensitiveRejectionExpectedFailure(t *testing.T, text string, callerSecrets ...string) {
+	t.Helper()
+
+	for _, want := range []string{
+		"expected: expected fragments = <redacted>",
+		"not provable: observed expected fragments = <redacted>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("sensitive rejection failure omitted %q:\n%s", want, text)
+		}
+	}
+	for _, secret := range []string{"alpha", "beta"} {
+		if strings.Contains(text, secret) {
+			t.Fatalf("sensitive rejection failure leaked observed fragment %q:\n%s", secret, text)
+		}
+	}
+	for _, secret := range callerSecrets {
+		if strings.Contains(text, secret) {
+			t.Fatalf("sensitive rejection failure leaked caller material %q:\n%s", secret, text)
+		}
 	}
 }
 
@@ -514,6 +555,25 @@ func runPublicExpectationAttributionFailure(t *testing.T, evaluationCase string)
 			Sensitive: true,
 		}
 		clitest.Complete(ctx, secretApp, request).Require(t, clitest.CompletionMessagesExactly(expectedMessage))
+	case "sensitive-rejection-expected-empty":
+		diagnostics, _ := inputRejectionObservation(t, true)
+		diagnostics.Require(
+			t,
+			clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection().ExpectedExactly(),
+		)
+	case "sensitive-rejection-expected-secret":
+		diagnostics, _ := inputRejectionObservation(t, true)
+		diagnostics.Require(
+			t,
+			clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection().ExpectedExactly("caller-secret"),
+		)
+	case "rejection-spans":
+		diagnostics, span := inputRejectionObservation(t, false)
+		span.Start.Offset++
+		diagnostics.Require(
+			t,
+			clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection().SpansExactly(span),
+		)
 	case "huge-control":
 		name := "\n\t\x1b[31m" + strings.Repeat("x", 64*1024)
 		clitest.Schema(app).Require(t, clitest.Command(name).Exists())

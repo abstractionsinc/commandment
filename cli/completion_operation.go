@@ -252,15 +252,15 @@ func completeApplicationWithSignalsUnpreserved(ctx context.Context, model static
 		return result, failure
 	}
 	if len(prefix.Grammar.Issues) != 0 {
-		diagnostics := grammarDiagnostics(snapshot.invocation, prefix.Grammar, nil)
+		diagnostics, projectionTruncated := grammarDiagnostics(snapshot.invocation, prefix.Grammar, nil)
 		result.Diagnostics = append(result.Diagnostics, diagnostics...)
-		result.DiagnosticsTruncated = prefix.Grammar.Truncated
+		result.DiagnosticsTruncated = prefix.Grammar.Truncated || projectionTruncated
 		result.Partial = true
 		return result, grammarDiagnosticFailure(
 			snapshot.invocation,
 			prefix.Grammar,
 			diagnostics,
-			prefix.Grammar.Truncated,
+			result.DiagnosticsTruncated,
 		)
 	}
 	if prefix.TerminalAction() {

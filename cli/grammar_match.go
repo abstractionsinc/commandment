@@ -1588,28 +1588,36 @@ func lexicalBoundary(model grammarView, path []CommandID, dialect dialect, token
 	return matchFlag(model, path, dialect, token).found
 }
 
-func positionalCanOwnHyphenToken(forms []argumentFormGrammar, token string) bool {
+func positionalCanOwnToken(forms []argumentFormGrammar, token string, flagRecognitionClosed bool) bool {
 	for _, form := range forms {
 		if !form.enabled {
 			continue
 		}
-		terms := form.Terms()
-		if len(terms) == 0 {
-			continue
-		}
-		term := terms[0]
-		switch term.kind {
-		case ArgumentTermLiteral:
-			if term.literal == token {
+		for _, term := range form.Terms() {
+			if !term.Enabled() {
+				continue
+			}
+			maximum, bounded := term.count.Maximum()
+			if bounded && maximum == 0 {
+				continue
+			}
+
+			canOwn := false
+			switch term.kind {
+			case ArgumentTermLiteral:
+				canOwn = term.literal == token
+			case ArgumentTermRemainder, ArgumentTermPassThrough:
+				canOwn = true
+			case ArgumentTermValue, ArgumentTermTokens:
+				canOwn = flagRecognitionClosed || !isHyphenLeadingToken(token) || hyphenValueAllowed(term.hyphenValues, token)
+			case ArgumentTermUnknown, ArgumentTermSequence:
+			}
+			if canOwn {
 				return true
 			}
-		case ArgumentTermRemainder, ArgumentTermPassThrough:
-			return true
-		case ArgumentTermValue, ArgumentTermTokens:
-			if hyphenValueAllowed(term.hyphenValues, token) {
-				return true
+			if term.count.Minimum() > 0 {
+				break
 			}
-		case ArgumentTermUnknown, ArgumentTermSequence:
 		}
 	}
 	return false

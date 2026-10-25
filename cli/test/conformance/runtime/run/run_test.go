@@ -104,6 +104,97 @@ func TestExecuteVersionActionUsesUnicodeCodePointCommitBound(t *testing.T) {
 	}
 }
 
+func TestRunShellCompletionIntrinsicHelpPrecedesExport(t *testing.T) {
+	t.Parallel()
+
+	var page cli.HelpPage
+	definition := cli.Definition[struct{}]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Renderer: func(_ context.Context, observed cli.HelpPage) (string, error) {
+				page = observed
+				return "completion help\n", nil
+			},
+		},
+	}
+	app := clitest.Compile(t, definition)
+	for _, args := range [][]string{
+		{"completion"},
+		{"completion", "--help"},
+		{"completion", "-h"},
+		{"help", "completion"},
+	} {
+		page = cli.HelpPage{}
+		var output strings.Builder
+		request := cli.RunRequest{
+			Args:   args,
+			Stdout: &output,
+		}
+		if err := app.Run(t.Context(), request); err != nil {
+			t.Fatalf("Run(%v) error = %v", args, err)
+		}
+		if output.String() != "completion help\n" {
+			t.Fatalf("Run(%v) output = %q", args, output.String())
+		}
+		clitest.RequireHelpPresentation(t, page, clitest.HelpSelectedPathExactly("completion"))
+	}
+}
+
+func TestRunShellCompletionIntrinsicMissingDestinationUsesMissingValueDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	definition := cli.Definition[struct{}]{
+		Name: "tool",
+		Help: cli.HelpConfig{
+			Disabled: true,
+		},
+	}
+	app := clitest.Compile(t, definition)
+	missingRequest := cli.RunRequest{
+		Args:   []string{"completion"},
+		Stdout: io.Discard,
+	}
+	err := app.Run(t.Context(), missingRequest)
+	if err == nil {
+		t.Fatal("Run(completion) error = nil")
+	}
+	clitest.Diagnostics(err).Require(t, clitest.Diagnostic(cli.DiagnosticMissingValue).Present())
+
+	unknownRequest := cli.RunRequest{
+		Args:   []string{"completion", "--unknown"},
+		Stdout: io.Discard,
+	}
+	err = app.Run(t.Context(), unknownRequest)
+	if err == nil {
+		t.Fatal("Run(completion --unknown) error = nil")
+	}
+	clitest.Diagnostics(err).Require(t, clitest.Diagnostic(cli.DiagnosticUnknownFlag).Present())
+}
+
+func TestRunShellCompletionIntrinsicPreservesStaticExport(t *testing.T) {
+	t.Parallel()
+
+	definition := cli.Definition[struct{}]{
+		Name: "tool",
+	}
+	app := clitest.Compile(t, definition)
+	want, err := app.ShellCompletionScript(cli.Shell.Bash)
+	if err != nil {
+		t.Fatalf("ShellCompletionScript(cli.Shell.Bash) error = %v", err)
+	}
+	var output strings.Builder
+	request := cli.RunRequest{
+		Args:   []string{"completion", "bash"},
+		Stdout: &output,
+	}
+	if err := app.Run(t.Context(), request); err != nil {
+		t.Fatalf("Run(completion bash) error = %v", err)
+	}
+	if output.String() != want {
+		t.Fatal("Run(completion bash) changed generated Bash source")
+	}
+}
+
 func runOnlyInspectionCandidate(t *testing.T, inspection cli.Inspection) cli.ValueCandidateInspection {
 	t.Helper()
 	if len(inspection.ValueCandidates) != 1 {
@@ -580,18 +671,22 @@ func TestRunFrameworkDiagnosticLocalizationUsesFrameworkOwnerAndDetachedSnapshot
 	// delayed presentation of the already-returned diagnostic.
 	applicationTranslations["selected command is not runnable"] = "MUTATED APPLICATION"
 	frameworkTranslations["selected command is not runnable"] = "MUTATED FRAMEWORK"
-	rich := fmt.Sprintf("%+v", err)
-	for _, want := range []string{
-		"Diagnostic Commandment FR [not-runnable-command]",
-		"message-cadre-fr: commande sélectionnée non exécutable",
-	} {
-		if !strings.Contains(rich, want) {
-			t.Fatalf("localized delayed diagnostic missing %q:\n%s", want, rich)
+	debug := fmt.Sprintf("%+v", err)
+	for _, want := range []string{"Commandment diagnostic [not-runnable-command]", "message: commande sélectionnée non exécutable"} {
+		if !strings.Contains(debug, want) {
+			t.Fatalf("Diagnostic %%+v missing %q:\n%s", want, debug)
 		}
 	}
+	var rendered strings.Builder
+	if writeErr := cli.WriteError(&rendered, err); writeErr != nil {
+		t.Fatalf("WriteError() error = %v", writeErr)
+	}
+	if got, want := rendered.String(), "commandment: commande sélectionnée non exécutable\n"; got != want {
+		t.Fatalf("localized delayed WriteError() = %q, want %q", got, want)
+	}
 	for _, forbidden := range []string{"APPLICATION COLLISION", "MUTATED APPLICATION", "MUTATED FRAMEWORK"} {
-		if strings.Contains(rich, forbidden) {
-			t.Fatalf("localized delayed diagnostic crossed owner/snapshot boundary %q: %s", forbidden, rich)
+		if strings.Contains(rendered.String(), forbidden) {
+			t.Fatalf("localized delayed diagnostic crossed owner/snapshot boundary %q: %s", forbidden, rendered.String())
 		}
 	}
 }

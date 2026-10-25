@@ -70,7 +70,15 @@ diagnostics.Require(t,
 
 Application-owned errors remain ordinary Go, so `clitest` does not wrap `Application.Run` or `RunFromProcess`; use `errors.Is`, `errors.As`, and application-specific assertions there.
 
-Failure reports preserve Commandment sensitivity and redaction instead of printing protected values for convenience.
+Failure reports preserve Commandment sensitivity and redaction instead of printing protected values for convenience. Rejection details follow the public Diagnostic relationship directly:
+
+```go
+clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection().Code(code)
+clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection().ExpectedExactly("orbit", "land")
+clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection().SpansExactly(span)
+```
+
+For a sensitive Diagnostic with a rejection relationship, exact rejection expected fragments are deliberately not provable: redacted content is not equivalent to an empty collection, and `clitest` will not echo either caller-supplied or observed secret material in the failure report. Safe rejection code and span structure remain provable.
 
 ## Reuse one observation for several checks
 

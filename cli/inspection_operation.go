@@ -124,11 +124,12 @@ func inspectApplicationWithSignalsUnpreserved(ctx context.Context, model staticP
 	}
 
 	grammarStart := len(result.Diagnostics)
-	diagnostics := grammarDiagnostics(operation.invocation, grammar, result.Tokens)
+	diagnostics, projectionTruncated := grammarDiagnostics(operation.invocation, grammar, result.Tokens)
 	result.Diagnostics = append(result.Diagnostics, diagnostics...)
+	result.Truncated = result.Truncated || projectionTruncated
 	if len(grammar.Issues) != 0 {
 		operation.block(grammarStart, len(result.Diagnostics))
-		return operation.finish(false), grammarDiagnosticFailure(operation.invocation, grammar, result.Diagnostics, grammar.Truncated)
+		return operation.finish(false), grammarDiagnosticFailure(operation.invocation, grammar, result.Diagnostics, result.Truncated)
 	}
 	if len(grammar.IncompleteNamespaces) != 0 {
 		return operation.finish(false), nil
@@ -172,8 +173,9 @@ func inspectApplicationWithSignalsUnpreserved(ctx context.Context, model staticP
 	enforceEffectiveDomainMembership(effectiveModel, &valueAnalysis)
 	valuesComplete := projectValueAnalysis(result, effectiveModel, valueAnalysis) && !valueAnalysisIncomplete(valueAnalysis)
 	valueStart := len(result.Diagnostics)
-	valueDiagnostics := applyValueDiagnostics(result, effectiveModel, valueAnalysis)
+	valueDiagnostics, valueProjectionTruncated := applyValueDiagnostics(result, operation.invocation, effectiveModel, valueAnalysis)
 	result.Diagnostics = append(result.Diagnostics, valueDiagnostics...)
+	result.Truncated = result.Truncated || valueProjectionTruncated
 	if len(valueDiagnostics) != 0 {
 		operation.block(valueStart, len(result.Diagnostics))
 		return operation.finish(false), valueDiagnosticFailure(
@@ -181,7 +183,7 @@ func inspectApplicationWithSignalsUnpreserved(ctx context.Context, model staticP
 			effectiveModel,
 			valueAnalysis,
 			valueDiagnostics,
-			grammar.Truncated,
+			result.Truncated,
 		)
 	}
 	if !valuesComplete {

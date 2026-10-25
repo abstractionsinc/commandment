@@ -270,7 +270,7 @@ func beginInvocation(base staticProgram, callbacks declarationCallbacks, identit
 		callbacks:         callbacks,
 		input:             input,
 		signalDescription: signalDescription,
-		presentation:      prepareFrameworkPresentationState(base.Application().frameworkLocalization),
+		presentation:      prepareFrameworkPresentationState(base.Application().frameworkLocalization, base.Application().name),
 	}
 
 	return operation, nil

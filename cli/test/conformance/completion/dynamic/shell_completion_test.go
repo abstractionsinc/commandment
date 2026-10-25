@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -463,6 +464,74 @@ func TestApplicationShellCompletionScriptRejectsUnsupportedTarget(t *testing.T) 
 	}
 	if _, err := app.ShellCompletionScriptForVersion(cli.Shell.Nushell, "0.1.0"); err == nil {
 		t.Fatal("unsupported Nushell target unexpectedly succeeded")
+	}
+}
+
+func TestShellCompletionGenerationFailurePreservesDirectErrorAndClassifiesFrontendIntrinsic(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("generator exploded")
+	custom := cli.Shell.Custom("probe", func(cli.ShellCompletionGeneration) (string, error) {
+		return "", cause
+	})
+	definition := cli.Definition[struct{}]{
+		Name: "alienctl",
+		ShellCompletion: cli.ShellCompletion{
+			Shells: []cli.ShellCompletionProvider{custom},
+		},
+	}
+	app, err := cli.Compile(definition)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	_, directErr := app.ShellCompletionScript(custom)
+	if !errors.Is(directErr, cause) {
+		t.Fatalf("ShellCompletionScript() error = %v, want preserved generator cause", directErr)
+	}
+	if report := cli.Diagnostics(directErr); len(report.Diagnostics) != 0 {
+		t.Fatalf("direct generation Diagnostics = %#v, want none", report.Diagnostics)
+	}
+
+	frontendRequest := cli.RunRequest{
+		Args:   []string{"completion", "probe"},
+		Stdout: io.Discard,
+	}
+	frontendErr := app.Run(t.Context(), frontendRequest)
+	if !errors.Is(frontendErr, cause) {
+		t.Fatalf("Run(completion probe) error = %v, want preserved generator cause", frontendErr)
+	}
+	clitest.Diagnostics(frontendErr).Require(t,
+		clitest.DiagnosticsExactly(clitest.Diagnostic(cli.DiagnosticCompletionScriptGenerationFailure)),
+	)
+
+	invalidProviderRequest := cli.RunRequest{
+		Args:   []string{"completion", "missing"},
+		Stdout: io.Discard,
+	}
+	invalidProviderErr := app.Run(t.Context(), invalidProviderRequest)
+	clitest.Diagnostics(invalidProviderErr).Require(t,
+		clitest.DiagnosticsExactly(clitest.Diagnostic(cli.DiagnosticInvalidValue)),
+	)
+	if errors.Is(invalidProviderErr, cause) {
+		t.Fatal("invalid provider unexpectedly retained generator cause")
+	}
+
+	builtInDefinition := cli.Definition[struct{}]{
+		Name: "alienctl",
+	}
+	builtIn, err := cli.Compile(builtInDefinition)
+	if err != nil {
+		t.Fatalf("Compile(built-in) error = %v", err)
+	}
+	for _, target := range []string{"0.1.0", "not-a-version"} {
+		targetRequest := cli.RunRequest{
+			Args:   []string{"completion", "nushell", "--shell-version", target},
+			Stdout: io.Discard,
+		}
+		targetErr := builtIn.Run(t.Context(), targetRequest)
+		clitest.Diagnostics(targetErr).Require(t,
+			clitest.DiagnosticsExactly(clitest.Diagnostic(cli.DiagnosticInvalidValue)),
+		)
 	}
 }
 

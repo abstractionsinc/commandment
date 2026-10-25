@@ -276,27 +276,32 @@ func validInputRejectionForTokens(rejection InputRejection, tokens []string) boo
 }
 
 func collectInputRejections(err error, tokens []string) bool {
+	_, ok := inputRejectionLeaves(err, tokens)
+	return ok
+}
+
+func inputRejectionLeaves(err error, tokens []string) ([]InputRejection, bool) {
 	if err == nil {
-		return false
+		return nil, false
 	}
 	const maximumErrorGraphNodes = 4096
 	stack := []error{err}
 	visited := 0
-	leaves := 0
+	var leaves []InputRejection
 	for len(stack) != 0 {
 		current := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if current == nil {
-			return false
+			return nil, false
 		}
 		visited++
 		if visited > maximumErrorGraphNodes {
-			return false
+			return nil, false
 		}
 		if many, ok := current.(interface{ Unwrap() []error }); ok {
 			children := many.Unwrap()
 			if len(children) == 0 {
-				return false
+				return nil, false
 			}
 			for _, child := range slices.Backward(children) {
 				stack = append(stack, child)
@@ -306,25 +311,345 @@ func collectInputRejections(err error, tokens []string) bool {
 		if one, ok := current.(interface{ Unwrap() error }); ok {
 			child := one.Unwrap()
 			if child == nil {
-				return false
+				return nil, false
 			}
 			stack = append(stack, child)
 			continue
 		}
 
-		leaves++
-		switch rejection := current.(type) { //nolint:errorlint // The walker already descends wrappers; leaf classification must inspect the exact current error.
+		var rejection InputRejection
+		switch value := current.(type) { //nolint:errorlint // The walker already descends wrappers; leaf classification must inspect the exact current error.
 		case InputRejection:
-			if !validInputRejectionForTokens(rejection, tokens) {
-				return false
-			}
+			rejection = value
 		case *InputRejection:
-			if rejection == nil || !validInputRejectionForTokens(*rejection, tokens) {
-				return false
+			if value == nil {
+				return nil, false
 			}
+			rejection = *value
 		default:
-			return false
+			return nil, false
+		}
+		if !validInputRejectionForTokens(rejection, tokens) {
+			return nil, false
+		}
+		rejection.expected = slices.Clone(rejection.expected)
+		rejection.suggestions = slices.Clone(rejection.suggestions)
+		rejection.replacement = slices.Clone(rejection.replacement)
+		leaves = append(leaves, rejection)
+	}
+	return leaves, len(leaves) != 0
+}
+
+type normalizedInputRejection struct {
+	code        InputRejectionCode
+	message     string
+	hint        string
+	sensitive   bool
+	origins     []InputOriginID
+	source      InputSourceID
+	input       string
+	primarySpan semanticInputSpan
+	primarySet  bool
+	expected    []string
+	suggestions []string
+	spans       []semanticInputSpan
+	replacement []string
+	replaceSet  bool
+}
+
+type normalizedInputRejectionError struct {
+	cause      error
+	rejections []normalizedInputRejection
+}
+
+func (err *normalizedInputRejectionError) Error() string { return err.cause.Error() }
+func (err *normalizedInputRejectionError) Unwrap() error { return err.cause }
+
+func normalizedInputRejections(err error) ([]normalizedInputRejection, bool) {
+	for err != nil {
+		if normalized, ok := err.(*normalizedInputRejectionError); ok { //nolint:errorlint // Exact private phase-boundary carrier is intentional.
+			return cloneNormalizedInputRejections(normalized.rejections), len(normalized.rejections) != 0
+		}
+		one, ok := err.(interface{ Unwrap() error })
+		if !ok {
+			break
+		}
+		err = one.Unwrap()
+	}
+	return nil, false
+}
+
+func cloneNormalizedInputRejections(values []normalizedInputRejection) []normalizedInputRejection {
+	result := make([]normalizedInputRejection, len(values))
+	for index, value := range values {
+		result[index] = value
+		result[index].origins = slices.Clone(value.origins)
+		result[index].expected = slices.Clone(value.expected)
+		result[index].suggestions = slices.Clone(value.suggestions)
+		result[index].spans = slices.Clone(value.spans)
+		result[index].replacement = slices.Clone(value.replacement)
+	}
+	return result
+}
+
+func normalizeRejectedConversion(analysis *analysisState, outcome conversionOutcome, tokens []string, coordinates []conversionRangeCoordinate) conversionOutcome {
+	if outcome.Kind() != conversionOutcomeRejected {
+		return outcome
+	}
+	leaves, ok := inputRejectionLeaves(outcome.Err(), tokens)
+	if !ok {
+		return outcome
+	}
+	if len(tokens) != len(coordinates) {
+		return failedConversion(outcome.Err())
+	}
+	normalized := make([]normalizedInputRejection, len(leaves))
+	for index, rejection := range leaves {
+		value, valid := normalizeInputRejection(analysis, rejection, tokens, coordinates)
+		if !valid {
+			return failedConversion(outcome.Err())
+		}
+		normalized[index] = value
+	}
+	outcome.err = &normalizedInputRejectionError{
+		cause:      outcome.Err(),
+		rejections: normalized,
+	}
+	return outcome
+}
+
+func normalizeInputRejection(analysis *analysisState, rejection InputRejection, tokens []string, coordinates []conversionRangeCoordinate) (normalizedInputRejection, bool) {
+	result := normalizedInputRejection{
+		code:        rejection.code,
+		message:     rejection.message,
+		hint:        rejection.hint,
+		sensitive:   rejection.sensitive,
+		expected:    slices.Clone(rejection.expected),
+		suggestions: slices.Clone(rejection.suggestions),
+		replacement: slices.Clone(rejection.replacement),
+		replaceSet:  rejection.replaceSet,
+	}
+	for _, coordinate := range coordinates {
+		if coordinate.origin.present() && analysis.originSensitive(coordinate.origin) {
+			result.sensitive = true
+			break
 		}
 	}
-	return leaves > 0
+	firstToken := 0
+	lastToken := len(tokens) - 1
+	if rejection.rangePresent {
+		firstToken = rejection.rangeValue.firstToken
+		lastToken = rejection.rangeValue.lastToken
+	}
+	for tokenIndex := firstToken; tokenIndex <= lastToken; tokenIndex++ {
+		if tokenIndex < 0 || tokenIndex >= len(tokens) || tokenIndex >= len(coordinates) {
+			return normalizedInputRejection{}, false
+		}
+		coordinate := coordinates[tokenIndex]
+		if coordinate.origin.present() {
+			result.origins = appendUniqueOrigin(result.origins, coordinate.origin)
+		}
+	}
+	if result.sensitive {
+		result.message = ""
+		result.hint = ""
+		result.expected = nil
+		result.suggestions = nil
+		result.replacement = nil
+		result.replaceSet = false
+	}
+	if firstToken >= 0 && firstToken < len(tokens) && firstToken < len(coordinates) {
+		coordinate := coordinates[firstToken]
+		span, ok := normalizedInputRejectionSpan(
+			analysis,
+			tokens[firstToken],
+			coordinate,
+			0,
+			len(tokens[firstToken]),
+		)
+		if !ok {
+			return normalizedInputRejection{}, false
+		}
+		result.source = span.Source
+		result.primarySpan = span
+		result.primarySet = true
+		if !result.sensitive {
+			result.input = tokens[firstToken]
+		}
+	}
+	if !rejection.rangePresent {
+		return result, true
+	}
+
+	rangeValue := rejection.rangeValue
+	for tokenIndex := rangeValue.firstToken; tokenIndex <= rangeValue.lastToken; tokenIndex++ {
+		coordinate := coordinates[tokenIndex]
+		start, end := 0, len(tokens[tokenIndex])
+		if tokenIndex == rangeValue.firstToken {
+			start = rangeValue.firstByte
+		}
+		if tokenIndex == rangeValue.lastToken {
+			end = rangeValue.lastByte
+		}
+		if start < 0 || end < start || end > len(tokens[tokenIndex]) {
+			return normalizedInputRejection{}, false
+		}
+		span, ok := normalizedInputRejectionSpan(analysis, tokens[tokenIndex], coordinate, start, end)
+		if !ok {
+			return normalizedInputRejection{}, false
+		}
+		result.spans = append(result.spans, span)
+	}
+	return result, true
+}
+
+func normalizedInputRejectionSpan(analysis *analysisState, token string, coordinate conversionRangeCoordinate, start, end int) (semanticInputSpan, bool) {
+	origin, ok := analysis.originRecord(coordinate.origin)
+	if !ok || coordinate.start < 0 || coordinate.end < coordinate.start || coordinate.end-coordinate.start != len(token) ||
+		start < 0 || end < start || end > len(token) {
+		return semanticInputSpan{}, false
+	}
+	mappedStart := origin.span.Start + coordinate.start + start
+	mappedEnd := origin.span.Start + coordinate.start + end
+	if mappedStart < origin.span.Start || mappedEnd > origin.span.End {
+		return semanticInputSpan{}, false
+	}
+	result := semanticInputSpan{
+		Source: origin.span.Source,
+		Entry:  origin.span.Entry,
+		Start:  mappedStart,
+		End:    mappedEnd,
+	}
+	return result, true
+}
+
+func attachNormalizedInputRejectionRepair(payload *payload, diagnostic *diagnostic, rejection normalizedInputRejection) {
+	if payload == nil || diagnostic == nil || diagnostic.Sensitive || !rejection.replaceSet || len(rejection.spans) == 0 {
+		return
+	}
+	spans := make([]span, len(rejection.spans))
+	for index, input := range rejection.spans {
+		spans[index] = span{
+			Source: sourceID(input.Source.uint32()),
+			Entry:  input.Entry,
+			Start: analysisPosition{
+				Offset: input.Start,
+			},
+			End: analysisPosition{
+				Offset: input.End,
+			},
+		}
+	}
+	candidate, ok := normalizedInputRejectionRepair(*payload, spans, rejection.replacement)
+	if !ok {
+		return
+	}
+	index := len(payload.Repairs)
+	payload.Repairs = append(payload.Repairs, candidate)
+	diagnostic.RepairIndexes = append(diagnostic.RepairIndexes, index)
+}
+
+func normalizedInputRejectionRepair(payload payload, spans []span, tokens []string) (repair, bool) {
+	if len(spans) == 0 {
+		return repair{}, false
+	}
+	firstSource := spans[0].Source
+	inputSource, ok := payload.Sources[firstSource]
+	if !ok || inputSource.Revision == "" {
+		return repair{}, false
+	}
+	for _, item := range spans[1:] {
+		if item.Source != firstSource {
+			return repair{}, false
+		}
+	}
+
+	sourceRepair := repairSource{
+		Source: firstSource,
+	}
+	switch {
+	case len(spans) == 1 && inputSource.FlatText != nil:
+		if len(tokens) > 1 {
+			return repair{}, false
+		}
+		sourceRepair.TextEdits = []textEdit{{
+			Span:        spans[0],
+			Replacement: singleInputReplacement(tokens),
+		}}
+	case len(spans) == 1:
+		item := spans[0]
+		if item.Entry < 0 || item.Entry >= len(inputSource.Entries) {
+			return repair{}, false
+		}
+		switch {
+		case len(tokens) <= 1:
+			sourceRepair.TextEdits = []textEdit{{
+				Span:        item,
+				Replacement: singleInputReplacement(tokens),
+			}}
+		case item.Start.Offset == 0 && item.End.Offset == len(inputSource.Entries[item.Entry]):
+			sourceRepair.EntryEdits = []entryEdit{{
+				Start:   item.Entry,
+				End:     item.Entry + 1,
+				Entries: inputReplacementEntries(tokens),
+			}}
+		default:
+			return repair{}, false
+		}
+	default:
+		start, end, ok := contiguousInputEntries(inputSource, spans)
+		if !ok {
+			return repair{}, false
+		}
+		sourceRepair.EntryEdits = []entryEdit{{
+			Start:   start,
+			End:     end,
+			Entries: inputReplacementEntries(tokens),
+		}}
+	}
+	result := repair{
+		Title:   "replace rejected input",
+		Sources: []repairSource{sourceRepair},
+	}
+	return result, true
+}
+
+func contiguousInputEntries(inputSource source, spans []span) (int, int, bool) {
+	if inputSource.FlatText != nil || len(spans) == 0 {
+		return 0, 0, false
+	}
+	start := spans[0].Entry
+	if start < 0 {
+		return 0, 0, false
+	}
+	for index, item := range spans {
+		entry := start + index
+		if item.Entry != entry || entry >= len(inputSource.Entries) || item.Start.Offset != 0 ||
+			item.End.Offset != len(inputSource.Entries[entry]) {
+			return 0, 0, false
+		}
+	}
+	return start, start + len(spans), true
+}
+
+func singleInputReplacement(tokens []string) replacement {
+	if len(tokens) == 0 {
+		return nil
+	}
+	literal := tokens[0]
+	part := replacementPart{
+		Literal: &literal,
+	}
+	return replacement{part}
+}
+
+func inputReplacementEntries(tokens []string) []replacement {
+	result := make([]replacement, len(tokens))
+	for index, token := range tokens {
+		literal := token
+		result[index] = replacement{{
+			Literal: &literal,
+		}}
+	}
+	return result
 }

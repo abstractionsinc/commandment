@@ -620,6 +620,12 @@ func snapshotDiagnostic(value cli.Diagnostic) cli.Diagnostic {
 		item0 := snapshotRuleFailure(*value.Rule)
 		result.Rule = &item0
 	}
+	if value.Rejection != nil {
+		rejection := *value.Rejection
+		rejection.Expected = slices.Clone(value.Rejection.Expected)
+		rejection.Spans = slices.Clone(value.Rejection.Spans)
+		result.Rejection = &rejection
+	}
 	result.CommandPath = slices.Clone(value.CommandPath)
 	if value.ProviderOutput != nil {
 		result.ProviderOutput = new(*value.ProviderOutput)

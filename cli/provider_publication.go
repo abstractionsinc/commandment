@@ -670,7 +670,7 @@ func stageProviderCommandIdentity(declarations *batchDeclarations, draft *declar
 		position := state.position
 		value := declarations.commands[record.familyIndex]
 		configuration := acceptCommandConfiguration(value.makeConfig)
-		command := draft.Command(parent, position, configuration)
+		command := draft.Command(parent, position, configuration, DeclarationOriginProvider)
 		state.slots[index].command = command
 		commandPresentation := semanticPresentation(value.description, value.examples, value.hidden)
 		draft.CommandPresentation(command, commandPresentation, position)

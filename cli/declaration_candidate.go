@@ -596,17 +596,17 @@ func (draft *declarationCandidate) RootCommand(position declarationPosition, con
 	return result
 }
 
-func (draft *declarationCandidate) Command(parent acceptanceCommandRef, position declarationPosition, configuration semanticCommandConfiguration) acceptanceCommandRef {
+func (draft *declarationCandidate) Command(parent acceptanceCommandRef, position declarationPosition, configuration semanticCommandConfiguration, origin DeclarationOrigin) acceptanceCommandRef {
 	draft.mustOpen()
 	id := draft.ids.AllocateCommandID()
 	result := issueIndexedStagingRef(draft.owner, id, len(draft.input.Commands))
-	if !parent.OwnedBy(draft.owner) {
+	if !parent.OwnedBy(draft.owner) || !origin.valid() {
 		draft.reject(position)
 		return result
 	}
 	draft.input.Commands = append(
 		draft.input.Commands,
-		acceptCommandRecord(id, parent.ID(), position, configuration),
+		acceptCommandRecord(id, parent.ID(), position, configuration, origin),
 	)
 	return result
 }

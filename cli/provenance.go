@@ -1,6 +1,9 @@
 package cli
 
-import "slices"
+import (
+	"encoding/binary"
+	"slices"
+)
 
 // sourceRef is an operation-local capability reference to one accepted input source.
 type sourceRef struct {
@@ -39,7 +42,7 @@ type invocationProvenance struct {
 }
 
 func (operation *invocation) initializeInputSources() {
-	operation.analysis.provenance.argumentSource = operation.addSource(InputKindArguments, false)
+	operation.analysis.provenance.argumentSource = operation.addSource(InputKindArguments, exactInputEntriesRevision(operation.analysis.args), false)
 	operation.analysis.provenance.argumentOrigins = make([]originRef, len(operation.analysis.args))
 	for index, argument := range operation.analysis.args {
 		spanRefValue := spanRef{
@@ -51,7 +54,15 @@ func (operation *invocation) initializeInputSources() {
 		operation.analysis.provenance.argumentOrigins[index] = operation.addOrigin(spanRefValue, nil, false)
 	}
 
-	operation.analysis.provenance.environmentSource = operation.addSource(InputKindEnvironment, false)
+	environmentEntries := make([]string, len(operation.input.environment))
+	for index, entry := range operation.input.environment {
+		environmentEntries[index] = entry.Name + "=" + entry.Value
+	}
+	operation.analysis.provenance.environmentSource = operation.addSource(
+		InputKindEnvironment,
+		exactInputEntriesRevision(environmentEntries),
+		false,
+	)
 	operation.analysis.provenance.environmentOrigins = make([]originRef, len(operation.input.environment))
 	for index, entry := range operation.input.environment {
 		// The prepared Env shape has structured Name/Value fields rather than
@@ -67,12 +78,12 @@ func (operation *invocation) initializeInputSources() {
 	}
 }
 
-func (analysis *analysisState) addSource(operation *invocation, kind InputKind, sensitive bool) sourceRef {
+func (analysis *analysisState) addSource(operation *invocation, kind InputKind, revision string, sensitive bool) sourceRef {
 	if analysis == nil || operation == nil {
 		panic("invocation: invalid input source owner")
 	}
 	id := analysis.ids.AllocateInputSourceID()
-	analysis.provenance.sources = append(analysis.provenance.sources, acceptInputSourceRecord(id, kind, sensitive))
+	analysis.provenance.sources = append(analysis.provenance.sources, acceptInputSourceRecord(id, kind, revision, sensitive))
 	ref := sourceRef{
 		operation: operation,
 		id:        id,
@@ -80,11 +91,11 @@ func (analysis *analysisState) addSource(operation *invocation, kind InputKind, 
 	return ref
 }
 
-func (operation *invocation) addSource(kind InputKind, sensitive bool) sourceRef {
+func (operation *invocation) addSource(kind InputKind, revision string, sensitive bool) sourceRef {
 	if operation == nil {
 		panic("invocation: nil operation")
 	}
-	return operation.analysis.addSource(operation, kind, sensitive)
+	return operation.analysis.addSource(operation, kind, revision, sensitive)
 }
 
 func (analysis *analysisState) addShortcutSource(operation *invocation, entry CommandEntryID, tokens []string, sensitive bool) sourceRef {
@@ -111,7 +122,7 @@ func (operation *invocation) addShortcutSource(entry CommandEntryID, tokens []st
 	return operation.analysis.addShortcutSource(operation, entry, tokens, sensitive)
 }
 
-func (analysis *analysisState) addResponseSource(operation *invocation, key, revision, location, includeBase string, sensitive bool) sourceRef {
+func (analysis *analysisState) addResponseSource(operation *invocation, key, revision, location, includeBase string, content []byte, sensitive bool) sourceRef {
 	if analysis == nil || operation == nil {
 		panic("invocation: invalid response source owner")
 	}
@@ -122,6 +133,7 @@ func (analysis *analysisState) addResponseSource(operation *invocation, key, rev
 		Revision:    revision,
 		Location:    location,
 		IncludeBase: includeBase,
+		Content:     append([]byte(nil), content...),
 		Sensitive:   sensitive,
 	}
 	analysis.provenance.sources = append(analysis.provenance.sources, acceptResponseInputSourceRecord(input))
@@ -323,17 +335,19 @@ type inputSourceRecord struct {
 	key             string
 	location        string
 	includeBase     string
+	flatText        *string
 	commandShortcut CommandEntryID
 	sensitive       bool
 }
 
-func acceptInputSourceRecord(id InputSourceID, kind InputKind, sensitive bool) inputSourceRecord {
+func acceptInputSourceRecord(id InputSourceID, kind InputKind, revision string, sensitive bool) inputSourceRecord {
 	if !id.present() || kind == InputKindUnknown || kind == InputKindShortcut || kind == InputKindResponseFile {
 		panic("semantic: invalid input source record")
 	}
 	record := inputSourceRecord{
 		id:        id,
 		kind:      kind,
+		revision:  revision,
 		sensitive: sensitive,
 	}
 
@@ -361,6 +375,7 @@ type responseInputSourceInput struct {
 	Revision    string
 	Location    string
 	IncludeBase string
+	Content     []byte
 	Sensitive   bool
 }
 
@@ -375,10 +390,22 @@ func acceptResponseInputSourceRecord(input responseInputSourceInput) inputSource
 		key:         input.Key,
 		location:    input.Location,
 		includeBase: input.IncludeBase,
+		flatText:    new(string(input.Content)),
 		sensitive:   input.Sensitive,
 	}
 
 	return record
+}
+
+func exactInputEntriesRevision(entries []string) string {
+	encoded := make([]byte, 0)
+	var size [8]byte
+	for _, entry := range entries {
+		binary.BigEndian.PutUint64(size[:], uint64(len(entry)))
+		encoded = append(encoded, size[:]...)
+		encoded = append(encoded, entry...)
+	}
+	return exactContentRevision(encoded)
 }
 
 // semanticInputSpan identifies one half-open byte range in one operation-local input

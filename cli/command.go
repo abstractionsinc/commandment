@@ -419,7 +419,11 @@ func stageStaticCommandIdentity(input declarationPlan, source *declarationDraft,
 		if value.makeConfig != nil {
 			configuration = acceptCommandConfiguration(value.makeConfig)
 		}
-		command := draft.Command(parent, position, configuration)
+		origin := DeclarationOriginApplication
+		if value.intrinsic {
+			origin = DeclarationOriginFrontend
+		}
+		command := draft.Command(parent, position, configuration, origin)
 		state.slots[index].command = command
 		commandPresentation := semanticPresentation(
 			value.description,
@@ -520,6 +524,7 @@ type staticCommandParent struct {
 type commandRecord struct {
 	meta          recordMeta[CommandID]
 	parent        staticCommandParent
+	origin        DeclarationOrigin
 	configuration semanticCommandConfiguration
 	presentation  presentation
 	execution     commandExecution
@@ -532,13 +537,14 @@ func acceptRootCommandRecord(id CommandID, position declarationPosition, configu
 	}
 	record := commandRecord{
 		meta:          acceptRecordMeta(id, position),
+		origin:        DeclarationOriginApplication,
 		configuration: configuration,
 	}
 	return record
 }
 
-func acceptCommandRecord(id, parent CommandID, position declarationPosition, configuration semanticCommandConfiguration) commandRecord {
-	if !parent.present() {
+func acceptCommandRecord(id, parent CommandID, position declarationPosition, configuration semanticCommandConfiguration, origin DeclarationOrigin) commandRecord {
+	if !parent.present() || !origin.valid() {
 		panic("semantic: invalid parent command identity")
 	}
 	commandParent := staticCommandParent{
@@ -548,6 +554,7 @@ func acceptCommandRecord(id, parent CommandID, position declarationPosition, con
 	record := commandRecord{
 		meta:          acceptRecordMeta(id, position),
 		parent:        commandParent,
+		origin:        origin,
 		configuration: configuration,
 	}
 	return record

@@ -13,16 +13,18 @@ var errInvalidShellCompletion = errors.New("application: invalid shell completio
 type shellCompletionProvider struct {
 	name      string
 	generator ShellCompletionGenerator
+	family    ShellFamily
 }
 
 // acceptShellCompletionProvider validates and freezes one compiled provider.
-func acceptShellCompletionProvider(name string, generator ShellCompletionGenerator) shellCompletionProvider {
-	if name == "" || generator == nil {
+func acceptShellCompletionProvider(descriptor shellCompletionDescriptor) shellCompletionProvider {
+	if !descriptor.valid() {
 		panic("application: invalid shell completion provider")
 	}
 	provider := shellCompletionProvider{
-		name:      name,
-		generator: generator,
+		name:      descriptor.name,
+		generator: descriptor.generator,
+		family:    descriptor.family,
 	}
 	return provider
 }
@@ -499,7 +501,7 @@ func snapshotShellCompletion(config ShellCompletion) (shellCompletionCatalog, er
 			return shellCompletionCatalog{}, errInvalidShellCompletionProvider
 		}
 		seen[descriptor.name] = struct{}{}
-		compiled = append(compiled, acceptShellCompletionProvider(descriptor.name, descriptor.generator))
+		compiled = append(compiled, acceptShellCompletionProvider(descriptor))
 	}
 	return freezeShellCompletionCatalog(compiled), nil
 }

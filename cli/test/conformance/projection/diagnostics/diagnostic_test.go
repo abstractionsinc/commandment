@@ -3,10 +3,6 @@ package conformance
 import (
 	"context"
 	"errors"
-	"fmt"
-	"slices"
-	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,80 +11,6 @@ import (
 )
 
 var _ = errors.Is
-
-type diagnosticPresentationModeConfig struct{ Mode string }
-
-func TestRunDiagnosticFailureProvidesCanonicalHumanFormattingWithoutTakingApplicationOwnership(t *testing.T) {
-	t.Parallel()
-	diagnosticApp := clitest.Compile(t, cli.Definition[struct{}]{
-		Name: "alienctl",
-		Run:  func(context.Context, *struct{}) error { return nil },
-	})
-	diagnosticErr := diagnosticApp.Run(t.Context(), cli.RunRequest{
-		Args: []string{"--definitely-unknown"},
-	})
-	if diagnosticErr == nil {
-		t.Fatal("Run() error = nil, want Commandment Diagnostic")
-	}
-	if got := fmt.Sprintf("%v", diagnosticErr); got != "commandment: unknown-flag" {
-		t.Fatalf("ordinary Diagnostic string = %q", got)
-	}
-	rich := fmt.Sprintf("%+v", diagnosticErr)
-	for _, want := range []string{"Commandment diagnostic [unknown-flag]", "input: --definitely-unknown", "command id:"} {
-		if !strings.Contains(rich, want) {
-			t.Fatalf("canonical Diagnostic presentation missing %q:\n%s", want, rich)
-		}
-	}
-
-	applicationCause := errors.New("opaque application failure\x1b[31m")
-	applicationApp := clitest.Compile(t, cli.Definition[struct{}]{
-		Name: "alienctl",
-		Run:  func(context.Context, *struct{}) error { return applicationCause },
-	})
-	applicationErr := applicationApp.Run(t.Context(), cli.RunRequest{})
-	if applicationErr != applicationCause { //nolint:errorlint // Run must preserve an ordinary application error as the original object.
-		t.Fatalf("Run() ordinary error = %T %v, want original application error", applicationErr, applicationErr)
-	}
-	if got := fmt.Sprintf("%+v", applicationErr); got != applicationCause.Error() {
-		t.Fatalf("Commandment reformatted application-owned error: %q", got)
-	}
-}
-
-func TestRunDynamicDomainDiagnosticPresentationIncludesOwningCommandWithoutRenderingCauseText(t *testing.T) {
-	t.Parallel()
-	type config = diagnosticPresentationModeConfig
-	cause := errors.New("application-owned domain cause")
-	definition := cli.Definition[config]{
-		Name: "alienctl",
-		Declare: func(root *cli.CommandBuilder[config]) {
-			domain := root.Values.Domain(
-				func(context.Context, *config, cli.Dependencies, *cli.ValueDomainBuilder[string]) error {
-					return cause
-				},
-			)
-			mode := root.Values.Value(&root.Config.Mode, domain)
-			root.Flags.ValueFor(mode).Long("mode")
-		},
-		Run: func(context.Context, *config) error { return nil },
-	}
-	app := clitest.Compile(t, definition)
-
-	err := app.Run(t.Context(), cli.RunRequest{
-		Args: []string{"--mode", "missing"},
-	})
-	if err == nil || !errors.Is(err, cause) {
-		t.Fatalf("Run() error = %v, want preserved dynamic-domain cause", err)
-	}
-	rich := fmt.Sprintf("%+v", err)
-	for _, want := range []string{"Commandment diagnostic [value-domain-provision-failure]", "command id:"} {
-		if !strings.Contains(rich, want) {
-			t.Fatalf("dynamic-domain presentation missing %q:\n%s", want, rich)
-		}
-	}
-	if strings.Contains(rich, cause.Error()) {
-		t.Fatalf("Commandment rendered application-owned domain cause text: %q", rich)
-	}
-}
 
 type diagnosticsSecretConfig struct{ Secret int }
 
@@ -108,11 +30,6 @@ type diagnosticsSwitchModeConfig struct {
 }
 
 type diagnosticsConfig struct{}
-
-type diagnosticsHeadTailConfig struct {
-	Head string
-	Tail []string
-}
 
 type diagnosticsABSSeqASeqBMapAMapBConfig struct {
 	A, B       int
@@ -135,8 +52,6 @@ type diagnosticsLeftRightConfig struct {
 type diagnosticsDerivedConfig struct{ Derived string }
 
 type diagnosticsFactConfig struct{ Fact string }
-
-type diagnosticsValueConfig struct{ Value string }
 
 type diagnosticsNumberConfig struct{ Number int }
 
@@ -461,159 +376,6 @@ func TestRemovedFlagSpellingReplacementOmitsUnprovenMachineRepair(t *testing.T) 
 	)
 }
 
-func TestSensitiveInputRejectionErrorDoesNotExposeMessage(t *testing.T) {
-	t.Parallel()
-	rejection := cli.Rejection.Message("bad-value", "secret input detail", cli.Rejection.Sensitive())
-	if got := rejection.Error(); got != "cli: input rejected" {
-		t.Fatalf("Error() = %q, want redacted stable text", got)
-	}
-	if errors.Is(rejection, errors.New("secret input detail")) {
-		t.Fatal("sensitive rejection unexpectedly exposes an ordinary wrapped secret error")
-	}
-	_, err := diagnosticTokenLanguageInspection(
-		t.Context(),
-		t,
-		func(context.Context, []string) (string, error) { return "", rejection },
-		"secret",
-	)
-	diagnosticProof := clitest.Diagnostics(err)
-	diagnosticProof.Require(t, clitest.Diagnostic(cli.DiagnosticInvalidValue).Present())
-}
-
-func TestInputRejectionRejectsMalformedConstruction(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name string
-		got  cli.InputRejection
-	}{
-		{
-			name: "empty code",
-			got:  cli.Rejection.Message("", "message"),
-		},
-		{
-			name: "uppercase code",
-			got:  cli.Rejection.Message("Bad", "message"),
-		},
-		{
-			name: "leading code hyphen",
-			got:  cli.Rejection.Message("-bad", "message"),
-		},
-		{
-			name: "trailing code hyphen",
-			got:  cli.Rejection.Message("bad-", "message"),
-		},
-		{
-			name: "double code hyphen",
-			got:  cli.Rejection.Message("bad--value", "message"),
-		},
-		{
-			name: "invalid code byte",
-			got:  cli.Rejection.Message("bad_value", "message"),
-		},
-		{
-			name: "empty nonsensitive message",
-			got:  cli.Rejection.Message("code", ""),
-		},
-		{
-			name: "repeated range",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.At(0, 0, 0), cli.Rejection.At(0, 0, 0)),
-		},
-		{
-			name: "reversed range",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.Across(1, 0, 0, 0)),
-		},
-		{
-			name: "replacement without range",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.ReplaceWith("x")),
-		},
-		{
-			name: "repeated replacement",
-			got: cli.Rejection.Message(
-				"code",
-				"message",
-				cli.Rejection.At(0, 0, 0),
-				cli.Rejection.ReplaceWith("x"),
-				cli.Rejection.ReplaceWith("y"),
-			),
-		},
-		{
-			name: "empty hint",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.Hint("")),
-		},
-		{
-			name: "repeated hint",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.Hint("x"), cli.Rejection.Hint("y")),
-		},
-		{
-			name: "duplicate expected",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.Expected("x", "x")),
-		},
-		{
-			name: "duplicate suggested across options",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.Suggest("x"), cli.Rejection.Suggest("x")),
-		},
-		{
-			name: "repeated sensitive",
-			got:  cli.Rejection.Message("code", "message", cli.Rejection.Sensitive(), cli.Rejection.Sensitive()),
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			inspection, err := diagnosticTokenLanguageInspection(
-				t.Context(),
-				t,
-				func(context.Context, []string) (string, error) { return "", test.got },
-				"x",
-			)
-			if err == nil || !diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInputParserFailure) {
-				t.Fatalf(
-					"malformed rejection was accepted as structured rejection: err %v diagnostics %#v",
-					err,
-					inspection.Diagnostics,
-				)
-			}
-			diagnosticProof := clitest.Diagnostics(err)
-			diagnosticProof.Require(t, clitest.Diagnostic(cli.DiagnosticInputParserFailure).Present())
-		})
-	}
-}
-
-func TestNormalizeInputRejectionValidatesParserLocalByteRange(t *testing.T) {
-	t.Parallel()
-	valid := cli.Rejection.Message("bad", "bad input", cli.Rejection.Across(0, 1, 1, 2), cli.Rejection.ReplaceWith())
-	inspection, err := diagnosticTokenLanguageInspection(
-		t.Context(),
-		t,
-		func(context.Context, []string) (string, error) { return "", valid },
-		"abc",
-		"xy",
-	)
-	if err == nil || !diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInvalidValue) {
-		t.Fatalf("valid parser-local range = err %v diagnostics %#v", err, inspection.Diagnostics)
-	}
-	validProof := clitest.Diagnostics(err)
-	validProof.Require(t, clitest.Diagnostic(cli.DiagnosticInvalidValue).Present())
-	for _, args := range [][]string{{"a", "x"}, {"abc"}} {
-		inspection, err = diagnosticTokenLanguageInspection(
-			t.Context(),
-			t,
-			func(context.Context, []string) (string, error) { return "", valid },
-			args...,
-		)
-		if err == nil || !diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInputParserFailure) {
-			t.Fatalf(
-				"out-of-range parser-local rejection %#v = err %v diagnostics %#v",
-				args,
-				err,
-				inspection.Diagnostics,
-			)
-		}
-		outOfRangeProof := clitest.Diagnostics(err)
-		outOfRangeProof.Require(t, clitest.Diagnostic(cli.DiagnosticInputParserFailure).Present())
-	}
-}
-
 func TestLocaleSelectorInvalidStaticDeclarationsUseInvalidDeclarationDiagnostic(t *testing.T) {
 	t.Parallel()
 	type config = diagnosticsLocaleOtherGateConfig
@@ -814,252 +576,6 @@ func TestRunPreservesApplicationHandlerErrorWithoutSyntheticDiagnostic(t *testin
 	}
 	if report := cli.Diagnostics(got); len(report.Diagnostics) != 0 {
 		t.Fatalf("application error synthesized Diagnostics = %#v", report)
-	}
-}
-
-func TestEvaluateTokenLanguageClassifiesAcceptedAndStructuredRejectedOutcomes(t *testing.T) {
-	t.Parallel()
-	var parserSaw []string
-	inspection, err := diagnosticTokenLanguageInspection(
-		t.Context(),
-		t,
-		func(_ context.Context, tokens []string) (string, error) {
-			parserSaw = append([]string(nil), tokens...)
-			tokens[0] = "mutated by parser"
-			return "accepted", nil
-		},
-		"original",
-	)
-	if err != nil || inspection.Status != cli.InspectionStatusReady {
-		t.Fatalf(
-			"accepted Inspect = status %v, err %v, diagnostics %#v",
-			inspection.Status,
-			err,
-			inspection.Diagnostics,
-		)
-	}
-	acceptedProof := clitest.Diagnostics(err)
-	acceptedProof.Require(t, clitest.DiagnosticsExactly())
-	if len(parserSaw) != 1 || parserSaw[0] != "original" || len(inspection.Tokens) != 1 ||
-		inspection.Tokens[0].Text != "original" {
-		t.Fatalf("parser snapshot/input projection = saw %#v, tokens %#v", parserSaw, inspection.Tokens)
-	}
-
-	first := cli.Rejection.Message("first", "first", cli.Rejection.At(0, 0, 1))
-	second := cli.Rejection.Message("second", "second", cli.Rejection.At(1, 0, 1))
-	inspection, err = diagnosticTokenLanguageInspection(t.Context(), t, func(context.Context, []string) (string, error) {
-		return "ignored", fmt.Errorf("outer: %w", errors.Join(first, fmt.Errorf("inner: %w", second)))
-	}, "a", "b")
-	if err == nil || !diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInvalidValue) {
-		t.Fatalf("structured rejection = err %v, diagnostics %#v", err, inspection.Diagnostics)
-	}
-	structuredProof := clitest.Diagnostics(err)
-	structuredProof.Require(t, clitest.Diagnostic(cli.DiagnosticInvalidValue).Present())
-
-	canceledCtx, cancel := context.WithCancel(t.Context())
-	inspection, err = diagnosticTokenLanguageInspection(canceledCtx, t, func(ctx context.Context, _ []string) (string, error) {
-		cancel()
-		<-ctx.Done()
-		return "", ctx.Err()
-	}, "x")
-	if err == nil || !errors.Is(err, context.Canceled) ||
-		!diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInputParserFailure) {
-		t.Fatalf("canceled = err %v, diagnostics %#v", err, inspection.Diagnostics)
-	}
-	canceledProof := clitest.Diagnostics(err)
-	canceledProof.Require(t, clitest.Diagnostic(cli.DiagnosticInputParserFailure).Present())
-}
-
-func TestEvaluateTokenLanguageTreatsMixedMalformedAndOperationalErrorTreesAsFailure(t *testing.T) {
-	t.Parallel()
-	rejection := cli.Rejection.Message("bad", "bad", cli.Rejection.At(0, 0, 1))
-	operational := errors.New("backend failed")
-	inspection, err := diagnosticTokenLanguageInspection(
-		t.Context(),
-		t,
-		func(context.Context, []string) (string, error) {
-			return "", errors.Join(rejection, operational)
-		},
-		"x",
-	)
-	if err == nil || !errors.Is(err, operational) ||
-		!diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInputParserFailure) {
-		t.Fatalf("mixed error = err %v, diagnostics %#v", err, inspection.Diagnostics)
-	}
-	mixedProof := clitest.Diagnostics(err)
-	mixedProof.Require(t, clitest.Diagnostic(cli.DiagnosticInputParserFailure).Present())
-
-	malformed := cli.Rejection.Message("bad", "bad", cli.Rejection.At(1, 0, 1))
-	inspection, err = diagnosticTokenLanguageInspection(
-		t.Context(),
-		t,
-		func(context.Context, []string) (string, error) { return "", malformed },
-		"x",
-	)
-	if err == nil || !diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInputParserFailure) {
-		t.Fatalf("malformed rejection = err %v, diagnostics %#v", err, inspection.Diagnostics)
-	}
-	malformedProof := clitest.Diagnostics(err)
-	malformedProof.Require(t, clitest.Diagnostic(cli.DiagnosticInputParserFailure).Present())
-
-	var typedNil *cli.InputRejection
-	inspection, err = diagnosticTokenLanguageInspection(
-		t.Context(),
-		t,
-		func(context.Context, []string) (string, error) { return "", typedNil },
-		"x",
-	)
-	if err == nil || !diagnosticInspectionHasDiagnosticCode(inspection, cli.DiagnosticInputParserFailure) {
-		t.Fatalf("typed-nil rejection = err %v, diagnostics %#v", err, inspection.Diagnostics)
-	}
-	typedNilProof := clitest.Diagnostics(err)
-	typedNilProof.Require(t, clitest.Diagnostic(cli.DiagnosticInputParserFailure).Present())
-}
-
-func TestEvaluateTokenLanguageRejectsNilParser(t *testing.T) {
-	t.Parallel()
-	type config = diagnosticsValueConfig
-	_, err := cli.Compile(cli.Definition[config]{
-		Name: "nil-parser",
-		Declare: func(root *cli.CommandBuilder[config]) {
-			value := root.Values.String(&root.Config.Value)
-			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
-				form.Tokens(value, "value", cli.TokenLanguage[string]{
-					Name:   "nil-parser",
-					Count:  cli.Count.Exactly(1),
-					Format: func(value string) []string { return []string{value} },
-				})
-			})
-		},
-	})
-	if err == nil {
-		t.Fatal("token language with nil parser compiled")
-	}
-	diagnosticProof := clitest.Diagnostics(err)
-	diagnosticProof.Require(t, clitest.Diagnostic(cli.DiagnosticInvalidDeclaration).Present())
-}
-
-func TestTokenLanguageRuntimePreservesRejectionFailureAndCancellation(t *testing.T) {
-	t.Parallel()
-	type config = diagnosticsValueConfig
-	sentinel := errors.New("parser exploded")
-	cases := []struct {
-		name     string
-		parse    func(context.Context, []string) (string, error)
-		ctx      func() context.Context
-		wantCode cli.DiagnosticCode
-		wantErr  error
-	}{
-		{
-			name: "structured rejection",
-			parse: func(context.Context, []string) (string, error) {
-				return "", cli.Rejection.Message("token-value", "invalid token value", cli.Rejection.At(0, 0, 1))
-			},
-			ctx:      context.Background,
-			wantCode: cli.DiagnosticInvalidValue,
-		},
-		{
-			name: "operational failure",
-			parse: func(context.Context, []string) (string, error) {
-				return "", sentinel
-			},
-			ctx:      context.Background,
-			wantCode: cli.DiagnosticInputParserFailure,
-			wantErr:  sentinel,
-		},
-		{
-			name: "cancellation",
-			parse: func(ctx context.Context, _ []string) (string, error) {
-				return "", ctx.Err()
-			},
-			ctx: func() context.Context {
-				ctx, cancel := context.WithCancel(t.Context())
-				cancel()
-				return ctx
-			},
-			wantCode: cli.DiagnosticInputParserFailure,
-			wantErr:  context.Canceled,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			var calls atomic.Int32
-			app := clitest.Compile(t, cli.Definition[config]{
-				Name: "tool",
-				Declare: func(root *cli.CommandBuilder[config]) {
-					value := root.Values.String(&root.Config.Value)
-					root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
-						form.Tokens(value, "value", cli.TokenLanguage[string]{
-							Name:  "runtime-value",
-							Count: cli.Count.Exactly(1),
-							Parse: func(ctx context.Context, tokens []string) (string, error) {
-								calls.Add(1)
-								return tc.parse(ctx, tokens)
-							},
-							Format: func(value string) []string { return []string{value} },
-						})
-					})
-				},
-			})
-			proof := clitest.Inspect(tc.ctx(), app, cli.InspectionRequest{
-				Args: []string{"bad"},
-			})
-			proof.Require(t, clitest.FailsWith(clitest.Diagnostic(tc.wantCode).Present()))
-			if got := calls.Load(); got != 1 {
-				t.Fatalf("Parse calls = %d, want 1", got)
-			}
-			if tc.wantErr != nil {
-				_, inspectErr := proof.Inspection()
-				if !errors.Is(inspectErr, tc.wantErr) {
-					t.Fatalf("Inspect() error = %v, want errors.Is(..., %v)", inspectErr, tc.wantErr)
-				}
-			}
-		})
-	}
-}
-
-func TestTokenLanguageRejectionDoesNotRetryAlternateStructuralAllocation(t *testing.T) {
-	t.Parallel()
-	type config = diagnosticsHeadTailConfig
-	var calls atomic.Int32
-	var received [][]string
-	app := clitest.Compile(t, cli.Definition[config]{
-		Name: "tool",
-		Declare: func(root *cli.CommandBuilder[config]) {
-			head := root.Values.String(&root.Config.Head)
-			tail := root.Values.Sequence(&root.Config.Tail, cli.Value.String())
-			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
-				form.Tokens(head, "head", cli.TokenLanguage[string]{
-					Name:  "head",
-					Count: cli.Count.Between(1, 2),
-					Parse: func(_ context.Context, tokens []string) (string, error) {
-						calls.Add(1)
-						received = append(received, append([]string(nil), tokens...))
-						if len(tokens) == 2 {
-							return "", cli.Rejection.Message(
-								"fixed-allocation-reject",
-								"greedy allocation rejected",
-								cli.Rejection.At(0, 0, len(tokens[0])),
-							)
-						}
-						return tokens[0], nil
-					},
-					Format: func(value string) []string { return []string{value} },
-				}).Greedy()
-				form.Sequence(tail, "tail", cli.Count.Between(1, 2))
-			})
-		},
-	})
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
-		Args: []string{"one", "two", "three"},
-	})
-	proof.Require(t, clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticInvalidValue).Present()))
-	if got := calls.Load(); got != 1 {
-		t.Fatalf("Parse calls = %d, want no retry", got)
-	}
-	if !slices.EqualFunc(received, [][]string{{"one", "two"}}, slices.Equal) {
-		t.Fatalf("Parse allocations = %#v, want only the greedy frozen allocation", received)
 	}
 }
 
@@ -1598,21 +1114,21 @@ func TestDiagnosticViolationKindsPreservePublic(t *testing.T) {
 					return nil, errors.New("input origins unavailable")
 				}
 				duplicateOrigins = []cli.InputOriginID{leftOrigins[0], rightOrigins[0]}
-				return []cli.Violation{
-					{
-						Kind:    cli.ViolationDuplicate,
-						Origins: append([]cli.InputOriginID(nil), duplicateOrigins...),
-					},
-				}, nil
+				violation := cli.Violation{
+					Kind:    cli.ViolationDuplicate,
+					Origins: append([]cli.InputOriginID(nil), duplicateOrigins...),
+				}
+				return []cli.Violation{violation}, nil
 			}).
 				Subject(left).
 				Subject(right).
 				DependsOn(left).
 				DependsOn(right)
 			root.Rule.Validate("conflict", func(context.Context, *config, cli.Dependencies) ([]cli.Violation, error) {
-				return []cli.Violation{{
+				violation := cli.Violation{
 					Kind: cli.ViolationConflict,
-				}}, nil
+				}
+				return []cli.Violation{violation}, nil
 			})
 		},
 	}
@@ -1863,113 +1379,4 @@ func diagnosticNoticeDeliveryApp(t testing.TB, run func(), codes ...cli.Advisory
 		},
 	}
 	return clitest.Compile(t, definition)
-}
-
-type diagnosticTokenLanguageRejectionValueConfig struct{ Value string }
-
-func diagnosticTokenLanguageInspection(ctx context.Context, t *testing.T, parse func(context.Context, []string) (string, error), args ...string) (cli.Inspection, error) {
-	t.Helper()
-	type config = diagnosticTokenLanguageRejectionValueConfig
-	definition := cli.Definition[config]{
-		Name: "rejection",
-		Help: cli.HelpConfig{
-			Disabled: true,
-		},
-		Declare: func(root *cli.CommandBuilder[config]) {
-			value := root.Values.String(&root.Config.Value)
-			root.Arguments.Form(func(form *cli.ArgumentFormBuilder[config]) {
-				form.Tokens(value, "value", cli.TokenLanguage[string]{
-					Name:   "external-rejection",
-					Count:  cli.Count.Exactly(len(args)),
-					Parse:  parse,
-					Format: func(value string) []string { return []string{value} },
-				})
-			})
-		},
-	}
-	app, err := cli.Compile(definition)
-	if err != nil {
-		t.Fatalf("Compile: %v", err)
-	}
-	request := cli.InspectionRequest{
-		Args: append([]string(nil), args...),
-	}
-	return app.Inspect(ctx, request)
-}
-
-func diagnosticInspectionHasDiagnosticCode(inspection cli.Inspection, code cli.DiagnosticCode) bool {
-	for _, diagnostic := range inspection.Diagnostics {
-		if diagnostic.Code == code {
-			return true
-		}
-	}
-	return false
-}
-
-func TestAnalyzeGrammarMissingMinimumOccurrencesHonorDiagnosticLimit(t *testing.T) {
-	t.Parallel()
-	type config struct{ A, B bool }
-	definition := cli.Definition[config]{
-		Name: "tool",
-		Help: cli.HelpConfig{
-			Disabled: true,
-		},
-		Declare: func(root *cli.CommandBuilder[config]) {
-			root.Flags.Bool(&root.Config.A).Occurrences(cli.Count.OneOrMore()).Long("a")
-			root.Flags.Bool(&root.Config.B).Occurrences(cli.Count.OneOrMore()).Long("b")
-		},
-	}
-	app := clitest.Compile(t, definition)
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
-		Limits: cli.AnalysisLimits{
-			Diagnostics: 1,
-		},
-	})
-	proof.Require(t, clitest.FailsWith(
-		clitest.DiagnosticAt(0).Code(cli.DiagnosticRepeatedFlag),
-		clitest.DiagnosticsTruncated(),
-	))
-	inspection, err := proof.Inspection()
-	if err == nil {
-		t.Fatal("expected rejected inspection")
-	}
-	if inspection.Status != cli.InspectionStatusRejected || len(inspection.Diagnostics) != 1 || !inspection.Truncated {
-		t.Fatalf("inspection = %#v", inspection)
-	}
-}
-
-func TestAnalyzeGrammarStopsRecoveryAndMarksTruncatedWhenDiagnosticLimitExhausts(t *testing.T) {
-	t.Parallel()
-	type config struct {
-		Output  string
-		Verbose bool
-	}
-	definition := cli.Definition[config]{
-		Name: "tool",
-		Help: cli.HelpConfig{
-			Disabled: true,
-		},
-		Declare: func(root *cli.CommandBuilder[config]) {
-			root.Flags.String(&root.Config.Output).Long("output").ValueForms(cli.FlagValueFormSeparate)
-			root.Flags.Bool(&root.Config.Verbose).Long("verbose")
-		},
-	}
-	app := clitest.Compile(t, definition)
-	proof := clitest.Inspect(t.Context(), app, cli.InspectionRequest{
-		Args: []string{"--output", "--verbose"},
-		Limits: cli.AnalysisLimits{
-			Diagnostics: 1,
-		},
-	})
-	proof.Require(t, clitest.FailsWith(
-		clitest.DiagnosticAt(0).Code(cli.DiagnosticMissingValue),
-		clitest.DiagnosticsTruncated(),
-	))
-	inspection, err := proof.Inspection()
-	if err == nil {
-		t.Fatal("expected rejected inspection")
-	}
-	if len(inspection.Tokens) != 2 || inspection.Tokens[0].Role != cli.TokenRoleFlag || inspection.Tokens[1].Role != cli.TokenRoleUnknown {
-		t.Fatalf("tokens = %#v", inspection.Tokens)
-	}
 }

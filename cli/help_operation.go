@@ -356,7 +356,7 @@ func helpSemanticRequirements(model *effectiveModel, facts helpRelevantFacts, gr
 			!structuralProfileActive(grammar.SelectedProfiles, flag.command, flag.meta.profile) {
 			continue
 		}
-		requirements.add(acceptDependencyRequirement(flag.destination, false))
+		requirements.add(acceptDependencyRequirement(flag.destination, true))
 	}
 	return requirements.items
 }

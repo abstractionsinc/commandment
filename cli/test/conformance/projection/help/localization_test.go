@@ -3,6 +3,7 @@ package conformance
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/abstractionsinc/commandment/cli"
@@ -335,4 +336,94 @@ func TestInspectionHonorsApplicationLocaleSelectorPrecedence(t *testing.T) {
 		clitest.InspectionReady(),
 		clitest.EffectiveLocale("en"),
 	)
+}
+
+func TestHelpHonorsApplicationLocaleSelectorPrecedence(t *testing.T) {
+	t.Parallel()
+
+	type config = localizationSelectorConfig
+	var page cli.HelpPage
+	definition := cli.Definition[config]{
+		Name: "alienctl",
+		Description: cli.Description{
+			Short: "short",
+		},
+		Help: cli.HelpConfig{
+			Renderer: func(_ context.Context, observed cli.HelpPage) (string, error) {
+				page = observed
+				return "help\n", nil
+			},
+		},
+		Localization: cli.Localization{
+			DefaultLocale: "en",
+			Bundles: []cli.TranslationBundle{{
+				Locale: "fr",
+				Translations: cli.Translations{
+					"short": "court",
+				},
+			}},
+		},
+		Declare: func(root *cli.CommandBuilder[config]) {
+			locale := root.Values.String(&root.Config.Locale)
+			root.Flags.ValueFor(locale).
+				LocaleSelector().
+				Occurrences(cli.Count.Optional()).
+				Long("locale")
+		},
+	}
+	app := clitest.Compile(t, definition)
+	tests := []struct {
+		name        string
+		request     cli.RunRequest
+		wantLocale  cli.Locale
+		wantSummary string
+	}{
+		{
+			name:        "empty invocation uses application default",
+			request:     cli.RunRequest{},
+			wantLocale:  "en",
+			wantSummary: "short",
+		},
+		{
+			name: "help flag uses application default",
+			request: cli.RunRequest{
+				Args: []string{"--help"},
+			},
+			wantLocale:  "en",
+			wantSummary: "short",
+		},
+		{
+			name: "selector overrides application default",
+			request: cli.RunRequest{
+				Args: []string{"--locale", "fr", "--help"},
+			},
+			wantLocale:  "fr",
+			wantSummary: "court",
+		},
+		{
+			name: "host locale overrides selector",
+			request: cli.RunRequest{
+				Args:   []string{"--locale", "fr", "--help"},
+				Locale: "en",
+			},
+			wantLocale:  "en",
+			wantSummary: "short",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			page = cli.HelpPage{}
+			var output strings.Builder
+			test.request.Stdout = &output
+			if err := app.Run(t.Context(), test.request); err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+			if output.String() != "help\n" {
+				t.Fatalf("Help output = %q", output.String())
+			}
+			if page.Locale != test.wantLocale || page.Description.Short != test.wantSummary {
+				t.Fatalf("Help locale/description = %q / %#v", page.Locale, page.Description)
+			}
+		})
+	}
 }

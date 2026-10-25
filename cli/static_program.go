@@ -409,8 +409,6 @@ func (id CommandID) uint32() uint32 { return uint32(id) }
 
 func (id ValueID) uint32() uint32 { return uint32(id) }
 
-func (id FlagID) uint32() uint32 { return uint32(id) }
-
 func (id FlagSpellingID) uint32() uint32 { return uint32(id) }
 
 func (id ArgumentFormID) uint32() uint32 { return uint32(id) }

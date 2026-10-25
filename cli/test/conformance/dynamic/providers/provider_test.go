@@ -816,7 +816,7 @@ func TestProviderBatchCapabilityExpiresAfterCallback(t *testing.T) {
 	}).Require(
 		t,
 		clitest.InspectionRejected(),
-		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticUnexpectedArgument).Present()),
+		clitest.FailsWith(clitest.Diagnostic(cli.DiagnosticUnknownCommand).Present()),
 		clitest.RootCommand().Command("late").ObservedDoesNotExist(),
 	)
 }

@@ -381,6 +381,7 @@ type diagnostic struct {
 	Code string
 
 	Rule         *analysisDiagnosticRuleFailure
+	Rejection    *inputRejectionDiagnostic
 	AdvisoryCode string
 
 	Message string
@@ -408,6 +409,7 @@ type diagnostic struct {
 
 	Input         string
 	InputRedacted bool
+	Expected      []string
 	Suggestions   []string
 	Usage         []string
 	Sensitive     bool
@@ -422,6 +424,12 @@ type diagnostic struct {
 	SignalAction   *diagnosticSignalActionFailure
 	SignalOverflow *diagnosticSignalOverflowFailure
 	NoticeDelivery *diagnosticNoticeDeliveryFailure
+}
+
+type inputRejectionDiagnostic struct {
+	Code     InputRejectionCode
+	Expected []string
+	Spans    []span
 }
 
 // payload is one frontend-owned diagnostic namespace before standalone report
@@ -455,6 +463,13 @@ func (report report) ResolveFrameworkText(source string) string {
 	return report.presentation.Resolve(source)
 }
 
+func (report report) ApplicationName() string {
+	if report.presentation == nil {
+		return ""
+	}
+	return report.presentation.ApplicationName()
+}
+
 type diagnosticFailureError struct {
 	payload payload
 	cause   error
@@ -467,28 +482,28 @@ func (failure *diagnosticFailureError) Error() string {
 	return "commandment: frontend failure"
 }
 
-// Format preserves the concise ordinary error surface and reserves %+v for the
-// canonical structured Diagnostic presentation. Destination/process ownership
-// remains with the caller performing the formatting.
+// Format preserves concise ordinary formatting while reserving %+v for the
+// bounded deterministic developer/debug Diagnostic projection. End-user
+// publication is owned exclusively by WriteError.
 func (failure *diagnosticFailureError) Format(state fmt.State, verb rune) {
-	if verb == 'v' && state.Flag('+') && writeDiagnosticPresentation(state, failure) {
+	if verb == 'v' && state.Flag('+') && writeDiagnosticDebug(state, failure) {
 		return
 	}
 	formatErrorString(state, verb, failure.Error())
 }
 
+func formatErrorString(state fmt.State, verb rune, text string) {
+	_, _ = fmt.Fprintf(state, fmt.FormatString(state, verb), text)
+}
+
 func (failure *diagnosticFailureError) Unwrap() error { return failure.cause }
 
 // ownsDiagnosticPresentation reports whether err itself is the private
-// Commandment Diagnostic error that owns the canonical human projection. It
+// Commandment Diagnostic error that owns canonical human publication. It
 // deliberately does not unwrap arbitrary application errors.
 func ownsDiagnosticPresentation(err error) bool {
-	_, ok := err.(*diagnosticFailureError) //nolint:errorlint // This predicate classifies only the exact top-level Diagnostic owner; wrapped application errors must remain ordinary.
+	_, ok := err.(*diagnosticFailureError) //nolint:errorlint // Exact top-level ownership classification is intentional.
 	return ok
-}
-
-func formatErrorString(state fmt.State, verb rune, text string) {
-	_, _ = fmt.Fprintf(state, fmt.FormatString(state, verb), text)
 }
 
 // retainDiagnosticFailure retains a frontend-owned diagnostic payload with an

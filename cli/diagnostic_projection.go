@@ -1,6 +1,9 @@
 package cli
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 const (
 	diagnosticValueKindTokenBool     = "bool"
@@ -63,6 +66,9 @@ func operationDiagnosticPayload(operation *invocation, truncated bool) payload {
 			Location:        inputSource.location,
 			Sensitive:       inputSource.sensitive,
 			CommandShortcut: inputSource.commandShortcut,
+		}
+		if inputSource.flatText != nil {
+			projected.FlatText = new(*inputSource.flatText)
 		}
 		switch inputSource.id {
 		case operation.ArgumentSource().ID():
@@ -185,6 +191,17 @@ func projectDiagnosticReport(input report) DiagnosticReport {
 			Tier:          diagnosticResolutionTier(diagnostic.Tier),
 			Disposition:   diagnosticDisposition(diagnostic.Disposition),
 			RepairIndexes: append([]int(nil), diagnostic.RepairIndexes...),
+		}
+		if diagnostic.Rejection != nil {
+			rejection := &InputRejectionDiagnostic{
+				Code:     diagnostic.Rejection.Code,
+				Expected: slices.Clone(diagnostic.Rejection.Expected),
+				Spans:    make([]InputSpan, len(diagnostic.Rejection.Spans)),
+			}
+			for index, rejectionSpan := range diagnostic.Rejection.Spans {
+				rejection.Spans[index] = inputSpan(rejectionSpan)
+			}
+			result.Diagnostics[i].Rejection = rejection
 		}
 		if diagnostic.ProviderOutput != nil {
 			result.Diagnostics[i].ProviderOutput = &CommandProviderOutputLocator{
@@ -703,33 +720,57 @@ func finalizeOperationFrameworkPresentation(operation *invocation, requested Loc
 	operation.FinalizeFrameworkPresentationLocale(locale)
 }
 
-func grammarDiagnostics(operation *invocation, grammar grammarResult, tokens []TokenInspection) []Diagnostic {
+func grammarDiagnostics(operation *invocation, grammar grammarResult, tokens []TokenInspection) ([]Diagnostic, bool) {
 	if operation == nil || operation.analysis == nil {
 		panic("cli: grammar Diagnostic projection requires an invocation analysis")
 	}
-	result := make([]Diagnostic, len(grammar.Issues))
+	limit := operation.DiagnosticLimit()
+	result := make([]Diagnostic, 0, min(len(grammar.Issues), limit))
 	model := operation.analysis.effectiveModel
-	for i, issue := range grammar.Issues {
-		code := grammarDiagnosticCode(issue.Kind)
-		diagnostic := Diagnostic{
+	truncated := false
+	for _, issue := range grammar.Issues {
+		code := grammarIssueDiagnosticCode(issue)
+		base := Diagnostic{
 			Code:        code,
+			Subject:     grammarIssueSubject(model, issue),
 			CommandPath: commandPathNames(model, issue.Command),
 			Command:     issue.Command,
 			Declaration: grammarIssueDeclaration(issue),
 			Suggestions: grammarIssueSuggestions(model, issue),
 		}
 		if issue.Kind == grammarIssueRejectedArgumentForm {
-			diagnostic.ProducerKind = ValueProducerKindArgument
-			diagnostic.Tier = ResolutionTierExplicit
-			diagnostic.Disposition = ValueCandidateDispositionRejected
+			base.ProducerKind = ValueProducerKindArgument
+			base.Tier = ResolutionTierExplicit
+			base.Disposition = ValueCandidateDispositionRejected
 		}
 		if issue.TokenIndex >= 0 {
-			diagnostic.Origins, diagnostic.Span = grammarIssueInputContext(operation, issue.TokenIndex)
+			base.Origins, base.Span = grammarIssueInputContext(operation, issue.TokenIndex)
 			markGrammarIssueTokenRejection(tokens, grammar.Tokens, issue.TokenIndex, code)
 		}
-		result[i] = diagnostic
+		if issue.Kind == grammarIssueRejectedArgumentForm {
+			if rejections, ok := normalizedInputRejections(issue.Err); ok {
+				contextSensitive := grammarIssueInputSensitive(model, issue)
+				remaining := max(limit-len(result), 0)
+				retained := min(len(rejections), remaining)
+				for _, rejection := range rejections[:retained] {
+					diagnostic := base
+					applyNormalizedInputRejection(operation, &diagnostic, rejection, contextSensitive)
+					result = append(result, diagnostic)
+				}
+				if retained < len(rejections) {
+					truncated = true
+					break
+				}
+				continue
+			}
+		}
+		if len(result) >= limit {
+			truncated = true
+			break
+		}
+		result = append(result, base)
 	}
-	return result
+	return result, truncated
 }
 
 func grammarIssueInputContext(operation *invocation, tokenIndex int) ([]InputOriginID, *InputSpan) {
@@ -768,6 +809,9 @@ func markGrammarIssueTokenRejection(tokens []TokenInspection, observed []tokenOb
 }
 
 func grammarIssueSuggestions(model *effectiveModel, issue grammarIssue) []string {
+	if issue.Kind == grammarIssueMissingFlagValue || issue.Kind == grammarIssueActionConflict {
+		return nil
+	}
 	grammar, ok := model.EffectiveGrammar()
 	if !ok {
 		return nil
@@ -814,9 +858,87 @@ func grammarIssueSuggestions(model *effectiveModel, issue grammarIssue) []string
 	return suggestions
 }
 
+func grammarIssueInputSensitive(model *effectiveModel, issue grammarIssue) bool {
+	if model == nil || !issue.ArgumentTerm.present() {
+		return false
+	}
+	term, ok := model.ArgumentTerm(issue.ArgumentTerm)
+	if !ok {
+		return false
+	}
+	if term.sourceSensitive {
+		return true
+	}
+	destination, ok := term.Destination()
+	if !ok {
+		return false
+	}
+	record, ok := model.Destination(destination)
+	return ok && record.sensitive
+}
+
+func grammarIssueSubject(model *effectiveModel, issue grammarIssue) string {
+	switch issue.Kind { //nolint:exhaustive // Only issue kinds with a consumer-facing declaration subject are projected here.
+	case grammarIssueMissingFlagValue:
+		if len(issue.Flags) != 1 {
+			return ""
+		}
+		grammar, ok := model.EffectiveGrammar()
+		if !ok {
+			return ""
+		}
+		for _, flag := range grammar.Flags(issue.Command) {
+			for _, spelling := range flag.Spellings() {
+				if spelling.id == issue.Flags[0] {
+					return spelling.text
+				}
+			}
+		}
+	case grammarIssueNoArgumentForm, grammarIssueRejectedArgumentForm:
+		if !issue.ArgumentTerm.present() {
+			return ""
+		}
+		term, ok := model.ArgumentTerm(issue.ArgumentTerm)
+		if !ok || term.name == "" {
+			return ""
+		}
+		return "<" + term.name + ">"
+	case grammarIssueActionConflict:
+		grammar, ok := model.EffectiveGrammar()
+		if !ok {
+			return ""
+		}
+		values := make([]string, 0, len(issue.Actions))
+		for _, id := range issue.Actions {
+			for _, action := range grammar.ActionCommands(issue.Command) {
+				if action.id == id {
+					values = append(values, action.name)
+					break
+				}
+			}
+			for _, action := range grammar.ActionFlags(issue.Command) {
+				if action.id == id {
+					values = append(values, action.text)
+					break
+				}
+			}
+		}
+		return strings.Join(values, " and ")
+	}
+	return ""
+}
+
 func grammarIssueDeclaration(issue grammarIssue) DeclarationIdentity {
 	switch issue.Kind {
-	case grammarIssueNotIntroducedFlag, grammarIssueRemovedFlag:
+	case grammarIssueActionConflict:
+		if len(issue.Actions) == 1 {
+			identity := DeclarationIdentity{
+				Kind:        DeclarationKindActionEntry,
+				ActionEntry: issue.Actions[0],
+			}
+			return identity
+		}
+	case grammarIssueNotIntroducedFlag, grammarIssueRemovedFlag, grammarIssueMissingFlagValue:
 		if len(issue.Flags) == 1 && len(issue.Actions) == 0 {
 			identity := DeclarationIdentity{
 				Kind:         DeclarationKindFlagSpelling,
@@ -831,7 +953,7 @@ func grammarIssueDeclaration(issue grammarIssue) DeclarationIdentity {
 			}
 			return identity
 		}
-	case grammarIssueRejectedArgumentForm:
+	case grammarIssueNoArgumentForm, grammarIssueRejectedArgumentForm:
 		if issue.ArgumentTerm.present() {
 			identity := DeclarationIdentity{
 				Kind:         DeclarationKindArgumentTerm,
@@ -847,7 +969,15 @@ func grammarIssueDeclaration(issue grammarIssue) DeclarationIdentity {
 
 func privateGrammarIssueDeclaration(issue grammarIssue) analysisDiagnosticDeclarationIdentity {
 	switch issue.Kind {
-	case grammarIssueNotIntroducedFlag, grammarIssueRemovedFlag:
+	case grammarIssueActionConflict:
+		if len(issue.Actions) == 1 {
+			identity := analysisDiagnosticDeclarationIdentity{
+				Kind:        diagnosticDeclarationActionEntry,
+				ActionEntry: issue.Actions[0],
+			}
+			return identity
+		}
+	case grammarIssueNotIntroducedFlag, grammarIssueRemovedFlag, grammarIssueMissingFlagValue:
 		if len(issue.Flags) == 1 && len(issue.Actions) == 0 {
 			identity := analysisDiagnosticDeclarationIdentity{
 				Kind:         diagnosticDeclarationFlagSpelling,
@@ -862,7 +992,7 @@ func privateGrammarIssueDeclaration(issue grammarIssue) analysisDiagnosticDeclar
 			}
 			return identity
 		}
-	case grammarIssueRejectedArgumentForm:
+	case grammarIssueNoArgumentForm, grammarIssueRejectedArgumentForm:
 		if issue.ArgumentTerm.present() {
 			identity := analysisDiagnosticDeclarationIdentity{
 				Kind:         diagnosticDeclarationArgumentTerm,
@@ -874,6 +1004,13 @@ func privateGrammarIssueDeclaration(issue grammarIssue) analysisDiagnosticDeclar
 		return analysisDiagnosticDeclarationIdentity{}
 	}
 	return analysisDiagnosticDeclarationIdentity{}
+}
+
+func grammarIssueDiagnosticCode(issue grammarIssue) DiagnosticCode {
+	if issue.Kind == grammarIssueNoArgumentForm && issue.ArgumentTerm.present() {
+		return DiagnosticMissingValue
+	}
+	return grammarDiagnosticCode(issue.Kind)
 }
 
 func grammarDiagnosticCode(kind grammarIssueKind) DiagnosticCode {
@@ -910,6 +1047,10 @@ func grammarDiagnosticCode(kind grammarIssueKind) DiagnosticCode {
 		return DiagnosticMisplacedFlag
 	case grammarIssueUnknownFlag:
 		return DiagnosticUnknownFlag
+	case grammarIssueUnknownCommand:
+		return DiagnosticUnknownCommand
+	case grammarIssueActionConflict:
+		return DiagnosticActionConflict
 	case grammarIssueMissingFlagValue, grammarIssuePrematureFlagTerminator:
 		return DiagnosticMissingValue
 	case grammarIssueTooManyFlagOccurrences, grammarIssueMissingFlagOccurrence:
@@ -931,44 +1072,69 @@ func grammarDiagnosticCode(kind grammarIssueKind) DiagnosticCode {
 
 func grammarDiagnosticFailure(operation *invocation, grammar grammarResult, diagnostics []Diagnostic, truncated bool) error {
 	payload := operationDiagnosticPayload(operation, truncated)
-	payload.Diagnostics = make([]diagnostic, len(diagnostics))
-	for i, item := range diagnostics {
-		origins := make([]originID, len(item.Origins))
-		for j, sourceOrigin := range item.Origins {
-			origins[j] = originID(sourceOrigin.value)
-		}
-		projected := diagnostic{
-			Code:        string(item.Code),
-			CommandPath: append([]string(nil), item.CommandPath...),
-			Origins:     origins,
-			Suggestions: append([]string(nil), item.Suggestions...),
-		}
-		if item.Span != nil {
-			projected.Span = &span{
-				Source: sourceID(item.Span.Source.value),
-				Entry:  item.Span.Entry,
-				Start: analysisPosition{
-					Offset: item.Span.Start.Offset,
-					Line:   item.Span.Start.Line,
-					Column: item.Span.Start.Column,
-				},
-				End: analysisPosition{
-					Offset: item.Span.End.Offset,
-					Line:   item.Span.End.Line,
-					Column: item.Span.End.Column,
-				},
+	payload.Diagnostics = make([]diagnostic, 0, len(diagnostics))
+	projectedIndex := 0
+	for _, issue := range grammar.Issues {
+		count := 1
+		var rejections []normalizedInputRejection
+		if issue.Kind == grammarIssueRejectedArgumentForm {
+			if values, ok := normalizedInputRejections(issue.Err); ok {
+				rejections = values
+				count = len(values)
 			}
 		}
-		if i < len(grammar.Issues) {
-			projected.Command = grammar.Issues[i].Command
-			projected.Declaration = privateGrammarIssueDeclaration(grammar.Issues[i])
-			if grammar.Issues[i].Kind == grammarIssueRejectedArgumentForm {
+		for rejectionIndex := range count {
+			if projectedIndex >= len(diagnostics) {
+				break
+			}
+			item := diagnostics[projectedIndex]
+			projected := diagnostic{
+				Code:          string(item.Code),
+				Message:       item.Message,
+				Reason:        item.Reason,
+				Hint:          item.Hint,
+				Subject:       item.Subject,
+				CommandPath:   slices.Clone(item.CommandPath),
+				Command:       issue.Command,
+				Declaration:   privateGrammarIssueDeclaration(issue),
+				Source:        sourceID(item.InputSource.value),
+				Origins:       projectOriginIDs(item.Origins),
+				Input:         item.Input,
+				InputRedacted: item.InputRedacted,
+				Suggestions:   slices.Clone(item.Suggestions),
+				Usage:         slices.Clone(item.Usage),
+				Sensitive:     item.Sensitive,
+			}
+			if item.Rejection != nil {
+				projected.Rejection = privateInputRejectionDiagnostic(item.Rejection)
+			}
+			if item.Span != nil {
+				projected.Span = &span{
+					Source: sourceID(item.Span.Source.value),
+					Entry:  item.Span.Entry,
+					Start: analysisPosition{
+						Offset: item.Span.Start.Offset,
+						Line:   item.Span.Start.Line,
+						Column: item.Span.Start.Column,
+					},
+					End: analysisPosition{
+						Offset: item.Span.End.Offset,
+						Line:   item.Span.End.Line,
+						Column: item.Span.End.Column,
+					},
+				}
+			}
+			if issue.Kind == grammarIssueRejectedArgumentForm {
 				projected.ProducerKind = projectDiagnosticProducerKind(ValueProducerKindArgument)
 				projected.Tier = projectResolutionTier(ResolutionTierExplicit)
 				projected.Disposition = projectCandidateDisposition(ValueCandidateDispositionRejected)
 			}
+			if rejectionIndex < len(rejections) {
+				attachNormalizedInputRejectionRepair(&payload, &projected, rejections[rejectionIndex])
+			}
+			payload.Diagnostics = append(payload.Diagnostics, projected)
+			projectedIndex++
 		}
-		payload.Diagnostics[i] = projected
 	}
 	var cause error
 	for _, issue := range grammar.Issues {
@@ -978,6 +1144,37 @@ func grammarDiagnosticFailure(operation *invocation, grammar grammarResult, diag
 		}
 	}
 	return retainDiagnosticFailure(payload, cause)
+}
+
+func destinationDiagnosticSubject(model *effectiveModel, destination ValueID) string {
+	if model == nil || !destination.present() {
+		return ""
+	}
+	grammar, hasGrammar := model.EffectiveGrammar()
+	for _, flag := range model.Flags() {
+		if flag.destination != destination {
+			continue
+		}
+		if hasGrammar {
+			for _, grammarFlag := range grammar.Flags(flag.command) {
+				if grammarFlag.id != flag.meta.id {
+					continue
+				}
+				spellings := grammarFlag.Spellings()
+				if len(spellings) != 0 {
+					return spellings[0].text
+				}
+			}
+		}
+	}
+	for _, term := range model.ArgumentTerms() {
+		termDestination, ok := term.Destination()
+		if !ok || termDestination != destination || term.name == "" {
+			continue
+		}
+		return "<" + term.name + ">"
+	}
+	return ""
 }
 
 const (
@@ -1011,6 +1208,9 @@ func policyRuleFailureDiagnostic(model *effectiveModel, id RuleID, code Diagnost
 		Code: code,
 		Rule: &rule,
 	}
+	if len(rule.Subjects) == 1 {
+		diagnostic.Subject = destinationDiagnosticSubject(model, rule.Subjects[0])
+	}
 	return diagnostic, nil
 }
 
@@ -1039,6 +1239,7 @@ func policyDiagnosticFailure(operation *invocation, model *effectiveModel, diagn
 			Code:         string(item.Code),
 			Rule:         diagnosticProjectRuleFailure(item.Rule),
 			AdvisoryCode: string(item.AdvisoryCode),
+			Subject:      item.Subject,
 			Command:      privatePolicyCommandID(model, item.Command),
 			Origins:      origins,
 		}

@@ -34,7 +34,7 @@ var definition = cli.Definition[struct{}]{
 func main() {
 	app, err := cli.Compile(definition)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -47,7 +47,7 @@ func main() {
 	}
 	report := cli.Diagnostics(err)
 	if len(report.Diagnostics) == 0 {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(cli.ExitCode(err))
 	}
 	for _, diagnostic := range report.Diagnostics {

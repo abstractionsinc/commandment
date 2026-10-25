@@ -9,6 +9,10 @@ import (
 	"github.com/abstractionsinc/commandment/cli"
 )
 
+// DiagnosticInputRejectionLocator identifies the structured input-rejection relationship on a
+// public Diagnostic. It carries only the parent Diagnostic coordinate; the zero value is invalid.
+type DiagnosticInputRejectionLocator struct{ diagnostic DiagnosticLocator }
+
 // DiagnosticRuleOperandLocator identifies one Rule operand carried by a public Diagnostic's
 // structured Rule failure. The index is report-local expectation structure, not a new semantic
 // identity, and the zero value is invalid.
@@ -172,6 +176,57 @@ func (locator DiagnosticLocator) NoticeDelivery() DiagnosticNoticeDeliveryFailur
 		diagnostic: locator,
 	}
 	return diagnosticNoticeDeliveryFailureLocator
+}
+
+// Rejection returns a locator that follows the public input-rejection relationship from the
+// located Diagnostic. The returned locator carries coordinates, not observed state.
+func (locator DiagnosticLocator) Rejection() DiagnosticInputRejectionLocator {
+	rejection := DiagnosticInputRejectionLocator{
+		diagnostic: locator,
+	}
+	return rejection
+}
+
+// Code returns a reusable outcome expectation that checks the parser-local rejection code.
+func (locator DiagnosticInputRejectionLocator) Code(expected cli.InputRejectionCode) OutcomeExpectation {
+	expectation := diagnosticInputRejectionExpectation{
+		locator:  locator.diagnostic.state,
+		property: diagnosticInputRejectionPropertyCode,
+		code:     expected,
+	}
+	return expectation
+}
+
+// ExpectedExactly checks the complete ordered expected-fragment collection. For a sensitive
+// Diagnostic the content is deliberately unobservable, so exactness is not provable and failure
+// reporting redacts both caller-expected and observed fragment material.
+func (locator DiagnosticInputRejectionLocator) ExpectedExactly(expected ...string) OutcomeExpectation {
+	expectation := diagnosticInputRejectionExpectation{
+		locator:   locator.diagnostic.state,
+		property:  diagnosticInputRejectionPropertyExpectedExactly,
+		fragments: slices.Clone(expected),
+	}
+	return expectation
+}
+
+// SpansExactly checks the complete ordered public span collection carried by the rejection.
+func (locator DiagnosticInputRejectionLocator) SpansExactly(expected ...cli.InputSpan) OutcomeExpectation {
+	expectation := diagnosticInputRejectionExpectation{
+		locator:  locator.diagnostic.state,
+		property: diagnosticInputRejectionPropertySpansExactly,
+		spans:    slices.Clone(expected),
+	}
+	return expectation
+}
+
+// DoesNotExist checks that the located Diagnostic has no structured input-rejection relationship.
+// It tests absence of the relationship, not absence of the Diagnostic itself.
+func (locator DiagnosticInputRejectionLocator) DoesNotExist() OutcomeExpectation {
+	expectation := diagnosticInputRejectionExpectation{
+		locator:  locator.diagnostic.state,
+		property: diagnosticInputRejectionPropertyAbsent,
+	}
+	return expectation
 }
 
 // SpanSource returns an InputSourceLocator for the public source referenced by the located Diagnostic span.
@@ -713,6 +768,157 @@ func (locator DiagnosticNoticeDeliveryFailureLocator) CommandPathExactly(expecte
 		strings:  slices.Clone(expected),
 	}
 	return expectation
+}
+
+type diagnosticInputRejectionProperty uint8
+
+const (
+	diagnosticInputRejectionPropertyInvalid diagnosticInputRejectionProperty = iota
+	diagnosticInputRejectionPropertyCode
+	diagnosticInputRejectionPropertyExpectedExactly
+	diagnosticInputRejectionPropertySpansExactly
+	diagnosticInputRejectionPropertyAbsent
+)
+
+type diagnosticInputRejectionExpectation struct {
+	locator   *diagnosticLocatorState
+	property  diagnosticInputRejectionProperty
+	code      cli.InputRejectionCode
+	fragments []string
+	spans     []cli.InputSpan
+}
+
+func (diagnosticInputRejectionExpectation) inspectionExpectation()       {}
+func (diagnosticInputRejectionExpectation) completionExpectation()       {}
+func (diagnosticInputRejectionExpectation) diagnosticReportExpectation() {}
+
+func (expectation diagnosticInputRejectionExpectation) evaluateInspection(inspection cli.Inspection, _ error) evaluationResult {
+	return expectation.evaluateResolved(resolveDiagnosticStateForInspection(expectation.locator, inspection))
+}
+
+func (expectation diagnosticInputRejectionExpectation) evaluateCompletion(result cli.Completion, _ error) evaluationResult {
+	report := cli.DiagnosticReport{
+		Diagnostics: result.Diagnostics,
+		Sources:     result.Sources,
+		Origins:     result.Origins,
+		Repairs:     result.Repairs,
+		Truncated:   result.DiagnosticsTruncated,
+	}
+	return expectation.evaluateResolved(resolveDiagnosticStateForReport(expectation.locator, report))
+}
+
+func (expectation diagnosticInputRejectionExpectation) evaluateDiagnosticReport(report cli.DiagnosticReport) evaluationResult {
+	return expectation.evaluateResolved(resolveDiagnosticStateForReport(expectation.locator, report))
+}
+
+func (expectation diagnosticInputRejectionExpectation) evaluateResolved(resolution locatorResolution[diagnosticLocation]) evaluationResult {
+	subject := qualifySubject(resolution.subject, evaluationText("rejection"))
+	expected := expectation.expected()
+	if expectation.property == diagnosticInputRejectionPropertyInvalid {
+		return disprovedResult(subject, evaluationText("valid rejection expectation"), observed(semanticSubjectLocator, observationInvalidLocator))
+	}
+	if resolution.status != locatorResolutionFound {
+		return outcomeForValueStatus(resolution.status, subject, expected, resolution.detail)
+	}
+
+	diagnostic := resolution.value.diagnostic
+	if expectation.property == diagnosticInputRejectionPropertyAbsent {
+		if diagnostic.Rejection == nil {
+			return provedResult()
+		}
+		return disprovedResult(subject, semanticRequirementAbsent, evaluationText("present"))
+	}
+	if diagnostic.Rejection == nil {
+		return disprovedResult(subject, expected, evaluationText("rejection is absent"))
+	}
+
+	rejection := diagnostic.Rejection
+	switch expectation.property {
+	case diagnosticInputRejectionPropertyCode:
+		if rejection.Code == expectation.code {
+			return provedResult()
+		}
+		return disprovedResult(subject, expected, comparison(evaluationText("code"), evaluationText(string(rejection.Code))))
+	case diagnosticInputRejectionPropertyExpectedExactly:
+		if diagnostic.Sensitive {
+			return notProvableResult(
+				subject,
+				evaluationText("expected fragments = <redacted>"),
+				evaluationText("observed expected fragments = <redacted>"),
+			)
+		}
+		if slices.Equal(rejection.Expected, expectation.fragments) {
+			return provedResult()
+		}
+		expectedFragments := stringCollectionField{
+			values: expectation.fragments,
+		}
+		observedFragments := stringCollectionField{
+			values: rejection.Expected,
+		}
+		return disprovedResult(
+			subject,
+			property(evaluationText("expected fragments"), expectedFragments),
+			property(evaluationText("expected fragments"), observedFragments),
+		)
+	case diagnosticInputRejectionPropertySpansExactly:
+		if slices.Equal(rejection.Spans, expectation.spans) {
+			return provedResult()
+		}
+		if len(rejection.Spans) != len(expectation.spans) {
+			expectedCount := collectionCardinalityField{
+				name:  "expected rejection spans",
+				count: len(expectation.spans),
+			}
+			observedCount := collectionCardinalityField{
+				name:  "observed rejection spans",
+				count: len(rejection.Spans),
+			}
+			return disprovedResult(subject, expectedCount, observedCount)
+		}
+		for index, expectedSpan := range expectation.spans {
+			observedSpan := rejection.Spans[index]
+			if expectedSpan == observedSpan {
+				continue
+			}
+			spanSubject := subjectAt(evaluationText("rejection span"), index)
+			if expectedSpan.Source != observedSpan.Source {
+				return disprovedResult(
+					spanSubject,
+					evaluationText("expected input source identity"),
+					evaluationText("different input source identity"),
+				)
+			}
+			expectedField := inputSpanField{
+				value: expectedSpan,
+			}
+			observedField := inputSpanField{
+				value: observedSpan,
+			}
+			return disprovedResult(spanSubject, expectedField, observedField)
+		}
+		panic("clitest: unequal rejection spans have no differing element")
+	default:
+		panic("clitest: invalid Diagnostic rejection expectation")
+	}
+}
+
+func (expectation diagnosticInputRejectionExpectation) expected() evaluationField {
+	switch expectation.property {
+	case diagnosticInputRejectionPropertyCode:
+		return comparison(evaluationText("code"), evaluationText(string(expectation.code)))
+	case diagnosticInputRejectionPropertyExpectedExactly:
+		fragments := stringCollectionField{
+			values: expectation.fragments,
+		}
+		return property(evaluationText("expected fragments"), fragments)
+	case diagnosticInputRejectionPropertySpansExactly:
+		return evaluationText("exact ordered rejection spans")
+	case diagnosticInputRejectionPropertyAbsent:
+		return semanticRequirementAbsent
+	default:
+		return evaluationText("valid rejection expectation")
+	}
 }
 
 type diagnosticInputGraphClosedExpectation struct{}

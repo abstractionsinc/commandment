@@ -196,6 +196,15 @@ func analyzeGrammarPrefixArgumentsSkipping(ctx context.Context, operation *invoc
 	return value
 }
 
+func terminalMissingFlagValue(issues []grammarIssue) bool {
+	for _, issue := range issues {
+		if issue.Kind == grammarIssueMissingFlagValue {
+			return true
+		}
+	}
+	return false
+}
+
 type grammarScanner struct {
 	operation *invocation
 	analysis  *analysisState
@@ -688,6 +697,7 @@ type commandRouteScanState struct {
 	current           CommandID
 	route             grammarRoute
 	index             int
+	flagsEnabled      bool
 	flagFrontier      selectedPathFlagFrontier
 	flagFrontierValid bool
 }
@@ -1017,13 +1027,6 @@ func (scanner *grammarScanner) scan(ctx context.Context, args []string, complete
 	flagFrontierValid := scanner.flagFrontierValid
 scanLoop:
 	for ownershipCertain && index < len(args) {
-		if route == grammarRouteTerminalAction {
-			if actionIncompatible < 0 {
-				actionIncompatible = index
-			}
-			index++
-			continue
-		}
 		if index == rescanIndex {
 			if rescanConditionLen >= 0 && rescanConditionLen <= len(result.Conditions) {
 				result.Conditions = result.Conditions[:rescanConditionLen]
@@ -1067,6 +1070,34 @@ scanLoop:
 				break
 			}
 			flagFrontierValid = false
+			continue
+		}
+		if route == grammarRouteTerminalAction {
+			if action, match, ok := terminalActionAt(scanner.analysis, view, flagFrontier, dialect, current, token); ok {
+				if result.Selection.ActionSelected() {
+					appendActionConflictIssue(
+						&result,
+						operation.input.limits.Diagnostics,
+						current,
+						firstActionInput(result.Ownership, result.Selection.Action),
+						result.Selection.Action,
+					)
+					result.Selection.Action = 0
+					result.Selection.ActionKind = intrinsicActionInvalid
+					result.Selection.ActionTrigger = actionTriggerNone
+				}
+				ownership := tokenOwnership{
+					Role:        tokenRoleAction,
+					Command:     current,
+					ActionEntry: action,
+					Match:       match,
+				}
+				claimToken(&result, index, ownership)
+				appendActionConflictIssue(&result, operation.input.limits.Diagnostics, current, index, action)
+			} else if actionIncompatible < 0 {
+				actionIncompatible = index
+			}
+			index++
 			continue
 		}
 		if route == grammarRouteHelpPath {
@@ -1160,7 +1191,7 @@ scanLoop:
 			}
 		}
 
-		if flagAllowed && isUnknownHyphenFlagToken(token) && !positionalCanOwnHyphenToken(view.ArgumentForms(current), token) {
+		if flagAllowed && isUnknownHyphenFlagToken(token) && !positionalCanOwnToken(view.ArgumentForms(current), token, false) {
 			grammarIssueValue4 := grammarIssue{
 				Kind:       grammarIssueUnknownFlag,
 				TokenIndex: index,
@@ -1194,6 +1225,7 @@ scanLoop:
 				current:           current,
 				route:             route,
 				index:             index,
+				flagsEnabled:      flagsEnabled,
 				flagFrontier:      flagFrontier,
 				flagFrontierValid: flagFrontierValid,
 			}
@@ -1234,6 +1266,40 @@ scanLoop:
 	scanner.rescanConditionLen = rescanConditionLen
 	scanner.flagFrontier = flagFrontier
 	scanner.flagFrontierValid = flagFrontierValid
+}
+
+func terminalActionAt(analysis *analysisState, view grammarView, frontier selectedPathFlagFrontier, dialect dialect, current CommandID, token string) (ActionEntryID, nameMatchKind, bool) {
+	flag := matchActionFlagsFrontier(frontier, dialect, token)
+	if flag.found && !flag.ambiguous && flag.enabled && flagMatchLifecycleIssue(analysis, flag) == grammarIssueNone {
+		return flag.action.id, flag.match, true
+	}
+	command := matchChild(view, current, dialect, token)
+	if command.found && !command.ambiguous && command.action.present() && command.enabled && commandMatchLifecycleIssue(analysis, command) == grammarIssueNone {
+		return command.action, command.match, true
+	}
+	return 0, nameMatchKindNone, false
+}
+
+func firstActionInput(tokens []tokenOwnership, action ActionEntryID) int {
+	for index, token := range tokens {
+		if token.ActionEntry == action {
+			return index
+		}
+	}
+	return -1
+}
+
+func appendActionConflictIssue(result *grammarResult, limit int, command CommandID, input int, action ActionEntryID) {
+	if input < 0 || !action.present() {
+		return
+	}
+	issue := grammarIssue{
+		Kind:       grammarIssueActionConflict,
+		TokenIndex: input,
+		Command:    command,
+		Actions:    []ActionEntryID{action},
+	}
+	appendGrammarIssue(result, limit, issue)
 }
 
 func commandEntrySelectionPath(analysis *analysisState, grammar grammarView, parent CommandID, entry commandEntryGrammar) ([]CommandID, bool) {
@@ -1449,8 +1515,11 @@ func analysisAnalyzeGrammarAt(ctx context.Context, operation *invocation, analys
 	if !ownershipCertain || !complete {
 		return finalizedGrammarResult(args, result), state
 	}
-	if result.Selection.ActionSelected() {
-		if scanner.actionIncompatible >= 0 {
+	if terminalMissingFlagValue(result.Issues) {
+		return finalizedGrammarResult(args, result), state
+	}
+	if result.Selection.ActionSelected() || route == grammarRouteTerminalAction {
+		if route == grammarRouteTerminalAction && scanner.actionIncompatible >= 0 {
 			grammarIssueValue := grammarIssue{
 				Kind:       grammarIssueUnexpectedInput,
 				TokenIndex: scanner.actionIncompatible,
@@ -1488,6 +1557,14 @@ func analysisAnalyzeGrammarAt(ctx context.Context, operation *invocation, analys
 		positional,
 	)
 	result.ArgumentForms = formEvaluations
+	if issue.Kind == grammarIssueNoArgumentForm &&
+		!issue.ArgumentTerm.present() &&
+		issue.TokenIndex == firstIndex(positional) &&
+		issue.TokenIndex >= 0 && issue.TokenIndex < len(args) &&
+		commandHasSelectableChildren(analysis.effectiveModel, view, current) &&
+		!positionalCanOwnToken(view.ArgumentForms(current), args[issue.TokenIndex], !scanner.flagsEnabled) {
+		issue.Kind = grammarIssueUnknownCommand
+	}
 	if issue.Kind == grammarIssueUnavailableArgument {
 		if lifecycleKind := unavailableArgumentLifecycleIssue(
 			analysis,
@@ -1519,6 +1596,19 @@ func analysisAnalyzeGrammarAt(ctx context.Context, operation *invocation, analys
 	}
 	appendMissingFlagOccurrences(&result, operation.input.limits.Diagnostics, view, result.Selection.Path, occurrences)
 	return finalizedGrammarResult(args, result), state
+}
+
+func commandHasSelectableChildren(model *effectiveModel, view grammarView, command CommandID) bool {
+	for _, entry := range view.CommandEntries(command) {
+		target, ok := model.Command(entry.target)
+		if !ok {
+			continue
+		}
+		if target.origin != DeclarationOriginFrontend {
+			return true
+		}
+	}
+	return false
 }
 
 type tokenRole uint8
@@ -1661,6 +1751,7 @@ const (
 	grammarIssueAmbiguousFlag
 	grammarIssueMisplacedFlag
 	grammarIssueUnknownFlag
+	grammarIssueUnknownCommand
 	grammarIssueMissingFlagValue
 	grammarIssuePrematureFlagTerminator
 	grammarIssueTooManyFlagOccurrences
@@ -1672,6 +1763,7 @@ const (
 	grammarIssueRejectedArgumentForm
 	grammarIssueArgumentFormFailure
 	grammarIssueUnexpectedInput
+	grammarIssueActionConflict
 	grammarIssueProfileSelection
 	grammarIssueUnavailableCommand
 	grammarIssueUnavailableFlag

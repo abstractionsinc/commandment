@@ -54,7 +54,7 @@ func renderBlock(out *strings.Builder, block block, profile profile) {
 	case blockDiagnosticGroup:
 		if block.Title != "" {
 			out.WriteString(styleText(escapeTerminalInlineControls(block.Title), spanError, profile))
-			out.WriteString(":\n")
+			out.WriteByte('\n')
 		}
 		for _, item := range block.Items {
 			writeWrapped(out, escapeTerminalControls(item), max(1, profile.Width-blockIndentWidth), "  ", "  ")

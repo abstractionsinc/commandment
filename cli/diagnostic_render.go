@@ -2,36 +2,87 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 )
 
-const unknownDiagnosticText = "unknown"
-
 const (
-	diagnosticPresentationLimit       = 16
-	diagnosticPresentationDetailLimit = 40
-	diagnosticPresentationTextLimit   = 240
-	diagnosticPresentationListLimit   = 6
+	diagnosticPresentationLimit      = 16
+	diagnosticPresentationTextLimit  = 240
+	diagnosticPresentationListLimit  = 6
+	diagnosticPresentationUsageLimit = 2
+	ruleBetweenOperandCount          = 2
 )
 
-// writeDiagnosticPresentation writes the canonical Commandment-owned human
-// presentation for every structured Diagnostic reachable through err. It
-// returns false when err carries no valid Commandment Diagnostic payload.
-// The caller retains ownership of the destination and all process policy.
-func writeDiagnosticPresentation(writer io.Writer, err error) bool {
+var (
+	errNilErrorWriter                = errors.New("cli: nil error writer")
+	errMissingDiagnosticPresentation = errors.New("cli: Commandment presentation owner has no diagnostics")
+)
+
+// WriteError writes err to writer using Commandment's canonical human Diagnostic
+// presentation only when err owns Commandment presentation. Otherwise it preserves
+// the error's ordinary %v / Error() presentation. It returns rendering or publication
+// failure and never owns process exit.
+func WriteError(writer io.Writer, err error) error {
+	if err == nil {
+		return nil
+	}
+	if writer == nil {
+		return errNilErrorWriter
+	}
+
+	commandment, owner := errorPresentationOwner(err)
+	if commandment {
+		return writeDiagnosticPresentation(writer, err)
+	}
+	_, writeErr := fmt.Fprintf(writer, "%v\n", owner)
+	if writeErr != nil {
+		return writeErr //nolint:wrapcheck // WriteError preserves the exact destination failure identity.
+	}
+	return nil
+}
+
+func errorPresentationOwner(err error) (bool, error) {
+	switch value := err.(type) { //nolint:errorlint // Presentation ownership depends on the exact top-level private owner.
+	case *diagnosticFailureError:
+		return true, err
+	case *orderedError:
+		if len(value.errors) == 0 || value.errors[0] == nil {
+			return false, err
+		}
+		if ownsDiagnosticPresentation(value.errors[0]) {
+			return true, err
+		}
+		return false, value.errors[0]
+	default:
+		return false, err
+	}
+}
+
+func writeDiagnosticPresentation(writer io.Writer, err error) error {
 	report, extractErr := extract(err)
-	if extractErr != nil || len(report.Diagnostics) == 0 {
-		return false
+	if extractErr != nil {
+		return extractErr
 	}
-	text, renderErr := renderDiagnosticReport(report, defaultProfile(destinationStderrDiagnostic))
+	if len(report.Diagnostics) == 0 {
+		return errMissingDiagnosticPresentation
+	}
+	text, renderErr := renderDiagnosticReport(report, profileForWriter(writer, destinationStderrDiagnostic))
 	if renderErr != nil {
-		return false
+		return renderErr
 	}
-	_, _ = io.WriteString(writer, text)
-	return true
+	text = strings.TrimRight(text, "\n") + "\n"
+	written, writeErr := io.WriteString(writer, text)
+	if writeErr != nil {
+		return writeErr //nolint:wrapcheck // WriteError preserves the exact destination failure identity.
+	}
+	if written != len(text) {
+		return io.ErrShortWrite
+	}
+	return nil
 }
 
 func renderDiagnosticReport(report report, profile profile) (string, error) {
@@ -39,317 +90,535 @@ func renderDiagnosticReport(report report, profile profile) (string, error) {
 		Destination: destinationStderrDiagnostic,
 	}
 	limit := min(len(report.Diagnostics), diagnosticPresentationLimit)
-	for index := range limit {
-		diagnostic := report.Diagnostics[index]
-		title := report.ResolveFrameworkText("Commandment diagnostic")
-		if len(report.Diagnostics) > 1 {
-			title += " " + strconv.Itoa(index+1)
+	diagnostics := report.Diagnostics[:limit]
+	for index := 0; index < len(diagnostics); {
+		diagnostic := diagnostics[index]
+		if DiagnosticCode(diagnostic.Code) == DiagnosticActionConflict {
+			end := index + 1
+			for end < len(diagnostics) && DiagnosticCode(diagnostics[end].Code) == DiagnosticActionConflict {
+				end++
+			}
+			document.Blocks = append(document.Blocks, actionConflictPresentationBlock(report, diagnostics[index:end]))
+			index = end
+			continue
 		}
-		if code := boundedDiagnosticText(diagnostic.Code); code != "" {
-			title += " [" + code + "]"
-		}
-		details := diagnosticPresentationDetails(report, diagnostic)
-		blockValue := block{
-			Kind:  blockDiagnosticGroup,
-			Title: title,
-			Items: details,
-		}
-		document.Blocks = append(document.Blocks, blockValue)
+		document.Blocks = append(document.Blocks, diagnosticPresentationBlock(report, diagnostic))
+		index++
 	}
 	if omitted := len(report.Diagnostics) - limit; omitted > 0 {
-		document.Blocks = append(document.Blocks, block{
+		omittedBlock := block{
 			Kind: blockHint,
-			Spans: []presentationSpan{
-				{
-					Text: fmt.Sprintf(
-						report.ResolveFrameworkText(
-							"Presentation limit reached: %d additional Commandment diagnostics are omitted from this human view.",
-						),
-						omitted,
-					),
-				},
-			},
-		})
+			Spans: []presentationSpan{{
+				Text: fmt.Sprintf(
+					report.ResolveFrameworkText("%d additional diagnostics were omitted from this human view."),
+					omitted,
+				),
+			}},
+		}
+		document.Blocks = append(document.Blocks, omittedBlock)
 	}
 	if report.Truncated {
-		document.Blocks = append(document.Blocks, block{
+		truncatedBlock := block{
 			Kind: blockHint,
-			Spans: []presentationSpan{
-				{
-					Text: report.ResolveFrameworkText(
-						"Analysis was truncated; additional eligible diagnostic or repair work may be absent from the structured report.",
-					),
-					Role: spanWarning,
-				},
-			},
-		})
+			Spans: []presentationSpan{{
+				Text: report.ResolveFrameworkText("Analysis was truncated; additional diagnostic information may be unavailable."),
+				Role: spanWarning,
+			}},
+		}
+		document.Blocks = append(document.Blocks, truncatedBlock)
 	}
 	return render(context.Background(), document, profile)
 }
 
-type diagnosticDetailSink struct {
-	report  report
-	items   []string
-	omitted int
-}
-
-func (sink *diagnosticDetailSink) framework(source string) string {
-	return sink.report.ResolveFrameworkText(source)
-}
-
-func (sink *diagnosticDetailSink) format(source string, operands ...any) string {
-	return fmt.Sprintf(sink.framework(source), operands...)
-}
-
-func (sink *diagnosticDetailSink) add(label, value string) {
-	value = boundedDiagnosticText(value)
-	if value == "" {
-		return
+func actionConflictPresentationBlock(report report, diagnostics []diagnostic) block {
+	type participant struct {
+		subject string
+		count   int
 	}
-	if len(sink.items) >= diagnosticPresentationDetailLimit-1 {
-		sink.omitted++
-		return
-	}
-	if label != "" {
-		value = sink.framework(label) + ": " + value
-	}
-	sink.items = append(sink.items, value)
-}
 
-func (sink *diagnosticDetailSink) finish() []string {
-	if sink.omitted > 0 {
-		sink.items = append(
-			sink.items,
-			sink.format("presentation: %d additional detail items omitted", sink.omitted),
+	participants := make([]participant, 0, len(diagnostics))
+	participantIndex := make(map[ActionEntryID]int, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Declaration.Kind != diagnosticDeclarationActionEntry || !diagnostic.Declaration.ActionEntry.present() {
+			continue
+		}
+		id := diagnostic.Declaration.ActionEntry
+		index, ok := participantIndex[id]
+		if !ok {
+			index = len(participants)
+			participantIndex[id] = index
+			participants = append(participants, participant{})
+		}
+		participants[index].count++
+		if participants[index].subject != "" {
+			continue
+		}
+		subject := diagnosticSubject(diagnostic)
+		if subject == "" {
+			subject = diagnosticInputText(report, diagnostic)
+		}
+		participants[index].subject = subject
+	}
+
+	problem := report.ResolveFrameworkText("conflicting actions")
+	switch {
+	case len(participants) > 1:
+		subjects := make([]string, 0, min(len(participants), diagnosticPresentationListLimit))
+		seen := make(map[string]struct{}, len(participants))
+		for _, participant := range participants {
+			if participant.subject == "" {
+				continue
+			}
+			if _, duplicate := seen[participant.subject]; duplicate {
+				continue
+			}
+			seen[participant.subject] = struct{}{}
+			subjects = append(subjects, participant.subject)
+			if len(subjects) == diagnosticPresentationListLimit {
+				break
+			}
+		}
+		if len(subjects) > 1 {
+			problem = fmt.Sprintf(
+				report.ResolveFrameworkText("conflicting actions: %s"),
+				strings.Join(subjects, " and "),
+			)
+		}
+	case len(participants) == 1 && participants[0].count > 1 && participants[0].subject != "":
+		problem = fmt.Sprintf(
+			report.ResolveFrameworkText("action %s was specified more than once"),
+			participants[0].subject,
 		)
 	}
-	return sink.items
+
+	prefix := boundedDiagnosticText(report.ApplicationName())
+	if prefix == "" {
+		prefix = "commandment"
+	}
+	result := block{
+		Kind:  blockDiagnosticGroup,
+		Title: prefix + ": " + problem,
+	}
+	return result
 }
 
-func diagnosticPresentationDetails(report report, diagnostic diagnostic) []string {
-	sink := diagnosticDetailSink{
-		report: report,
+func diagnosticPresentationBlock(report report, diagnostic diagnostic) block {
+	problem := diagnosticProblem(report, diagnostic)
+	prefix := boundedDiagnosticText(report.ApplicationName())
+	if prefix == "" {
+		prefix = "commandment"
 	}
+	title := prefix + ": " + problem
+	if diagnosticShowsCode(diagnostic) && diagnostic.Code != "" {
+		title += " [" + boundedDiagnosticText(diagnostic.Code) + "]"
+	}
+	value := block{
+		Kind:  blockDiagnosticGroup,
+		Title: title,
+		Items: diagnosticPresentationItems(report, diagnostic),
+	}
+	return value
+}
 
-	if diagnostic.Command.present() {
-		sink.add("command id", identityText(diagnostic.Command.uint32()))
+func diagnosticProblem(report report, diagnostic diagnostic) string {
+	if diagnostic.Sensitive {
+		return sensitiveDiagnosticProblem(report, diagnostic)
 	}
-	if len(diagnostic.CommandPath) != 0 {
-		sink.add("command", boundedPath(&sink, diagnostic.CommandPath))
+	if diagnostic.Code == string(DiagnosticRuleViolation) && diagnostic.Rule != nil {
+		return ruleDiagnosticProblem(report, diagnostic)
 	}
-	if diagnostic.Declaration.Kind != "" {
-		sink.add("declaration", diagnosticDeclarationText(&sink, diagnostic.Declaration))
+	if problem, ok := grammarDiagnosticProblem(report, diagnostic); ok {
+		return problem
 	}
-	if diagnostic.Subject != "" && !diagnostic.Sensitive {
-		sink.add("subject", diagnostic.Subject)
+	if diagnostic.Code == string(DiagnosticInvalidValue) {
+		return invalidValueProblem(report, diagnostic)
 	}
-	if diagnostic.Provider.present() {
-		sink.add("provider", identityText(diagnostic.Provider.uint32()))
-	}
-	if diagnostic.Default.present() {
-		sink.add("default", identityText(diagnostic.Default.uint32()))
-	}
-	if diagnostic.AdvisoryCode != "" {
-		sink.add("advisory code", diagnostic.AdvisoryCode)
-	}
-
-	if diagnostic.Message != "" && !diagnostic.Sensitive {
+	if diagnostic.Message != "" {
 		message := diagnostic.Message
 		if diagnostic.FrameworkMessage {
-			message = sink.framework(message)
+			message = report.ResolveFrameworkText(message)
 		}
-		sink.add("message", message)
+		return boundedDiagnosticText(message)
 	}
-	if diagnostic.Reason != "" && !diagnostic.Sensitive {
+	return diagnosticCodeProblem(report, diagnostic.Code)
+}
+
+func sensitiveDiagnosticProblem(report report, diagnostic diagnostic) string {
+	subject := diagnosticSubject(diagnostic)
+	switch DiagnosticCode(diagnostic.Code) {
+	case DiagnosticInvalidValue:
+		if subject != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("invalid value for %s"), subject)
+		}
+		return report.ResolveFrameworkText("invalid value")
+	case DiagnosticRuleViolation:
+		if subject != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s is invalid"), subject)
+		}
+		return report.ResolveFrameworkText("input is invalid")
+	default:
+		return diagnosticCodeProblem(report, diagnostic.Code)
+	}
+}
+
+func grammarDiagnosticProblem(report report, diagnostic diagnostic) (string, bool) {
+	input := diagnosticInputText(report, diagnostic)
+	subject := diagnosticSubject(diagnostic)
+	switch DiagnosticCode(diagnostic.Code) {
+	case DiagnosticUnknownCommand:
+		if input != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("unknown command %s"), strconv.Quote(input)), true
+		}
+		return report.ResolveFrameworkText("unknown command"), true
+	case DiagnosticAmbiguousCommand:
+		if input != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("ambiguous command %s"), strconv.Quote(input)), true
+		}
+		return report.ResolveFrameworkText("ambiguous command"), true
+	case DiagnosticUnknownFlag:
+		if input != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("unknown flag %s"), input), true
+		}
+		return report.ResolveFrameworkText("unknown flag"), true
+	case DiagnosticAmbiguousFlag:
+		if input != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("ambiguous flag %s"), input), true
+		}
+		return report.ResolveFrameworkText("ambiguous flag"), true
+	case DiagnosticMisplacedFlag:
+		if input != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("flag %s is not allowed here"), input), true
+		}
+		return report.ResolveFrameworkText("flag is not allowed here"), true
+	case DiagnosticRepeatedFlag:
+		name := subject
+		if name == "" {
+			name = input
+		}
+		if name != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("flag %s has an invalid number of occurrences"), name), true
+		}
+		return report.ResolveFrameworkText("flag has an invalid number of occurrences"), true
+	case DiagnosticMissingValue:
+		switch {
+		case strings.HasPrefix(subject, "-"):
+			return fmt.Sprintf(report.ResolveFrameworkText("flag %s requires a value"), subject), true
+		case strings.HasPrefix(subject, "<"):
+			return fmt.Sprintf(report.ResolveFrameworkText("missing required argument %s"), subject), true
+		case subject != "":
+			return fmt.Sprintf(report.ResolveFrameworkText("%s is required"), subject), true
+		default:
+			return report.ResolveFrameworkText("missing required value"), true
+		}
+	case DiagnosticUnexpectedArgument:
+		if input != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("unexpected argument %s"), strconv.Quote(input)), true
+		}
+		return report.ResolveFrameworkText("unexpected argument"), true
+	case DiagnosticAmbiguousArgumentForm:
+		return report.ResolveFrameworkText("arguments match more than one valid form"), true
+	case DiagnosticInvalidArgumentSyntax:
+		return report.ResolveFrameworkText("invalid argument syntax"), true
+	case DiagnosticActionConflict:
+		return report.ResolveFrameworkText("conflicting actions"), true
+	case DiagnosticNotIntroducedCommand:
+		return lifecycleDiagnosticProblem(report, "command", input, subject, "is not available in this release"), true
+	case DiagnosticRemovedCommand:
+		return lifecycleDiagnosticProblem(report, "command", input, subject, "was removed"), true
+	case DiagnosticUnavailableCommand:
+		return lifecycleDiagnosticProblem(report, "command", input, subject, "is unavailable"), true
+	case DiagnosticNotIntroducedFlag:
+		return lifecycleDiagnosticProblem(report, "flag", input, subject, "is not available in this release"), true
+	case DiagnosticRemovedFlag:
+		return lifecycleDiagnosticProblem(report, "flag", input, subject, "was removed"), true
+	case DiagnosticUnavailableFlag:
+		return lifecycleDiagnosticProblem(report, "flag", input, subject, "is unavailable"), true
+	case DiagnosticNotIntroducedArgument:
+		return lifecycleDiagnosticProblem(report, "argument", input, subject, "is not available in this release"), true
+	case DiagnosticRemovedArgument:
+		return lifecycleDiagnosticProblem(report, "argument", input, subject, "was removed"), true
+	case DiagnosticUnavailableArgument:
+		return lifecycleDiagnosticProblem(report, "argument", input, subject, "is unavailable"), true
+	case DiagnosticNotRunnableCommand:
+		return report.ResolveFrameworkText("selected command is not runnable"), true
+	default:
+		return "", false
+	}
+}
+
+func lifecycleDiagnosticProblem(report report, kind, input, subject, state string) string {
+	name := subject
+	if name == "" {
+		name = input
+	}
+	if name == "" {
+		return report.ResolveFrameworkText(kind + " " + state)
+	}
+	if kind == "command" || kind == "argument" {
+		name = strconv.Quote(name)
+	}
+	return fmt.Sprintf(report.ResolveFrameworkText("%s %s %s"), kind, name, state)
+}
+
+func invalidValueProblem(report report, diagnostic diagnostic) string {
+	if diagnostic.Rejection != nil && diagnostic.Message != "" {
+		return boundedDiagnosticText(diagnostic.Message)
+	}
+	input := diagnosticInputText(report, diagnostic)
+	subject := diagnosticSubject(diagnostic)
+	var problem string
+	switch {
+	case input != "" && subject != "":
+		problem = fmt.Sprintf(report.ResolveFrameworkText("invalid value %s for %s"), strconv.Quote(input), subject)
+	case input != "":
+		problem = fmt.Sprintf(report.ResolveFrameworkText("invalid value %s"), strconv.Quote(input))
+	case subject != "":
+		problem = fmt.Sprintf(report.ResolveFrameworkText("invalid value for %s"), subject)
+	default:
+		problem = report.ResolveFrameworkText("invalid value")
+	}
+	if len(diagnostic.Expected) == 1 {
+		problem += ": " + fmt.Sprintf(report.ResolveFrameworkText("expected %s"), diagnostic.Expected[0])
+	}
+	return problem
+}
+
+func ruleDiagnosticProblem(report report, diagnostic diagnostic) string {
+	subject := diagnosticSubject(diagnostic)
+	if subject == "" {
+		subject = report.ResolveFrameworkText("value")
+	}
+	rule := diagnostic.Rule
+	operands := rulePresentationOperands(diagnostic.Sensitive, *rule)
+	switch rule.Kind {
+	case diagnosticRuleRequire:
+		return fmt.Sprintf(report.ResolveFrameworkText("%s is required"), subject)
+	case diagnosticRuleForbid:
+		return fmt.Sprintf(report.ResolveFrameworkText("%s is not allowed"), subject)
+	case diagnosticRuleNotEmpty:
+		return fmt.Sprintf(report.ResolveFrameworkText("%s must not be empty"), subject)
+	case diagnosticRuleBetween:
+		if len(operands) >= ruleBetweenOperandCount {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s must be between %s and %s"), subject, operands[0], operands[1])
+		}
+	case diagnosticRuleAtLeast:
+		if len(operands) != 0 {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s must be at least %s"), subject, operands[0])
+		}
+	case diagnosticRuleAtMost:
+		if len(operands) != 0 {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s must be at most %s"), subject, operands[0])
+		}
+	case diagnosticRuleGreaterThan:
+		if len(operands) != 0 {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s must be greater than %s"), subject, operands[0])
+		}
+	case diagnosticRuleLessThan:
+		if len(operands) != 0 {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s must be less than %s"), subject, operands[0])
+		}
+	case diagnosticRuleEqual:
+		if len(operands) != 0 {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s must equal %s"), subject, operands[0])
+		}
+	case diagnosticRuleNotEqual:
+		if len(operands) != 0 {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s must not equal %s"), subject, operands[0])
+		}
+	case diagnosticRuleMatch:
+		if rule.Pattern != "" {
+			return fmt.Sprintf(report.ResolveFrameworkText("%s has an invalid format"), subject)
+		}
+	case diagnosticRuleCustom,
+		diagnosticRuleIn,
+		diagnosticRuleNotIn,
+		diagnosticRuleItemCount,
+		diagnosticRuleContains,
+		diagnosticRuleEachIn,
+		diagnosticRuleUnique,
+		diagnosticRuleEntryCount,
+		diagnosticRuleHasKeys,
+		diagnosticRuleKeysIn,
+		diagnosticRuleSubsetOf,
+		diagnosticRuleDisjoint,
+		diagnosticRuleKeysSubsetOf,
+		diagnosticRuleKeysDisjoint,
+		diagnosticRuleExactlyOne,
+		diagnosticRuleAllOrNone,
+		diagnosticRuleAtMostOne,
+		diagnosticRuleAtLeastOne:
+	}
+	return fmt.Sprintf(report.ResolveFrameworkText("%s does not satisfy the required rule"), subject)
+}
+
+func rulePresentationOperands(diagnosticSensitive bool, rule analysisDiagnosticRuleFailure) []string {
+	if diagnosticSensitive {
+		return nil
+	}
+	result := make([]string, 0, min(len(rule.Operands), diagnosticPresentationListLimit))
+	for _, operand := range rule.Operands[:min(len(rule.Operands), diagnosticPresentationListLimit)] {
+		if operand.Sensitive || operand.Literal == nil || operand.Literal.Sensitive || operand.Literal.Redacted {
+			return nil
+		}
+		text := boundedDiagnosticText(operand.Literal.Text)
+		if text == "" {
+			continue
+		}
+		result = append(result, text)
+	}
+	return result
+}
+
+func diagnosticPresentationItems(report report, diagnostic diagnostic) []string {
+	if diagnostic.Sensitive {
+		return nil
+	}
+	items := make([]string, 0, diagnosticPresentationListLimit)
+	input := diagnosticInputText(report, diagnostic)
+	if diagnostic.Rejection != nil && diagnostic.Message != "" && input != "" {
+		items = append(items, report.ResolveFrameworkText("input")+": "+input)
+	}
+	expected := diagnosticExpectedPresentation(diagnostic)
+	if len(expected) > 1 || len(expected) == 1 && diagnostic.Rejection != nil {
+		items = append(items, report.ResolveFrameworkText("expected")+": "+strings.Join(expected, ", "))
+	}
+	if len(diagnostic.Suggestions) == 1 {
+		items = append(items, report.ResolveFrameworkText("suggestion")+": "+boundedDiagnosticText(diagnostic.Suggestions[0]))
+	} else if len(diagnostic.Suggestions) > 1 {
+		limit := min(len(diagnostic.Suggestions), diagnosticPresentationListLimit)
+		values := make([]string, 0, limit)
+		for _, suggestion := range diagnostic.Suggestions[:limit] {
+			values = append(values, boundedDiagnosticText(suggestion))
+		}
+		items = append(items, report.ResolveFrameworkText("suggestions")+": "+strings.Join(values, ", "))
+	}
+	if diagnostic.Reason != "" {
 		reason := diagnostic.Reason
 		if diagnostic.FrameworkReason {
-			reason = sink.framework(reason)
+			reason = report.ResolveFrameworkText(reason)
 		}
-		sink.add("reason", reason)
+		items = append(items, report.ResolveFrameworkText("reason")+": "+boundedDiagnosticText(reason))
 	}
-
-	if diagnostic.Rule != nil {
-		addRulePresentation(&sink, diagnostic.Sensitive, *diagnostic.Rule)
-	}
-	if diagnostic.ProviderOutput != nil {
-		addProviderOutputPresentation(&sink, diagnostic.Sensitive, *diagnostic.ProviderOutput)
-	}
-	if diagnostic.Replacement != nil {
-		addReplacementPresentation(&sink, diagnostic.Sensitive, *diagnostic.Replacement)
-	}
-
-	if diagnostic.InputRedacted || diagnostic.Sensitive {
-		sink.add("input", sink.framework("<redacted>"))
-	} else if diagnostic.Input != "" {
-		sink.add("input", diagnostic.Input)
-	} else if input, ok := diagnosticInputExcerpt(report, diagnostic); ok {
-		sink.add("input", input)
-	}
-	if diagnostic.ProducerKind != "" {
-		sink.add("producer kind", sink.framework(string(diagnostic.ProducerKind)))
-	}
-	if diagnostic.Tier != "" {
-		sink.add("resolution tier", sink.framework(string(diagnostic.Tier)))
-	}
-	if diagnostic.Disposition != "" {
-		sink.add("candidate disposition", sink.framework(string(diagnostic.Disposition)))
-	}
-	if diagnostic.ExitCode != 0 {
-		sink.add("exit code", strconv.Itoa(diagnostic.ExitCode))
-	}
-
-	addSourcePresentation(&sink, report, diagnostic)
-	addOriginsPresentation(&sink, report, diagnostic.Origins)
-	addSuggestionsPresentation(&sink, diagnostic)
-	addRepairsPresentation(&sink, report, diagnostic)
-	addSignalPresentation(&sink, diagnostic)
-	addNoticePresentation(&sink, diagnostic)
-
-	if diagnostic.Hint != "" && !diagnostic.Sensitive {
+	if diagnostic.Hint != "" {
 		hint := diagnostic.Hint
 		if diagnostic.FrameworkHint {
-			hint = sink.framework(hint)
+			hint = report.ResolveFrameworkText(hint)
 		}
-		sink.add("hint", hint)
+		items = append(items, report.ResolveFrameworkText("hint")+": "+boundedDiagnosticText(hint))
 	}
-	if len(sink.items) == 0 {
-		sink.add("details", sink.framework("no additional structured presentation fields were available"))
+	for _, usage := range diagnostic.Usage[:min(len(diagnostic.Usage), diagnosticPresentationUsageLimit)] {
+		items = append(items, report.ResolveFrameworkText("usage")+": "+boundedDiagnosticText(usage))
 	}
-	return sink.finish()
+	if diagnosticShowsCode(diagnostic) && len(diagnostic.CommandPath) != 0 {
+		items = append(items, report.ResolveFrameworkText("command")+": "+boundedDiagnosticText(strings.Join(diagnostic.CommandPath, " ")))
+	}
+	if location := diagnosticSourceLocation(report, diagnostic); location != "" {
+		items = append(items, report.ResolveFrameworkText("source")+": "+location)
+	}
+	if failure := diagnostic.NoticeDelivery; failure != nil {
+		items = append(items, report.ResolveFrameworkText("notice")+": "+boundedDiagnosticText(failure.Code))
+	}
+	if overflow := diagnostic.SignalOverflow; overflow != nil {
+		items = append(items, report.ResolveFrameworkText("signal boundary")+": "+report.ResolveFrameworkText(string(overflow.Boundary)))
+	}
+	return items
 }
 
-func addRulePresentation(sink *diagnosticDetailSink, diagnosticSensitive bool, rule analysisDiagnosticRuleFailure) {
-	identity := sink.framework(string(rule.Kind))
-	if rule.ID != 0 {
-		identity += " #" + strconv.FormatUint(uint64(rule.ID), 10)
+func diagnosticExpectedPresentation(diagnostic diagnostic) []string {
+	if diagnostic.Sensitive {
+		return nil
 	}
-	if rule.Code != "" {
-		identity += sink.format(" (code %s)", boundedDiagnosticText(rule.Code))
+	if diagnostic.Rejection != nil && len(diagnostic.Rejection.Expected) != 0 {
+		return boundedDiagnosticList(diagnostic.Rejection.Expected)
 	}
-	sink.add("rule", identity)
-	if rule.ViolationKind != "" {
-		sink.add("violation", sink.framework(string(rule.ViolationKind)))
-	}
-	if len(rule.Subjects) != 0 {
-		values := make([]string, 0, min(len(rule.Subjects), diagnosticPresentationListLimit))
-		for _, subject := range rule.Subjects[:min(len(rule.Subjects), diagnosticPresentationListLimit)] {
-			values = append(values, sink.format("value #%d", subject))
-		}
-		if omitted := len(rule.Subjects) - len(values); omitted > 0 {
-			values = append(values, sink.format("+%d more", omitted))
-		}
-		sink.add("rule subjects", strings.Join(values, ", "))
-	}
-	if len(rule.Operands) != 0 {
-		values := make([]string, 0, min(len(rule.Operands), diagnosticPresentationListLimit))
-		for _, operand := range rule.Operands[:min(len(rule.Operands), diagnosticPresentationListLimit)] {
-			values = append(values, ruleOperandText(sink, operand, diagnosticSensitive))
-		}
-		if omitted := len(rule.Operands) - len(values); omitted > 0 {
-			values = append(values, sink.format("+%d more", omitted))
-		}
-		sink.add("rule operands", strings.Join(values, ", "))
-	}
-	if rule.Pattern != "" {
-		if diagnosticSensitive {
-			sink.add("pattern", sink.framework("<redacted>"))
-		} else {
-			sink.add("pattern", rule.Pattern)
-		}
-	}
-	if rule.CountValid {
-		sink.add("count", diagnosticCountText(sink, rule))
-	}
+	return boundedDiagnosticList(diagnostic.Expected)
 }
 
-func ruleOperandText(sink *diagnosticDetailSink, operand diagnosticRuleOperand, diagnosticSensitive bool) string {
-	if diagnosticSensitive || operand.Sensitive ||
-		operand.Literal != nil && (operand.Literal.Sensitive || operand.Literal.Redacted) {
-		return sink.framework("<redacted>")
-	}
-	if operand.Literal == nil {
-		return sink.framework("<unrepresentable>")
-	}
-	kind := sink.framework(operand.Literal.Type.Kind)
-	if operand.Literal.Type.Name != "" {
-		kind = operand.Literal.Type.Name
-	}
-	text := boundedDiagnosticText(operand.Literal.Text)
-	if text == "" {
-		return kind
-	}
-	return kind + " " + strconv.Quote(text)
-}
-
-func diagnosticCountText(sink *diagnosticDetailSink, rule analysisDiagnosticRuleFailure) string {
-	if rule.CountUnbounded {
-		return sink.format("%d or more", rule.CountMinimum)
-	}
-	if rule.CountMinimum == rule.CountMaximum {
-		return strconv.Itoa(rule.CountMinimum)
-	}
-	return fmt.Sprintf("%d..%d", rule.CountMinimum, rule.CountMaximum)
-}
-
-func addProviderOutputPresentation(sink *diagnosticDetailSink, diagnosticSensitive bool, output diagnosticProviderOutput) {
-	value := sink.format("entry %d (%s)", output.Index, sink.framework(commandEntryKindText(output.Kind)))
-	if output.Redacted || diagnosticSensitive {
-		value += " " + sink.framework("<redacted>")
-	} else {
-		if output.Key != "" {
-			value += sink.format(", key %s", boundedDiagnosticText(output.Key))
-		}
-		if output.Location != "" {
-			value += sink.format(", location %s", boundedDiagnosticText(output.Location))
+func boundedDiagnosticList(values []string) []string {
+	limit := min(len(values), diagnosticPresentationListLimit)
+	result := make([]string, 0, limit)
+	for _, value := range values[:limit] {
+		value = boundedDiagnosticText(value)
+		if value != "" {
+			result = append(result, value)
 		}
 	}
-	sink.add("provider output", value)
+	return result
 }
 
-func addReplacementPresentation(sink *diagnosticDetailSink, diagnosticSensitive bool, replacement diagnosticReplacement) {
-	value := diagnosticDeclarationText(sink, replacement.Target)
-	if replacement.Presentation != "" {
-		if diagnosticSensitive {
-			value += sink.format(" as %s", sink.framework("<redacted>"))
-		} else {
-			value += sink.format(" as %s", boundedDiagnosticText(replacement.Presentation))
-		}
+func diagnosticSourceLocation(report report, diagnostic diagnostic) string {
+	if diagnostic.Sensitive || diagnostic.Source == 0 {
+		return ""
 	}
-	if replacement.TargetDeprecatedDuringMigration {
-		value += sink.framework(" (target also deprecated during migration)")
+	source, ok := report.Sources[diagnostic.Source]
+	if !ok || source.Sensitive {
+		return ""
 	}
-	sink.add("replacement", value)
+	return boundedDiagnosticText(source.Location)
 }
 
-func addSourcePresentation(sink *diagnosticDetailSink, report report, diagnostic diagnostic) {
-	if diagnostic.Source == 0 && diagnostic.Span == nil {
-		return
-	}
-	id := diagnostic.Source
-	if id == 0 && diagnostic.Span != nil {
-		id = diagnostic.Span.Source
-	}
-	source, ok := report.Sources[id]
-	switch {
-	case !ok:
-		sink.add("source", sink.format("#%d (snapshot unavailable)", id))
+func diagnosticShowsCode(diagnostic diagnostic) bool {
+	switch DiagnosticCode(diagnostic.Code) {
+	case DiagnosticUnknownCommand,
+		DiagnosticAmbiguousCommand,
+		DiagnosticUnknownFlag,
+		DiagnosticAmbiguousFlag,
+		DiagnosticMisplacedFlag,
+		DiagnosticRepeatedFlag,
+		DiagnosticMissingValue,
+		DiagnosticInvalidValue,
+		DiagnosticUnexpectedArgument,
+		DiagnosticAmbiguousArgumentForm,
+		DiagnosticInvalidArgumentSyntax,
+		DiagnosticActionConflict,
+		DiagnosticNotIntroducedValue,
+		DiagnosticRemovedValue,
+		DiagnosticNotIntroducedCommand,
+		DiagnosticNotIntroducedFlag,
+		DiagnosticNotIntroducedArgument,
+		DiagnosticRemovedCommand,
+		DiagnosticRemovedFlag,
+		DiagnosticRemovedArgument,
+		DiagnosticUnavailableCommand,
+		DiagnosticUnavailableFlag,
+		DiagnosticUnavailableArgument,
+		DiagnosticRuleViolation,
+		DiagnosticNotRunnableCommand:
+		return false
 	default:
-		value := fmt.Sprintf("#%d %s", id, sink.framework(sourceKindText(source.Kind)))
-		if source.Sensitive || diagnostic.Sensitive {
-			value += " " + sink.framework("<protected metadata>")
-		} else {
-			if source.Key != "" {
-				value += sink.format(", key %s", boundedDiagnosticText(source.Key))
-			}
-			if source.Location != "" {
-				value += sink.format(", location %s", boundedDiagnosticText(source.Location))
-			}
-		}
-		sink.add("source", value)
+		return diagnostic.Code != ""
 	}
-	if diagnostic.Span != nil {
-		sink.add("span", diagnosticSpanText(sink, *diagnostic.Span))
+}
+
+func diagnosticCodeProblem(report report, code string) string {
+	text := strings.ReplaceAll(boundedDiagnosticText(code), "-", " ")
+	switch {
+	case strings.HasSuffix(text, " failure"):
+		text = strings.TrimSuffix(text, " failure") + " failed"
+	case strings.HasSuffix(text, " cancellation"):
+		text = strings.TrimSuffix(text, " cancellation") + " was cancelled"
 	}
+	if text == "" {
+		text = "frontend failure"
+	}
+	return report.ResolveFrameworkText(text)
+}
+
+func diagnosticInputText(report report, diagnostic diagnostic) string {
+	if diagnostic.Sensitive || diagnostic.InputRedacted {
+		return ""
+	}
+	if diagnostic.Input != "" {
+		return boundedDiagnosticText(diagnostic.Input)
+	}
+	if input, ok := diagnosticInputExcerpt(report, diagnostic); ok {
+		return input
+	}
+	return ""
+}
+
+func diagnosticSubject(diagnostic diagnostic) string {
+	return boundedDiagnosticText(diagnostic.Subject)
 }
 
 func diagnosticInputExcerpt(report report, diagnostic diagnostic) (string, bool) {
@@ -357,7 +626,7 @@ func diagnosticInputExcerpt(report report, diagnostic diagnostic) (string, bool)
 		return "", false
 	}
 	if diagnostic.Span != nil {
-		if text, ok := safeSpanText(report, *diagnostic.Span, false); ok {
+		if text, ok := safeSpanText(report, *diagnostic.Span); ok {
 			return text, true
 		}
 	}
@@ -366,19 +635,16 @@ func diagnosticInputExcerpt(report report, diagnostic diagnostic) (string, bool)
 		if !ok || origin.Sensitive {
 			continue
 		}
-		if text, ok := safeSpanText(report, origin.Span, false); ok {
+		if text, ok := safeSpanText(report, origin.Span); ok {
 			return text, true
 		}
 	}
 	return "", false
 }
 
-func safeSpanText(report report, span span, allowSensitive bool) (string, bool) {
+func safeSpanText(report report, span span) (string, bool) {
 	source, ok := report.Sources[span.Source]
-	if !ok || source.Sensitive && !allowSensitive {
-		return "", false
-	}
-	if span.Start.Offset < 0 || span.End.Offset < span.Start.Offset {
+	if !ok || source.Sensitive || span.Start.Offset < 0 || span.End.Offset < span.Start.Offset {
 		return "", false
 	}
 	if span.Entry == -1 {
@@ -392,379 +658,6 @@ func safeSpanText(report report, span span, allowSensitive bool) (string, bool) 
 		return "", false
 	}
 	return boundedDiagnosticText(source.Entries[span.Entry][span.Start.Offset:span.End.Offset]), true
-}
-
-func addOriginsPresentation(sink *diagnosticDetailSink, report report, ids []originID) {
-	limit := min(len(ids), diagnosticPresentationListLimit)
-	for index := range limit {
-		id := ids[index]
-		origin, ok := report.Origins[id]
-		if !ok {
-			sink.add("origin", sink.format("#%d (snapshot unavailable)", id))
-			continue
-		}
-		if origin.Sensitive {
-			sink.add("origin", sink.format("#%d %s", id, sink.framework("<protected provenance>")))
-			continue
-		}
-		value := sink.format("#%d at %s", id, diagnosticSpanText(sink, origin.Span))
-		if len(origin.Parents) != 0 {
-			parents := make([]string, 0, min(len(origin.Parents), diagnosticPresentationListLimit))
-			for _, parent := range origin.Parents[:min(len(origin.Parents), diagnosticPresentationListLimit)] {
-				parents = append(parents, "#"+strconv.FormatUint(uint64(parent), 10))
-			}
-			if omitted := len(origin.Parents) - len(parents); omitted > 0 {
-				parents = append(parents, sink.format("+%d more", omitted))
-			}
-			value += sink.format(", parents %s", strings.Join(parents, ", "))
-		}
-		sink.add("origin", value)
-	}
-	if omitted := len(ids) - limit; omitted > 0 {
-		sink.add("origins", sink.format("%d additional origins omitted", omitted))
-	}
-}
-
-func addSuggestionsPresentation(sink *diagnosticDetailSink, diagnostic diagnostic) {
-	if diagnostic.Sensitive {
-		if len(diagnostic.Suggestions) != 0 || len(diagnostic.Usage) != 0 {
-			sink.add("suggestions", sink.framework("<redacted>"))
-		}
-		return
-	}
-	for index, suggestion := range diagnostic.Suggestions[:min(len(diagnostic.Suggestions), diagnosticPresentationListLimit)] {
-		sink.add(sink.format("suggestion %d", index+1), suggestion)
-	}
-	if omitted := len(
-		diagnostic.Suggestions,
-	) - min(
-		len(diagnostic.Suggestions),
-		diagnosticPresentationListLimit,
-	); omitted > 0 {
-		sink.add("suggestions", sink.format("%d additional suggestions omitted", omitted))
-	}
-	for index, usage := range diagnostic.Usage[:min(len(diagnostic.Usage), diagnosticPresentationListLimit)] {
-		sink.add(sink.format("usage %d", index+1), usage)
-	}
-	if omitted := len(diagnostic.Usage) - min(len(diagnostic.Usage), diagnosticPresentationListLimit); omitted > 0 {
-		sink.add("usage", sink.format("%d additional usage forms omitted", omitted))
-	}
-}
-
-func addRepairsPresentation(sink *diagnosticDetailSink, report report, diagnostic diagnostic) {
-	limit := min(len(diagnostic.RepairIndexes), diagnosticPresentationListLimit)
-	for index := range limit {
-		repairIndex := diagnostic.RepairIndexes[index]
-		if repairIndex < 0 || repairIndex >= len(report.Repairs) {
-			sink.add("repair", sink.format("#%d unavailable", repairIndex))
-			continue
-		}
-		repair := report.Repairs[repairIndex]
-		if repair.Sensitive || diagnostic.Sensitive {
-			sink.add("repair", sink.format("#%d %s", repairIndex, sink.framework("<redacted>")))
-			continue
-		}
-		value := "#" + strconv.Itoa(repairIndex)
-		if repair.Title != "" {
-			value += " " + boundedDiagnosticText(repair.Title)
-		}
-		if repair.PreservesMeaning {
-			value += sink.framework(" (preserves meaning)")
-		}
-		sink.add("repair", value)
-		for sourceIndex, sourceRepair := range repair.Sources[:min(len(repair.Sources), diagnosticPresentationListLimit)] {
-			addRepairSourcePresentation(sink, report, repairIndex, sourceIndex, sourceRepair)
-		}
-		if omitted := len(repair.Sources) - min(len(repair.Sources), diagnosticPresentationListLimit); omitted > 0 {
-			sink.add(
-				"repair sources",
-				sink.format("repair #%d has %d additional source plans omitted", repairIndex, omitted),
-			)
-		}
-	}
-	if omitted := len(diagnostic.RepairIndexes) - limit; omitted > 0 {
-		sink.add("repairs", sink.format("%d additional repair alternatives omitted", omitted))
-	}
-}
-
-func addRepairSourcePresentation(sink *diagnosticDetailSink, report report, repairIndex, sourceIndex int, sourceRepair repairSource) {
-	protected := false
-	if source, ok := report.Sources[sourceRepair.Source]; ok && source.Sensitive {
-		protected = true
-	}
-	value := sink.format(
-		"repair #%d source %d (#%d): %d text edits, %d entry edits",
-		repairIndex,
-		sourceIndex+1,
-		sourceRepair.Source,
-		len(sourceRepair.TextEdits),
-		len(sourceRepair.EntryEdits),
-	)
-	if protected {
-		value += " " + sink.framework("<protected>")
-	}
-	sink.add("repair plan", value)
-	if protected {
-		return
-	}
-	for index, edit := range sourceRepair.TextEdits[:min(len(sourceRepair.TextEdits), diagnosticPresentationListLimit)] {
-		sink.add(
-			sink.format("text edit %d", index+1),
-			diagnosticSpanText(sink, edit.Span)+" -> "+replacementText(sink, report, edit.Replacement),
-		)
-	}
-	for index, edit := range sourceRepair.EntryEdits[:min(len(sourceRepair.EntryEdits), diagnosticPresentationListLimit)] {
-		entries := make([]string, 0, min(len(edit.Entries), diagnosticPresentationListLimit))
-		for _, replacement := range edit.Entries[:min(len(edit.Entries), diagnosticPresentationListLimit)] {
-			entries = append(entries, replacementText(sink, report, replacement))
-		}
-		if omitted := len(edit.Entries) - len(entries); omitted > 0 {
-			entries = append(entries, sink.format("+%d more", omitted))
-		}
-		sink.add(
-			sink.format("entry edit %d", index+1),
-			sink.format("entries %d..%d -> %s", edit.Start, edit.End, strings.Join(entries, ", ")),
-		)
-	}
-}
-
-func replacementText(sink *diagnosticDetailSink, report report, replacement replacement) string {
-	parts := make([]string, 0, min(len(replacement), diagnosticPresentationListLimit))
-	for _, part := range replacement[:min(len(replacement), diagnosticPresentationListLimit)] {
-		switch {
-		case part.Sensitive:
-			parts = append(parts, sink.framework("<redacted>"))
-		case part.Literal != nil:
-			parts = append(parts, strconv.Quote(boundedDiagnosticText(*part.Literal)))
-		case part.Copy != nil:
-			if source, ok := report.Sources[part.Copy.Source]; ok && source.Sensitive {
-				parts = append(parts, sink.framework("<copy from protected source>"))
-			} else {
-				parts = append(parts, sink.format("copy %s", diagnosticSpanText(sink, *part.Copy)))
-			}
-		default:
-			parts = append(parts, sink.framework("<invalid replacement part>"))
-		}
-	}
-	if omitted := len(replacement) - len(parts); omitted > 0 {
-		parts = append(parts, sink.format("+%d more", omitted))
-	}
-	return strings.Join(parts, " + ")
-}
-
-func signalIdentityText(sink *diagnosticDetailSink, signal Signal) string {
-	return sink.format("declared-signal-%d", signal.id)
-}
-
-func addSignalActionPresentation(sink *diagnosticDetailSink, diagnostic diagnostic, failure *diagnosticSignalActionFailure) {
-	value := sink.format(
-		"policy #%d action %d %s",
-		failure.PolicyID.uint32(),
-		failure.Index,
-		sink.framework(string(failure.Action.Kind)),
-	)
-	if failure.Action.Name != "" && !failure.Action.Sensitive && !diagnostic.Sensitive {
-		value += " " + boundedDiagnosticText(failure.Action.Name)
-	}
-	value += sink.format(", phase %s", sink.framework(signalPhaseText(failure.Phase)))
-	sink.add("signal action", value)
-	if len(failure.CommandPath) != 0 {
-		sink.add("signal command", boundedPath(sink, failure.CommandPath))
-	}
-	if failure.Action.EndpointID.present() {
-		sink.add("signal endpoint", identityText(failure.Action.EndpointID.uint32()))
-	}
-	if failure.Action.SignalRedacted || failure.Action.Sensitive || diagnostic.Sensitive {
-		sink.add("action signal", sink.framework("<redacted>"))
-	} else if failure.Action.Signal.valid() {
-		sink.add("action signal", signalIdentityText(sink, failure.Action.Signal))
-	}
-	if failure.Action.Delayed {
-		if failure.Action.DelayRedacted || failure.Action.Sensitive || diagnostic.Sensitive {
-			sink.add("action delay", sink.framework("<redacted>"))
-		} else {
-			sink.add("action delay", failure.Action.Delay.String())
-		}
-	}
-	if failure.Action.ExitCode != 0 {
-		sink.add("action exit code", strconv.Itoa(failure.Action.ExitCode))
-	}
-	if failure.Event.Signal.valid() && !failure.Action.Sensitive && !diagnostic.Sensitive {
-		sink.add("observed signal", signalIdentityText(sink, failure.Event.Signal))
-	}
-	sink.add("signal origin", sink.framework(signalOriginText(failure.Event.Origin)))
-	sink.add("signal event phase", sink.framework(signalPhaseText(failure.Event.Phase)))
-	if failure.Event.BatchSize != 0 || failure.Event.FirstOccurrence != 0 || failure.Event.LastOccurrence != 0 {
-		sink.add(
-			"signal occurrences",
-			sink.format(
-				"first %d, last %d, batch %d",
-				failure.Event.FirstOccurrence,
-				failure.Event.LastOccurrence,
-				failure.Event.BatchSize,
-			),
-		)
-	}
-	if failure.Event.Sender != nil && !failure.Action.Sensitive && !diagnostic.Sensitive {
-		sink.add(
-			"signal sender",
-			sink.format(
-				"pid %d, uid %d, code %d",
-				failure.Event.Sender.ProcessID,
-				failure.Event.Sender.UserID,
-				failure.Event.Sender.Code,
-			),
-		)
-	}
-}
-
-func addSignalPresentation(sink *diagnosticDetailSink, diagnostic diagnostic) {
-	if failure := diagnostic.SignalAction; failure != nil {
-		addSignalActionPresentation(sink, diagnostic, failure)
-	}
-	if overflow := diagnostic.SignalOverflow; overflow != nil {
-		value := sink.format(
-			"%s boundary, capacity %d, buffered %d",
-			sink.framework(string(overflow.Boundary)),
-			overflow.Capacity,
-			overflow.Buffered,
-		)
-		if overflow.EndpointID.present() {
-			value += sink.format(", endpoint #%d", overflow.EndpointID.uint32())
-		}
-		sink.add("signal overflow", value)
-	}
-}
-
-func addNoticePresentation(sink *diagnosticDetailSink, diagnostic diagnostic) {
-	if failure := diagnostic.NoticeDelivery; failure != nil {
-		value := sink.format(
-			"attempt %d, %s, notice code %s",
-			failure.Index,
-			sink.framework(string(failure.Phase)),
-			boundedDiagnosticText(failure.Code),
-		)
-		sink.add("notice delivery", value)
-		if len(failure.CommandPath) != 0 {
-			sink.add("notice command", boundedPath(sink, failure.CommandPath))
-		}
-	}
-}
-
-func diagnosticDeclarationText(sink *diagnosticDetailSink, identity analysisDiagnosticDeclarationIdentity) string {
-	var id uint32
-	switch identity.Kind {
-	case diagnosticDeclarationCommandEntry:
-		id = identity.CommandEntry.uint32()
-	case diagnosticDeclarationActionEntry:
-		id = identity.ActionEntry.uint32()
-	case diagnosticDeclarationFlag:
-		id = identity.Flag.uint32()
-	case diagnosticDeclarationFlagSpelling:
-		id = identity.FlagSpelling.uint32()
-	case diagnosticDeclarationArgumentForm:
-		id = identity.ArgumentForm.uint32()
-	case diagnosticDeclarationArgumentTerm:
-		id = identity.ArgumentTerm.uint32()
-	case diagnosticDeclarationEnvironmentInput:
-		id = identity.EnvironmentInput.uint32()
-	case diagnosticDeclarationValueDomainEntry:
-		id = identity.ValueDomainEntry.uint32()
-	}
-	if id == 0 {
-		return sink.framework(string(identity.Kind))
-	}
-	return sink.format("%s #%d", sink.framework(string(identity.Kind)), id)
-}
-
-func diagnosticSpanText(sink *diagnosticDetailSink, span span) string {
-	value := sink.format("source #%d", span.Source)
-	if span.Entry >= 0 {
-		value += sink.format(" entry %d", span.Entry)
-	}
-	value += sink.format(" bytes %d..%d", span.Start.Offset, span.End.Offset)
-	if span.Start.Line > 0 && span.Start.Column > 0 {
-		value += sink.format(" (line %d:%d", span.Start.Line, span.Start.Column)
-		if span.End.Line > 0 && span.End.Column > 0 {
-			value += fmt.Sprintf("..%d:%d", span.End.Line, span.End.Column)
-		}
-		value += ")"
-	}
-	return value
-}
-
-func sourceKindText(kind InputKind) string {
-	switch kind {
-	case InputKindArguments:
-		return "arguments"
-	case InputKindEnvironment:
-		return "environment"
-	case InputKindShortcut:
-		return "shortcut"
-	case InputKindResponseFile:
-		return "response file"
-	case InputKindGenerated:
-		return "generated"
-	default:
-		return unknownDiagnosticText
-	}
-}
-
-func commandEntryKindText(kind CommandEntryKind) string {
-	switch kind {
-	case CommandEntryCanonical:
-		return "canonical"
-	case CommandEntryAlias:
-		return "alias"
-	case CommandEntryShortcut:
-		return "shortcut"
-	default:
-		return unknownDiagnosticText
-	}
-}
-
-func signalPhaseText(phase SignalPhase) string {
-	switch phase {
-	case SignalPhaseResolution:
-		return "resolution"
-	case SignalPhaseExecution:
-		return "execution"
-	case SignalPhaseCleanup:
-		return "cleanup"
-	default:
-		return unknownDiagnosticText
-	}
-}
-
-func signalOriginText(origin SignalOrigin) string {
-	switch origin {
-	case SignalOriginTerminal:
-		return "terminal"
-	case SignalOriginProcess:
-		return "process"
-	case SignalOriginKernel:
-		return "kernel"
-	case SignalOriginChild:
-		return "child"
-	case SignalOriginRuntime:
-		return "runtime"
-	default:
-		return unknownDiagnosticText
-	}
-}
-
-func identityText(id uint32) string { return "#" + strconv.FormatUint(uint64(id), 10) }
-
-func boundedPath(sink *diagnosticDetailSink, path []string) string {
-	limit := min(len(path), diagnosticPresentationListLimit)
-	parts := make([]string, 0, limit+1)
-	for _, part := range path[:limit] {
-		parts = append(parts, boundedDiagnosticText(part))
-	}
-	if omitted := len(path) - limit; omitted > 0 {
-		parts = append(parts, sink.format("…(+%d)", omitted))
-	}
-	return strings.Join(parts, " ")
 }
 
 func boundedDiagnosticText(text string) string {

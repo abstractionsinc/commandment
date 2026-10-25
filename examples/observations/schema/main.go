@@ -25,7 +25,7 @@ var definition = cli.Definition[struct{}]{
 func main() {
 	app, err := cli.Compile(definition)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(1)
 	}
 

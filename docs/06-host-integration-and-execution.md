@@ -21,11 +21,11 @@ Typed integration points connect those responsibilities without forcing handlers
 func main() {
 	app, err := cli.Compile(definition)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(1)
 	}
 	if err := app.RunFromProcess(context.Background()); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(cli.ExitCode(err))
 	}
 }
@@ -81,6 +81,8 @@ if errors.Is(err, errNotAuthorized) {
 ```
 
 Commandment does not manufacture a frontend diagnostic because application code returned an error. Use `cli.Diagnostics(err)` for Commandment-owned diagnostics that may be present in an error tree, and use `errors.Is` or `errors.As` for application error identity.
+
+At an executable boundary, use `cli.WriteError` to publish a returned error. Commandment-owned failures receive the canonical writer-aware CLI presentation; application-owned errors keep ordinary `Error()` / `%v` presentation. `WriteError` supplies the trailing newline and returns destination failures, while `cli.ExitCode` remains the separate process-status query. Commandment's `%+v` formatting is a detailed developer/debug view, not the normal user-facing CLI path.
 
 Use `cli.WithExitCode(err, code)` when an application execution error should select an explicit exit status. `cli.ExitCode` queries the status represented by the returned error at the process boundary; an arbitrary `ExitCode() int` method on an application error does not opt into Commandment exit policy.
 

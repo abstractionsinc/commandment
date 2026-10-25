@@ -140,12 +140,13 @@ func (operation *invocation) flagConversionRange(analysis *analysisState, occurr
 		return nil, false
 	}
 	end := len(analysis.args[index])
-	return []conversionRangeCoordinate{{
+	coordinate := conversionRangeCoordinate{
 		origin:        origin.ID(),
 		physicalIndex: index,
 		start:         end - len(occurrence.Attached),
 		end:           end,
-	}}, true
+	}
+	return []conversionRangeCoordinate{coordinate}, true
 }
 
 func (operation *invocation) evaluateValueLanguage(analysis *analysisState, destination ValueID, language valueLanguage, text string, index int) conversionOutcome {
@@ -158,7 +159,10 @@ func (operation *invocation) evaluateValueLanguage(analysis *analysisState, dest
 		destination: destination,
 		rangeKey:    conversionRangeKey(coordinates),
 	}
-	return operation.evaluateConversion(analysis, key, func() conversionOutcome { return language.Evaluate(text) })
+	return operation.evaluateConversion(analysis, key, func() conversionOutcome {
+		outcome := language.Evaluate(text)
+		return normalizeRejectedConversion(analysis, outcome, []string{text}, coordinates)
+	})
 }
 
 func (operation *invocation) evaluateFlagTokenLanguage(ctx context.Context, analysis *analysisState, flag FlagID, language tokenLanguage, occurrence flagOccurrence, tokens []string) conversionOutcome {
@@ -174,7 +178,10 @@ func (operation *invocation) evaluateFlagTokenLanguage(ctx context.Context, anal
 	return operation.evaluateConversion(
 		analysis,
 		key,
-		func() conversionOutcome { return language.Evaluate(ctx, tokens) },
+		func() conversionOutcome {
+			outcome := language.Evaluate(ctx, tokens)
+			return normalizeRejectedConversion(analysis, outcome, tokens, coordinates)
+		},
 	)
 }
 
@@ -191,7 +198,10 @@ func (operation *invocation) evaluateArgumentTokenLanguage(ctx context.Context, 
 	return operation.evaluateConversion(
 		analysis,
 		key,
-		func() conversionOutcome { return language.Evaluate(ctx, tokens) },
+		func() conversionOutcome {
+			outcome := language.Evaluate(ctx, tokens)
+			return normalizeRejectedConversion(analysis, outcome, tokens, coordinates)
+		},
 	)
 }
 

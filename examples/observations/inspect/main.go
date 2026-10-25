@@ -65,7 +65,7 @@ func scanValueIDs(schema cli.Schema) (cli.CommandID, cli.ValueID, cli.ValueID, b
 func main() {
 	app, err := cli.Compile(definition)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -74,7 +74,7 @@ func main() {
 	}
 	inspection, err := app.Inspect(context.Background(), request)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_ = cli.WriteError(os.Stderr, err)
 		os.Exit(1)
 	}
 

@@ -786,7 +786,7 @@ func collectionResolutionFailure(label evaluationField, name string, index int, 
 		return notProvableResult(label, evaluationText("resolvable ordered "+name+" locators"), detail), true
 	default:
 		detail := prefixedDetail{
-			prefix: fmt.Sprintf("item %d", index),
+			prefix: fmt.Sprintf("item %d: ", index),
 			detail: detail,
 		}
 		return disprovedResult(label, evaluationText("resolvable ordered "+name+" locators"), detail), true

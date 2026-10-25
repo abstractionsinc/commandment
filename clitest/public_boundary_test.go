@@ -207,3 +207,174 @@ func TestApplicationOwnedEffectsAndErrorsRemainOrdinaryGo(t *testing.T) {
 		t.Fatalf("clitest invented Commandment diagnostics for business error: %#v", report)
 	}
 }
+
+func TestLocalizationAuditExcludesSynthesizedFrontendCompletionSources(t *testing.T) {
+	t.Parallel()
+
+	const source = "known source"
+	definition := cli.Definition[struct{}]{
+		Name: "alienctl",
+		Description: cli.Description{
+			Short: source,
+		},
+		Localization: cli.Localization{
+			DefaultLocale: "en",
+			Bundles: []cli.TranslationBundle{
+				{
+					Locale: "fr",
+					Translations: cli.Translations{
+						source: "source connue",
+					},
+				},
+			},
+		},
+	}
+	app := clitest.Compile(t, definition)
+	policy := clitest.LocalizationPolicy{
+		RequireCompleteLocales: []cli.Locale{"fr"},
+	}
+
+	clitest.RequireLocalization(t, app, policy)
+}
+
+type inputRejectionConfig struct{ Value string }
+
+func inputRejectionObservation(t *testing.T, sensitive bool) (clitest.DiagnosticsResult, cli.InputSpan) {
+	t.Helper()
+
+	parse := func(_ context.Context, tokens []string) (string, error) {
+		if tokens[0] == "ok" {
+			return tokens[0], nil
+		}
+		if sensitive {
+			return "", cli.Rejection.Message(
+				"choice",
+				"sensitive choice",
+				cli.Rejection.At(0, 1, 2),
+				cli.Rejection.Expected("alpha", "beta"),
+				cli.Rejection.Sensitive(),
+			)
+		}
+		return "", cli.Rejection.Message(
+			"choice",
+			"invalid choice",
+			cli.Rejection.At(0, 1, 2),
+			cli.Rejection.Expected("alpha", "beta"),
+		)
+	}
+	format := func(value string) []string { return []string{value} }
+	declare := func(root *cli.CommandBuilder[inputRejectionConfig]) {
+		value := root.Values.String(&root.Config.Value)
+		language := cli.TokenLanguage[string]{
+			Name:   "choice",
+			Count:  cli.Count.Exactly(1),
+			Parse:  parse,
+			Format: format,
+		}
+		root.Arguments.Form(func(form *cli.ArgumentFormBuilder[inputRejectionConfig]) {
+			form.Tokens(value, "choice", language)
+		})
+	}
+	definition := cli.Definition[inputRejectionConfig]{
+		Name:    "tool",
+		Declare: declare,
+	}
+	app := clitest.Compile(t, definition)
+	request := cli.InspectionRequest{
+		Args: []string{"bad"},
+	}
+	inspection, err := app.Inspect(t.Context(), request)
+	if err == nil {
+		t.Fatal("Inspect() error = nil, want structured rejection")
+	}
+	if len(inspection.Tokens) != 1 {
+		t.Fatalf("Inspection token count = %d, want 1", len(inspection.Tokens))
+	}
+	origin, ok := inspection.Origins[inspection.Tokens[0].Origin]
+	if !ok {
+		t.Fatalf("Inspection token origin %v is absent", inspection.Tokens[0].Origin)
+	}
+	expectedSpan := cli.InputSpan{
+		Source: origin.Span.Source,
+		Entry:  origin.Span.Entry,
+		Start: cli.InputPosition{
+			Offset: origin.Span.Start.Offset + 1,
+		},
+		End: cli.InputPosition{
+			Offset: origin.Span.Start.Offset + 2,
+		},
+	}
+
+	diagnostics := clitest.Diagnostics(err)
+	return diagnostics, expectedSpan
+}
+
+func TestDiagnosticRejectionRelationPreservesStructuredExactness(t *testing.T) {
+	t.Parallel()
+
+	diagnostics, expectedSpan := inputRejectionObservation(t, false)
+	locator := clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection()
+	diagnostics.Require(
+		t,
+		locator.Code(cli.InputRejectionCode("choice")),
+		locator.ExpectedExactly("alpha", "beta"),
+		locator.SpansExactly(expectedSpan),
+	)
+
+	sensitiveDiagnostics, sensitiveSpan := inputRejectionObservation(t, true)
+	sensitiveDiagnostics.Require(
+		t,
+		locator.Code(cli.InputRejectionCode("choice")),
+		locator.SpansExactly(sensitiveSpan),
+	)
+
+	definition := cli.Definition[struct{}]{
+		Name: "tool",
+	}
+	app := clitest.Compile(t, definition)
+	request := cli.InspectionRequest{
+		Args: []string{"--unknown"},
+	}
+	_, unknownFlagErr := app.Inspect(t.Context(), request)
+	if unknownFlagErr == nil {
+		t.Fatal("Inspect() error = nil, want unknown flag")
+	}
+	clitest.Diagnostics(unknownFlagErr).Require(
+		t,
+		clitest.Diagnostic(cli.DiagnosticUnknownFlag).Rejection().DoesNotExist(),
+	)
+}
+
+func TestDiagnosticRejectionExpectedExactlySnapshotsCallerSlice(t *testing.T) {
+	t.Parallel()
+
+	expected := []string{"alpha", "beta"}
+	expectation := clitest.Diagnostic(cli.DiagnosticInvalidValue).Rejection().ExpectedExactly(expected...)
+	expected[0] = "mutated"
+	diagnostics, _ := inputRejectionObservation(t, false)
+
+	diagnostics.Require(t, expectation)
+}
+
+func TestDiagnosticsResultReportDetachesInputRejectionDetail(t *testing.T) {
+	t.Parallel()
+
+	diagnostics, expectedSpan := inputRejectionObservation(t, false)
+	first := diagnostics.Report()
+	if len(first.Diagnostics) != 1 || first.Diagnostics[0].Rejection == nil {
+		t.Fatalf("first Report() = %#v", first)
+	}
+	first.Diagnostics[0].Rejection.Code = "mutated"
+	first.Diagnostics[0].Rejection.Expected[0] = "mutated"
+	first.Diagnostics[0].Rejection.Spans[0].Start.Offset = 99
+	first.Diagnostics[0].Rejection.Expected = append(first.Diagnostics[0].Rejection.Expected, "extra")
+
+	second := diagnostics.Report()
+	observed := second.Diagnostics[0].Rejection
+	if observed.Code != "choice" || len(observed.Expected) != 2 || observed.Expected[0] != "alpha" || observed.Expected[1] != "beta" {
+		t.Fatalf("second Report() rejection = %#v", observed)
+	}
+	if len(observed.Spans) != 1 || observed.Spans[0] != expectedSpan {
+		t.Fatalf("second Report() spans = %#v, want %#v", observed.Spans, []cli.InputSpan{expectedSpan})
+	}
+}

@@ -184,9 +184,9 @@ func (operation *invocation) settleDependencies(ctx context.Context, grammar gra
 	dependencyAnalysis := analyzeDependencies(ctx, operation, grammar, requirements)
 	values := dependencyAnalysis.Values
 	enforceEffectiveDomainMembership(model, &values)
-	diagnostics := runValueDiagnostics(model, values)
+	diagnostics, valueTruncated := runValueDiagnostics(operation, model, values)
 	if len(diagnostics) != 0 {
-		return valueAnalysis{}, valueDiagnosticFailure(operation, model, values, diagnostics, grammar.Truncated)
+		return valueAnalysis{}, valueDiagnosticFailure(operation, model, values, diagnostics, grammar.Truncated || valueTruncated)
 	}
 	if !dependencyAnalysis.Ready || valueAnalysisIncomplete(values) {
 		blocked := dependencyAnalysis.BlockedBy
